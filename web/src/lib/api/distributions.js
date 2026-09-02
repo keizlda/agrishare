@@ -34,6 +34,14 @@ export async function listDistributions() {
   return data.map(mapDistribution);
 }
 
+// Single-row fetch for the standalone print view, which loads in its own
+// tab (no app state to reuse) and only needs the one distribution.
+export async function getDistribution(eventId) {
+  const { data, error } = await supabase.from("distribution_events").select(SELECT).eq("event_id", eventId).single();
+  if (error) throw error;
+  return mapDistribution(data);
+}
+
 export async function createDistribution({ program, venue, beneficiaries, commodityId, quantity, fundingSource, acknowledgementStatus }) {
   const { data: event, error: eventErr } = await supabase
     .from("distribution_events")

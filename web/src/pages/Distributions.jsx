@@ -12,7 +12,6 @@ import { usePagination } from "../hooks/usePagination.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { createDistribution, listDistributions } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
-import { previewDistributionReportPdf } from "../utils/generateReportPdf.js";
 
 const OTHER_PROGRAM = "Other (specify)";
 const EMPTY_FORM = {
@@ -197,7 +196,7 @@ export default function Distributions() {
 
             <button
               className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
-              onClick={() => previewDistributionReportPdf(selected)}
+              onClick={() => window.open(`/print/distributions/${selected.id}`, "_blank", "noopener,noreferrer")}
             >
               <Printer size={15} /> Print Distribution Report
             </button>

@@ -1,0 +1,250 @@
+/* Scoped to the standalone print-report route only — every class is
+   prefixed pr- so nothing here can collide with the app's agri- classes,
+   even though this stylesheet loads into the same bundle. */
+
+.pr-page {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", Arial, sans-serif;
+  color: #1a1f1c;
+  background: #ffffff;
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 0.4in 0.25in 1in;
+  font-size: 11pt;
+}
+
+.pr-toolbar {
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 14px 0.25in 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Outer table + thead is the standard cross-browser way to make a header
+   repeat on every printed page without a PDF library. */
+.pr-shell {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pr-shell > thead > tr > td,
+.pr-shell > tbody > tr > td {
+  padding: 0;
+}
+
+.pr-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.pr-logo {
+  height: 64px;
+  width: auto;
+  object-fit: contain;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.pr-header-center {
+  flex: 1;
+  text-align: center;
+}
+
+.pr-header-line {
+  font-size: 8pt;
+  color: #6b7a70;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pr-header-office {
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: #1a1f1c;
+  letter-spacing: 0.02em;
+  margin: 3px 0;
+}
+
+.pr-rule {
+  height: 1.5px;
+  background: #2f9e44;
+  border: none;
+  margin: 16px 0 32px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.pr-title-block {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.pr-title {
+  font-size: 18pt;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #14251a;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+
+.pr-subtitle {
+  font-size: 9pt;
+  color: #6b7a70;
+}
+
+.pr-section {
+  margin-bottom: 24px;
+  page-break-inside: avoid;
+}
+
+.pr-section-label {
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2f9e44;
+  border-bottom: 1px solid #e4eae4;
+  padding-bottom: 6px;
+  margin-bottom: 14px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.pr-kv-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 40px;
+}
+
+.pr-kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f2f0;
+}
+
+.pr-kv-label {
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7a70;
+}
+
+.pr-kv-value {
+  font-size: 11pt;
+  color: #1a1f1c;
+  text-align: right;
+}
+
+.pr-empty {
+  color: #b7c2ba;
+}
+
+.pr-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pr-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5pt;
+}
+
+.pr-items-table th {
+  text-align: left;
+  font-size: 8pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7a70;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #c9d3cb;
+}
+
+.pr-items-table td {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f2f0;
+}
+
+.pr-num { text-align: right; }
+
+.pr-items-table th:nth-child(2),
+.pr-items-table td:nth-child(2) {
+  width: 110px;
+}
+
+.pr-items-table th:nth-child(3),
+.pr-items-table td:nth-child(3) {
+  padding-left: 20px;
+}
+
+.pr-items-total td {
+  border-top: 1.5px solid #14251a;
+  border-bottom: none;
+  font-weight: 600;
+  padding-top: 10px;
+}
+
+.pr-signatures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 28px;
+  page-break-inside: avoid;
+}
+
+.pr-sig-col {
+  text-align: center;
+}
+
+.pr-sig-space {
+  height: 32px;
+}
+
+.pr-sig-line {
+  border-top: 1px solid #1a1f1c;
+  margin-bottom: 6px;
+}
+
+.pr-sig-name {
+  font-weight: 600;
+  font-size: 10pt;
+}
+
+.pr-sig-role {
+  font-size: 8.5pt;
+  color: #6b7a70;
+}
+
+.pr-footer {
+  margin-top: 20px;
+  padding-top: 10px;
+  page-break-inside: avoid;
+  border-top: 1px solid #e4eae4;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8pt;
+  color: #8b978f;
+}
+
+@page {
+  margin: 0.75in;
+}
+
+@media print {
+  .pr-no-print { display: none !important; }
+  .pr-page { padding: 0; max-width: none; }
+  body { margin: 0; background: #fff; }
+}
