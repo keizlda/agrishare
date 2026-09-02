@@ -9,10 +9,15 @@ import { Users, ShieldCheck, ShieldX } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
-import { barangays, commodityCategories, computeFarmerStats } from "../data/mockData.js";
+import { commodityCategories, computeFarmerStats } from "../data/mockData.js";
 import { createFarmer, deleteFarmer, listFarmers, setFarmerStatus } from "../lib/api/farmers.js";
 
 const PAGE_SIZE = 5;
+
+// Farmers page only offers actual crop commodities in its dropdowns — Farm
+// Tools/Livestock are program categories (still valid on the Commodities
+// page), not something a farmer record is planted with.
+const FARMER_COMMODITY_OPTIONS = commodityCategories.filter((c) => c !== "Farm Tools" && c !== "Livestock");
 
 const EMPTY_FORM = {
   rsbsaNo: "", firstName: "", lastName: "", sex: "Male", birthDate: "",
@@ -24,7 +29,6 @@ export default function Farmers() {
   const isMAO = user?.role !== "FA President";
   const { data: farmers, setData: setFarmers, loading, error: loadError } = useSupabaseList(listFarmers);
   const [search, setSearch] = useState("");
-  const [barangayFilter, setBarangayFilter] = useState("All");
   const [commodityFilter, setCommodityFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showModal, setShowModal] = useState(false);
@@ -40,12 +44,11 @@ export default function Farmers() {
     return farmers.filter((f) => {
       const fullName = `${f.firstName} ${f.lastName}`.toLowerCase();
       const matchesSearch = !search || fullName.includes(search.toLowerCase()) || f.rsbsaNo.includes(search);
-      const matchesBarangay = barangayFilter === "All" || f.barangay === barangayFilter;
       const matchesCommodity = commodityFilter === "All" || f.commodity === commodityFilter;
       const matchesStatus = statusFilter === "All" || f.status === statusFilter;
-      return matchesSearch && matchesBarangay && matchesCommodity && matchesStatus;
+      return matchesSearch && matchesCommodity && matchesStatus;
     });
-  }, [farmers, search, barangayFilter, commodityFilter, statusFilter]);
+  }, [farmers, search, commodityFilter, statusFilter]);
 
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
 
@@ -116,14 +119,9 @@ export default function Farmers() {
             />
           </div>
 
-          <select className="form-select" style={{ width: 150 }} value={barangayFilter} onChange={(e) => setBarangayFilter(e.target.value)}>
-            <option value="All">All Barangays</option>
-            {barangays.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-
           <select className="form-select" style={{ width: 170 }} value={commodityFilter} onChange={(e) => setCommodityFilter(e.target.value)}>
             <option value="All">All Commodities</option>
-            {commodityCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+            {FARMER_COMMODITY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
 
           <select className="form-select" style={{ width: 150 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -269,7 +267,7 @@ function FarmerModal({ form, setForm, error, saving, onClose, onSubmit }) {
             </Field>
             <Field label="Commodity" col={6}>
               <select className="form-select" value={form.commodity} onChange={(e) => update("commodity", e.target.value)}>
-                {commodityCategories.map((c) => <option key={c}>{c}</option>)}
+                {FARMER_COMMODITY_OPTIONS.map((c) => <option key={c}>{c}</option>)}
               </select>
             </Field>
             <Field label="Farm Size (ha)" col={6}>
