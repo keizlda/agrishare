@@ -74,7 +74,6 @@ export default function CropValidationScreen({ navigation }) {
   const [plantingDate, setPlantingDate] = useState(s.distributionDate);
   const [remarks, setRemarks] = useState("");
   const [photoCaptured, setPhotoCaptured] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPath, setPhotoPath] = useState(null);
   const [photoUri, setPhotoUri] = useState(null);
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
@@ -191,15 +190,12 @@ export default function CropValidationScreen({ navigation }) {
       const uri = await captureRef(stampRef, { format: "jpg", quality: 0.85, result: "tmpfile" });
       setStampJob(null);
       setPhotoUri(uri);
-      setUploadingPhoto(true);
       const path = await uploadCropPhoto(farmer.farmerId, uri);
       setPhotoPath(path);
       setPhotoCaptured(true);
     } catch (err) {
       setStampJob(null);
       Alert.alert("Photo stamping failed", err.message);
-    } finally {
-      setUploadingPhoto(false);
     }
   }
 
@@ -364,20 +360,10 @@ export default function CropValidationScreen({ navigation }) {
                     RSBSA {farmer?.rsbsaNo ?? "—"} · {farmer?.firstName} {farmer?.lastName}
                   </Text>
                 </View>
-                <View style={styles.finalizingPill}>
-                  <Ionicons name="sync" size={11} color="#fff" />
-                  <Text style={styles.finalizingPillText}>Finalizing…</Text>
-                </View>
               </View>
             ) : photoUri ? (
               <>
                 <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
-                {uploadingPhoto && (
-                  <View style={styles.finalizingPill}>
-                    <Ionicons name="cloud-upload-outline" size={11} color="#fff" />
-                    <Text style={styles.finalizingPillText}>Uploading…</Text>
-                  </View>
-                )}
                 <View style={styles.viewHintPill}>
                   <Ionicons name="expand-outline" size={11} color="#fff" />
                   <Text style={styles.finalizingPillText}>Tap to view</Text>
@@ -574,18 +560,6 @@ const styles = StyleSheet.create({
   photoCaption: { fontSize: 11.5, color: colors.textMuted },
   photoPreview: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
 
-  finalizingPill: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(10,25,15,0.72)",
-    borderRadius: radius.pill,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
   finalizingPillText: { color: "#fff", fontWeight: "700", fontSize: 10 },
 
   viewHintPill: {
