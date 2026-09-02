@@ -1,8 +1,8 @@
 import { supabase } from "../supabaseClient.js";
-import { dbStatusToLabel } from "../status.js";
+import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 
 const SELECT = `
-  event_id, program_name, event_date, venue, barangay, status, remarks, beneficiaries_count,
+  event_id, program_name, event_date, venue, barangay, funding_source, acknowledgement_status, status, remarks, beneficiaries_count,
   distribution_event_items ( quantity_allocated, commodities ( name, category, unit ) )
 `;
 
@@ -21,6 +21,8 @@ function mapDistribution(row) {
     status: dbStatusToLabel(row.status),
     venue: row.venue ?? "",
     program: row.program_name,
+    fundingSource: row.funding_source ?? "",
+    acknowledgementStatus: dbStatusToLabel(row.acknowledgement_status),
     remarks: row.remarks ?? "",
     items,
   };
@@ -32,17 +34,21 @@ export async function listDistributions() {
   return data.map(mapDistribution);
 }
 
-export async function createDistribution({ program, venue, beneficiaries, commodityId, quantity }) {
+export async function createDistribution({ program, venue, beneficiaries, commodityId, quantity, fundingSource, acknowledgementStatus }) {
   const { data: event, error: eventErr } = await supabase
     .from("distribution_events")
     .insert({
       program_name: program,
       event_date: new Date().toISOString().slice(0, 10),
       venue,
+      funding_source: fundingSource || null,
+      acknowledgement_status: labelToDbStatus(acknowledgementStatus || "Pending"),
       status: "ongoing",
       beneficiaries_count: Number(beneficiaries) || 0,
     })
-    .select("event_id, program_name, event_date, venue, barangay, status, remarks, beneficiaries_count")
+    .select(
+      "event_id, program_name, event_date, venue, barangay, funding_source, acknowledgement_status, status, remarks, beneficiaries_count",
+    )
     .single();
   if (eventErr) throw eventErr;
 
