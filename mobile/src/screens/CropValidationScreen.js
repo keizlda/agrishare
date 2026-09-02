@@ -19,6 +19,23 @@ function accuracyRating(meters) {
   return "Low";
 }
 
+// Barangay Langapud's approximate center — the schema has no per-parcel GPS
+// coordinates, so this is the only geographic anchor available to flag a
+// submission that's obviously nowhere near the declared parcel. Mirrors the
+// same reference point and threshold the MAO/FA review screen on web uses,
+// so both sides agree on what counts as "far."
+const LANGAPUD_REF = { lat: 7.8333, lng: 123.6333 };
+const FAR_THRESHOLD_KM = 5;
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 // Both the photo and GPS geotag are real: the photo comes from the device
 // camera via expo-image-picker, and the location from expo-location, each
 // gated behind a real native permission prompt before the record is built.
@@ -86,6 +103,7 @@ export default function CropValidationScreen({ navigation }) {
         longitude,
         accuracy: position.coords.accuracy,
         placeLabel,
+        distanceKm: haversineKm(latitude, longitude, LANGAPUD_REF.lat, LANGAPUD_REF.lng),
         capturedAt: new Date(position.timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }),
       });
     } catch (err) {
@@ -137,7 +155,7 @@ export default function CropValidationScreen({ navigation }) {
     }
   }
 
-  async function handleSubmit() {
+  function handleSubmit() {
     if (!location) {
       Alert.alert("Incomplete", "Please capture your GPS location before submitting.");
       return;
@@ -146,6 +164,21 @@ export default function CropValidationScreen({ navigation }) {
       Alert.alert("Incomplete", "Please capture a crop photo before submitting.");
       return;
     }
+    if (location.distanceKm > FAR_THRESHOLD_KM) {
+      Alert.alert(
+        "Far from Barangay Langapud",
+        `Your captured location is about ${location.distanceKm.toFixed(1)} km from Barangay Langapud. Make sure you're at your registered farm before submitting.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Submit Anyway", style: "destructive", onPress: performSubmit },
+        ]
+      );
+      return;
+    }
+    performSubmit();
+  }
+
+  async function performSubmit() {
     setSubmitting(true);
     try {
       await submitCropValidation({
@@ -207,10 +240,27 @@ export default function CropValidationScreen({ navigation }) {
               label="Accuracy"
               value={location ? `±${Math.round(location.accuracy)} m · ${accuracyRating(location.accuracy)}` : "—"}
               small
+            />
+            <InfoRow
+              label="From Barangay"
+              value={location ? `${location.distanceKm.toFixed(1)} km` : "—"}
+              small
               last
+              warn={location && location.distanceKm > FAR_THRESHOLD_KM}
             />
           </Card>
         </View>
+
+        {location && location.distanceKm > FAR_THRESHOLD_KM && (
+          <View style={styles.warningBanner}>
+            <Ionicons name="warning" size={16} color={colors.orange} />
+            <Text style={styles.warningText}>
+              You're ~{location.distanceKm.toFixed(1)} km from Barangay Langapud. Make sure you're at your registered
+              farm before submitting — exact parcel coordinates aren't on file, so this compares against the
+              barangay's approximate center.
+            </Text>
+          </View>
+        )}
 
         <Card title="Crop Photo (Proof of Planting)" icon="camera-outline">
           <TouchableOpacity
@@ -309,11 +359,11 @@ function Card({ title, icon, children, style }) {
   );
 }
 
-function InfoRow({ label, value, small, last }) {
+function InfoRow({ label, value, small, last, warn }) {
   return (
     <View style={[styles.infoRow, last && { borderBottomWidth: 0 }]}>
       <Text style={[styles.infoLabel, small && { fontSize: 9.5 }]}>{label}</Text>
-      <Text style={[styles.infoValue, small && { fontSize: 11 }]}>{value}</Text>
+      <Text style={[styles.infoValue, small && { fontSize: 11 }, warn && { color: colors.orange }]}>{value}</Text>
     </View>
   );
 }
@@ -351,6 +401,18 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
+
+  warningBanner: {
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: colors.orangeBg,
+    borderWidth: 1,
+    borderColor: colors.orange,
+    borderRadius: radius.md,
+    padding: 10,
+    marginBottom: 12,
+  },
+  warningText: { flex: 1, fontSize: 11, color: colors.text, lineHeight: 15.5 },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
   cardTitle: { fontSize: 12, fontWeight: "700", color: colors.text },
 
