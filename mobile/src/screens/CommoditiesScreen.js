@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScreenHeader from "../components/ScreenHeader";
 import StatTile from "../components/StatTile";
 import Pill from "../components/Pill";
@@ -20,7 +19,6 @@ const CATEGORY_ICON = {
 };
 
 export default function CommoditiesScreen({ navigation }) {
-  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState("");
   const [commodities, setCommodities] = useState([]);
   const [distributed, setDistributed] = useState({});
@@ -44,7 +42,7 @@ export default function CommoditiesScreen({ navigation }) {
   }, [commodities, search]);
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <ScreenHeader title="Commodities" />
 
       <FlatList

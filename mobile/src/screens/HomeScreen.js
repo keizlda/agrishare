@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ChevronRight, Leaf } from "lucide-react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScreenHeader from "../components/ScreenHeader";
 import StatTile from "../components/StatTile";
 import Pill from "../components/Pill";
@@ -13,7 +12,6 @@ import dashboardBanner from "../assets/dashboard-banner.png";
 
 export default function HomeScreen({ navigation }) {
   const { farmer } = useAuth();
-  const insets = useSafeAreaInsets();
   const [distributions, setDistributions] = useState([]);
 
   useEffect(() => {
@@ -29,11 +27,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <ImageBackground
-      source={dashboardBanner}
-      resizeMode="cover"
-      style={[styles.screen, { paddingTop: insets.top }]}
-    >
+    <ImageBackground source={dashboardBanner} resizeMode="cover" style={styles.screen}>
       <ScreenHeader showLogo onBellPress={() => navigation.navigate("Announcements")} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.welcome}>Welcome Back, {farmer?.firstName}!</Text>

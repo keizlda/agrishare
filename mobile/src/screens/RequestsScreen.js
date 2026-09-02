@@ -61,8 +61,8 @@ export default function RequestsScreen({ navigation, route }) {
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
+    <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={18} color={colors.text} />
         </TouchableOpacity>

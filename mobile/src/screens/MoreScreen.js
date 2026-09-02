@@ -1,6 +1,5 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScreenHeader from "../components/ScreenHeader";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
@@ -25,11 +24,10 @@ const OTHER_ITEMS = [
 ];
 
 export default function MoreScreen({ navigation }) {
-  const insets = useSafeAreaInsets();
   const { farmer, logout } = useAuth();
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <ScreenHeader title="More" />
       <ScrollView contentContainerStyle={styles.content}>
         <TouchableOpacity style={styles.profileRow} onPress={() => navigation.navigate("Profile")}>

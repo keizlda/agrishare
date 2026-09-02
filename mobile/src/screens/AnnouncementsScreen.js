@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScreenHeader from "../components/ScreenHeader";
 import ReminderBanner from "../components/ReminderBanner";
 import { colors, radius } from "../theme";
@@ -12,7 +11,6 @@ const TABS = ["All Announcements", "Unread", "Archived"];
 const ICONS = ["megaphone-outline", "school-outline", "water-outline", "leaf-outline", "bug-outline", "leaf-outline"];
 
 export default function AnnouncementsScreen() {
-  const insets = useSafeAreaInsets();
   const { farmer } = useAuth();
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState(TABS[0]);
@@ -42,7 +40,7 @@ export default function AnnouncementsScreen() {
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <ScreenHeader title="Announcements" />
 
       <View style={styles.tabsRow}>

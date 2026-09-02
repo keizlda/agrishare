@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScreenHeader from "../components/ScreenHeader";
 import StatTile from "../components/StatTile";
 import Pill from "../components/Pill";
@@ -12,7 +11,6 @@ import { listDistributions } from "../lib/api/distributions";
 const TABS = ["My Distributions", "Upcoming", "History"];
 
 export default function DistributionsScreen() {
-  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(TABS[0]);
   const [search, setSearch] = useState("");
   const [distributions, setDistributions] = useState([]);
@@ -37,7 +35,7 @@ export default function DistributionsScreen() {
   }, [byTab, search]);
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <ScreenHeader title="Distributions" />
 
       <View style={styles.tabsRow}>

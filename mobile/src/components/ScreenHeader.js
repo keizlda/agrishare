@@ -1,13 +1,20 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Bell, Sprout } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, sizes } from "../theme";
 
 // White bg + bottom hairline, matching web's Topbar exactly (theme.css:60-66)
 // — AGRISHARE wordmark in the same green, same weight/letter-spacing, same
 // Sprout logo icon (Topbar.jsx:84).
+//
+// Owns the top safe-area inset itself (screens should NOT also pad for it)
+// so its white background extends up behind the status bar/notch instead of
+// leaving a gap in the screen's paler background above it — that gap and
+// the header used to read as one washed-out block instead of a crisp header.
 export default function ScreenHeader({ title, showLogo, onBellPress }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { paddingTop: insets.top + 6 }]}>
       {showLogo ? (
         <View style={styles.logoRow}>
           <Sprout size={18} color={colors.primary} />
@@ -34,9 +41,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    // Just enough padding to keep the 44px bell tap target from touching the
-    // hairline — the target itself sets the row's height, not extra padding.
-    paddingVertical: 6,
+    // paddingTop is set inline above (insets.top + 6); this is just the
+    // bottom half — enough to clear the 44px bell tap target from the
+    // hairline without extra bulk.
+    paddingBottom: 6,
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
