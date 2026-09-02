@@ -6,7 +6,7 @@ import ScreenHeader from "../components/ScreenHeader";
 import StatTile from "../components/StatTile";
 import Pill from "../components/Pill";
 import ReminderBanner from "../components/ReminderBanner";
-import { colors, radius } from "../theme";
+import { colors, radius, shadows } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listDistributions } from "../lib/api/distributions";
 import dashboardBanner from "../assets/dashboard-banner.png";
@@ -121,6 +121,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: 14,
     marginBottom: 18,
+    ...shadows.card,
   },
   infoHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   infoTitle: { fontSize: 13.5, fontWeight: "700", color: colors.text },
@@ -146,6 +147,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: 4,
     marginBottom: 8,
+    ...shadows.card,
   },
   distRow: {
     flexDirection: "row",

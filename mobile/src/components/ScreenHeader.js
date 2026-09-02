@@ -34,15 +34,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 14,
+    // Just enough padding to keep the 44px bell tap target from touching the
+    // hairline — the target itself sets the row's height, not extra padding.
+    paddingVertical: 6,
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   logoRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  logo: { fontSize: 17, fontWeight: "800", color: colors.primaryDarker },
-  title: { fontSize: 20, fontWeight: "700", color: colors.text },
+  logo: { fontSize: 16, fontWeight: "800", color: colors.primaryDarker },
+  title: { fontSize: 17, fontWeight: "700", color: colors.text },
   bellBtn: {
     width: sizes.minTouchTarget,
     height: sizes.minTouchTarget,

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radius } from "../theme";
+import { colors, radius, shadows } from "../theme";
 
 const COLOR_MAP = {
   green: { bg: colors.primaryLight, fg: colors.primaryDark },
@@ -32,6 +32,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: 12,
     marginBottom: 10,
+    ...shadows.card,
   },
   iconWrap: {
     width: 30,
