@@ -1,8 +1,11 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "../components/ScreenHeader";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
+import { aboutContent, faqContent, helpCenterContent, privacyContent, termsContent } from "../data/infoContent";
+
+const SUPPORT_EMAIL = "support@labangan.gov.ph";
 
 const ACCOUNT_ITEMS = [
   { icon: "person-outline", label: "My Information" },
@@ -24,7 +27,44 @@ const OTHER_ITEMS = [
 ];
 
 export default function MoreScreen({ navigation }) {
-  const { farmer, logout } = useAuth();
+  const { farmer, logout, logoutEverywhere } = useAuth();
+
+  function openInfo(content) {
+    navigation.navigate("Info", content);
+  }
+
+  function contactSupport() {
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("AgriShare Support Request")}`);
+  }
+
+  function reportIssue() {
+    const body = `Farmer: ${farmer?.firstName ?? ""} ${farmer?.lastName ?? ""}\nRSBSA No.: ${farmer?.rsbsaNo ?? ""}\n\nDescribe the issue:\n`;
+    Linking.openURL(
+      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("AgriShare Issue Report")}&body=${encodeURIComponent(body)}`,
+    );
+  }
+
+  function signOutEverywhere() {
+    Alert.alert("Log out of all devices?", "This will sign you out of AgriShare everywhere you're currently logged in, including this device.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Log Out Everywhere", style: "destructive", onPress: logoutEverywhere },
+    ]);
+  }
+
+  const HANDLERS = {
+    "My Information": () => navigation.navigate("Profile"),
+    "Change Password": () => navigation.navigate("ChangePassword"),
+    "Notification Settings": () => navigation.navigate("NotificationSettings"),
+    "Linked Devices": signOutEverywhere,
+    Language: () => navigation.navigate("Language"),
+    "Help Center": () => openInfo(helpCenterContent),
+    "Contact Support": contactSupport,
+    FAQs: () => openInfo(faqContent),
+    "Report an Issue": reportIssue,
+    "Terms and Conditions": () => openInfo(termsContent),
+    "Privacy Policy": () => openInfo(privacyContent),
+    "About AGRISHARE": () => openInfo(aboutContent),
+  };
 
   return (
     <View style={styles.screen}>
@@ -57,14 +97,9 @@ export default function MoreScreen({ navigation }) {
           </View>
         </TouchableOpacity>
 
-        <Section
-          title="Account"
-          items={ACCOUNT_ITEMS.map((item) =>
-            item.label === "My Information" ? { ...item, onPress: () => navigation.navigate("Profile") } : item,
-          )}
-        />
-        <Section title="Support" items={SUPPORT_ITEMS} />
-        <Section title="Other" items={OTHER_ITEMS} />
+        <Section title="Account" items={ACCOUNT_ITEMS.map((item) => ({ ...item, onPress: HANDLERS[item.label] }))} />
+        <Section title="Support" items={SUPPORT_ITEMS.map((item) => ({ ...item, onPress: HANDLERS[item.label] }))} />
+        <Section title="Other" items={OTHER_ITEMS.map((item) => ({ ...item, onPress: HANDLERS[item.label] }))} />
 
         <TouchableOpacity style={styles.logoutRow} onPress={logout}>
           <Ionicons name="log-out-outline" size={16} color={colors.red} />

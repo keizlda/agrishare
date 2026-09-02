@@ -58,8 +58,16 @@ export function AuthProvider({ children }) {
     setFarmer(null);
   }
 
+  // Explicit global scope — invalidates every refresh token for this user,
+  // not just this device's. Distinct from logout() so "Log Out" and "Log
+  // Out of All Devices" are honest about what each one actually does.
+  async function logoutEverywhere() {
+    await supabase.auth.signOut({ scope: "global" });
+    setFarmer(null);
+  }
+
   return (
-    <AuthContext.Provider value={{ farmer, isAuthenticated: !!farmer, initializing, login, logout }}>
+    <AuthContext.Provider value={{ farmer, isAuthenticated: !!farmer, initializing, login, logout, logoutEverywhere }}>
       {children}
     </AuthContext.Provider>
   );
