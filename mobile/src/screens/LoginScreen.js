@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Image,
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
@@ -12,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
+import daSeal from "../assets/da-seal.png";
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -51,6 +53,16 @@ export default function LoginScreen() {
         <View style={styles.logoRow}>
           <Ionicons name="leaf" size={20} color="#fff" />
           <Text style={styles.logo}>AGRISHARE</Text>
+        </View>
+
+        <View style={styles.sealRow}>
+          <View style={styles.sealBadge}>
+            <Image source={daSeal} style={styles.sealImg} />
+          </View>
+          <View>
+            <Text style={styles.sealTitle}>Department of Agriculture</Text>
+            <Text style={styles.sealSubtitle}>Municipality of Labangan</Text>
+          </View>
         </View>
 
         <View style={styles.spacer} />
@@ -110,6 +122,19 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   logoRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 56, paddingHorizontal: 20 },
   logo: { color: "#fff", fontSize: 18, fontWeight: "800", letterSpacing: 0.5 },
+  sealRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 18, paddingHorizontal: 20 },
+  sealBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.6)",
+  },
+  sealImg: { width: "100%", height: "100%" },
+  sealTitle: { color: "#fff", fontSize: 12.5, fontWeight: "700" },
+  sealSubtitle: { color: "rgba(255,255,255,0.85)", fontSize: 11, marginTop: 1 },
   spacer: { flex: 1 },
   card: {
     backgroundColor: "#fff",
