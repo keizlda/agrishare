@@ -4,14 +4,15 @@ import StatCard from "../components/ui/StatCard.jsx";
 import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
 import Pill from "../components/ui/Pill.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
+import Toast from "../components/ui/Toast.jsx";
 import { commodityCategories, computeCommodityStats } from "../data/mockData.js";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
-import { createCommodity, listCommodities, setCommodityStatus } from "../lib/api/commodities.js";
+import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
+import { createCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { listFarmers } from "../lib/api/farmers.js";
 
-const EMPTY_FORM = { name: "", category: "Rice" };
 const PAGE_SIZE = 5;
 
 export default function Commodities() {
@@ -22,11 +23,9 @@ export default function Commodities() {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [formError, setFormError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", commodity }
   const [actionError, setActionError] = useState("");
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     listDistributions().then(setDistributions).catch(() => {});
@@ -52,20 +51,10 @@ export default function Commodities() {
   const { totals, mostDistributedName, mostDistributedQty, totalQuantity } = computeCommodityStats(commodities, distributions);
   const selectedDistributedQty = selected ? (totals[selected.name] ?? 0) : 0;
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setFormError("");
-    setSaving(true);
-    try {
-      const newCommodity = await createCommodity(form);
-      setCommodities((prev) => [newCommodity, ...prev]);
-      setForm(EMPTY_FORM);
-      setShowModal(false);
-    } catch (err) {
-      setFormError(err.message);
-    } finally {
-      setSaving(false);
-    }
+  function resetFilters() {
+    setSearch("");
+    setCategoryFilter("All");
+    setStatusFilter("All");
   }
 
   async function toggleStatus(id) {
@@ -98,7 +87,7 @@ export default function Commodities() {
             </div>
           )}
           <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
-            <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setShowModal(true)}>
+            <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setModal({ mode: "add" })}>
               <Plus size={16} /> Add Commodity
             </button>
             <div style={{ position: "relative", flex: 1 }}>
@@ -114,7 +103,9 @@ export default function Commodities() {
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
-            <button className="agri-icon-btn"><Filter size={16} /></button>
+            <button type="button" className="agri-icon-btn" title="Reset filters" aria-label="Reset filters" onClick={resetFilters}>
+              <Filter size={16} />
+            </button>
           </div>
 
           <div className="agri-table-wrap">
@@ -129,7 +120,13 @@ export default function Commodities() {
                     <td><Pill status={c.status} /></td>
                     <td>{c.dateAdded}</td>
                     <td>
-                      <button className="agri-icon-btn" title="Edit" onClick={(e) => { e.stopPropagation(); }}>
+                      <button
+                        type="button"
+                        className="agri-icon-btn"
+                        title="Edit"
+                        aria-label={`Edit ${c.name}`}
+                        onClick={(e) => { e.stopPropagation(); setModal({ mode: "edit", commodity: c }); }}
+                      >
                         <Pencil size={14} />
                       </button>
                     </td>
@@ -159,49 +156,96 @@ export default function Commodities() {
             <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{selectedDistributedQty.toLocaleString()} kg</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{selected.dateAdded}</div></div>
 
-            <label className="agri-form-label" style={{ marginTop: 14 }}>Status</label>
-            <select className="form-select mb-3" value={selected.status} onChange={() => toggleStatus(selected.id)}>
+            <label className="agri-form-label" style={{ marginTop: 14 }} htmlFor="commodity-status-select">Status</label>
+            <select id="commodity-status-select" className="form-select mb-3" value={selected.status} onChange={() => toggleStatus(selected.id)}>
               <option>Active</option>
               <option>Inactive</option>
             </select>
 
-            <button className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2">
+            <button
+              className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
+              onClick={() => setModal({ mode: "edit", commodity: selected })}
+            >
               <Pencil size={15} /> Edit Commodity
             </button>
           </div>
         )}
       </div>
 
-      {showModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={() => setShowModal(false)}>
-          <div className="agri-card" style={{ width: 420, maxWidth: "92vw", padding: 22 }} onClick={(e) => e.stopPropagation()}>
-            <div className="agri-panel-header">
-              <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>Add Commodity</div>
-              <button className="agri-icon-btn" onClick={() => setShowModal(false)}><X size={16} /></button>
-            </div>
-            <form onSubmit={handleSubmit}>
-              {formError && (
-                <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
-                  {formError}
-                </div>
-              )}
-
-              <label className="agri-form-label">Commodity Name</label>
-              <input required className="form-control mb-3" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Rice Seeds (NSIC Rc222)" />
-
-              <label className="agri-form-label">Category</label>
-              <select className="form-select mb-3" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
-                {commodityCategories.map((c) => <option key={c}>{c}</option>)}
-              </select>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-                <button type="button" className="btn btn-outline-secondary" onClick={() => setShowModal(false)} disabled={saving}>Cancel</button>
-                <button type="submit" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : "Save Commodity"}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {modal && (
+        <CommodityModal
+          mode={modal.mode}
+          commodity={modal.commodity}
+          onClose={() => setModal(null)}
+          onSaved={(saved) => {
+            if (modal.mode === "edit") {
+              setCommodities((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
+              setToast({ tone: "success", message: "Commodity updated." });
+            } else {
+              setCommodities((prev) => [saved, ...prev]);
+              setToast({ tone: "success", message: "Commodity added." });
+            }
+            setModal(null);
+          }}
+        />
       )}
+
+      {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
+    </div>
+  );
+}
+
+function CommodityModal({ mode, commodity, onClose, onSaved }) {
+  const [form, setForm] = useState(() =>
+    mode === "edit" ? { name: commodity.name, category: commodity.category } : { name: "", category: "Rice" },
+  );
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEscapeToClose(true, onClose);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFormError("");
+    setSaving(true);
+    try {
+      const saved = mode === "edit" ? await updateCommodity(commodity.id, form) : await createCommodity(form);
+      onSaved(saved);
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
+      <div className="agri-card" style={{ width: 420, maxWidth: "92vw", padding: 22 }} onClick={(e) => e.stopPropagation()}>
+        <div className="agri-panel-header">
+          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{mode === "edit" ? "Edit Commodity" : "Add Commodity"}</div>
+          <button type="button" className="agri-icon-btn" aria-label="Close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          {formError && (
+            <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
+              {formError}
+            </div>
+          )}
+
+          <label className="agri-form-label">Commodity Name</label>
+          <input required className="form-control mb-3" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Rice Seeds (NSIC Rc222)" />
+
+          <label className="agri-form-label">Category</label>
+          <select className="form-select mb-3" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
+            {commodityCategories.map((c) => <option key={c}>{c}</option>)}
+          </select>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+            <button type="submit" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : "Save Commodity"}</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

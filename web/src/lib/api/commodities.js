@@ -28,3 +28,14 @@ export async function setCommodityStatus(commodityId, statusLabel) {
   const { error } = await supabase.from("commodities").update({ status: labelToDbStatus(statusLabel) }).eq("commodity_id", commodityId);
   if (error) throw error;
 }
+
+export async function updateCommodity(commodityId, { name, category }) {
+  const { data, error } = await supabase
+    .from("commodities")
+    .update({ name, category })
+    .eq("commodity_id", commodityId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return mapCommodity(data);
+}

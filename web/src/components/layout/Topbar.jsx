@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { listRecentActivity } from "../../lib/api/activity.js";
+import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
+import ProfileModal from "../ui/ProfileModal.jsx";
 
 // `roles` gates visibility per the Use Case Diagram: MAO Admin gets every
 // module; FA President is limited to viewing farmers/distributions (no
@@ -46,7 +48,11 @@ export default function Topbar() {
   const items = NAV_ITEMS.filter((item) => item.roles.includes(role));
   const [openMenu, setOpenMenu] = useState(null); // "bell" | "avatar" | null
   const [notifications, setNotifications] = useState([]);
+  const [readIds, setReadIds] = useState(() => new Set());
+  const [showProfile, setShowProfile] = useState(false);
   const ref = useRef(null);
+
+  useEscapeToClose(openMenu !== null, () => setOpenMenu(null));
 
   useEffect(() => {
     function onClickOutside(e) {
@@ -59,6 +65,12 @@ export default function Topbar() {
   useEffect(() => {
     listRecentActivity().then(setNotifications).catch(() => {});
   }, []);
+
+  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
+
+  function markAllRead() {
+    setReadIds(new Set(notifications.map((n) => n.id)));
+  }
 
   function handleLogout() {
     logout();
@@ -87,7 +99,7 @@ export default function Topbar() {
         </nav>
 
         <div className="agri-topbar-right">
-          <div className="agri-date-pill">
+          <div className="agri-date-pill" title="Today's date">
             <Calendar size={15} />
             {today}
           </div>
@@ -97,23 +109,34 @@ export default function Topbar() {
               className="agri-icon-btn agri-bell"
               onClick={() => setOpenMenu(openMenu === "bell" ? null : "bell")}
               aria-label="Notifications"
+              title="Notifications"
             >
               <Bell size={17} />
-              {notifications.length > 0 && <span className="dot" />}
+              {unreadCount > 0 && <span className="dot" />}
             </button>
             {openMenu === "bell" && (
               <div
                 className="agri-card"
                 style={{ position: "absolute", right: 0, top: 44, width: 280, padding: 10, zIndex: 20 }}
               >
-                <div style={{ fontWeight: 600, fontSize: "0.85rem", padding: "4px 6px 8px" }}>Notifications</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 6px 8px" }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>Notifications</div>
+                  {unreadCount > 0 && (
+                    <button type="button" className="btn btn-link p-0" style={{ fontSize: "0.72rem" }} onClick={markAllRead}>
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
                 {notifications.length === 0 && (
                   <div className="agri-muted" style={{ fontSize: "0.8rem", padding: "8px 6px" }}>No recent activity.</div>
                 )}
                 {notifications.map((n) => (
-                  <div key={n.id} style={{ padding: "8px 6px", borderTop: "1px solid var(--agri-border)" }}>
-                    <div style={{ fontSize: "0.83rem" }}>{n.title}</div>
-                    <div className="agri-muted" style={{ fontSize: "0.72rem" }}>{n.time}</div>
+                  <div key={n.id} style={{ display: "flex", alignItems: "flex-start", gap: 6, padding: "8px 6px", borderTop: "1px solid var(--agri-border)" }}>
+                    {!readIds.has(n.id) && <span className="agri-submission-dot" style={{ position: "static", marginTop: 5, flexShrink: 0 }} />}
+                    <div>
+                      <div style={{ fontSize: "0.83rem", fontWeight: readIds.has(n.id) ? 400 : 700 }}>{n.title}</div>
+                      <div className="agri-muted" style={{ fontSize: "0.72rem" }}>{n.time}</div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -123,6 +146,7 @@ export default function Topbar() {
           <div style={{ position: "relative" }}>
             <button
               onClick={() => setOpenMenu(openMenu === "avatar" ? null : "avatar")}
+              aria-label="Account menu"
               style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none" }}
             >
               <div className="agri-avatar">
@@ -140,6 +164,17 @@ export default function Topbar() {
                   <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>{user?.name ?? "Admin"}</div>
                   <div className="agri-muted" style={{ fontSize: "0.72rem" }}>{user?.role ?? "MAO Admin"}</div>
                 </div>
+                <button
+                  onClick={() => { setOpenMenu(null); setShowProfile(true); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px",
+                    background: "none", border: "none", color: "var(--agri-text)", fontSize: "0.85rem", borderRadius: 8,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agri-primary-soft)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                >
+                  <UserIcon size={15} /> Profile
+                </button>
                 {isMAO && (
                   <button
                     onClick={() => { setOpenMenu(null); navigate("/settings"); }}
@@ -169,6 +204,8 @@ export default function Topbar() {
           </div>
         </div>
       </div>
+
+      {showProfile && <ProfileModal user={user} onClose={() => setShowProfile(false)} />}
     </header>
   );
 }

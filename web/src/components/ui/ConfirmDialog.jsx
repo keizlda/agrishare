@@ -1,6 +1,9 @@
 import { AlertTriangle } from "lucide-react";
+import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 
 export default function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger = true, onConfirm, onCancel }) {
+  useEscapeToClose(true, onCancel);
+
   return (
     <div
       style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }}

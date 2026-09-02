@@ -42,6 +42,16 @@ a {
   text-decoration: none;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--agri-primary);
+  outline-offset: 2px;
+}
+
 .agri-app {
   min-height: 100vh;
   background: url("./assets/dashboard-banner.png") center / cover no-repeat fixed;

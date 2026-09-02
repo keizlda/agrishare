@@ -21,6 +21,7 @@ import Toast from "../components/ui/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
+import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { getSignedPhotoUrl, listSubmissions, rejectSubmission, validateSubmission } from "../lib/api/cropValidation.js";
 import { listFarmers } from "../lib/api/farmers.js";
 
@@ -174,7 +175,15 @@ export default function Validation() {
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                <button className="agri-icon-btn"><Filter size={16} /></button>
+                <button
+                  type="button"
+                  className="agri-icon-btn"
+                  title="Reset filters"
+                  aria-label="Reset filters"
+                  onClick={() => { setSearch(""); setStatusTab("Pending"); setSort("Newest first"); }}
+                >
+                  <Filter size={16} />
+                </button>
               </div>
 
               <div className="agri-filter-pills">
@@ -292,6 +301,8 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
   const [remarks, setRemarks] = useState("");
   const [rejectError, setRejectError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEscapeToClose(lightboxOpen, () => setLightboxOpen(false));
 
   const f = submission.farmer;
 

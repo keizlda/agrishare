@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, Filter, Search, Send, ShieldAlert, XCircle } from 
 import StatCard from "../components/ui/StatCard.jsx";
 import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
 import Pill from "../components/ui/Pill.jsx";
+import Toast from "../components/ui/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { computeRequestStats } from "../data/mockData.js";
@@ -18,6 +19,7 @@ export default function Requests() {
   const [remarks, setRemarks] = useState("");
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     if (!selectedId && requests.length > 0) setSelectedId(requests[0].id);
@@ -42,8 +44,10 @@ export default function Requests() {
       const updated = await updateRequestStatus(id, patch);
       setRequests((prev) => prev.map((r) => (r.id === id ? updated : r)));
       setRemarks("");
+      setToast({ tone: "success", message: `Request ${patch.status.toLowerCase()}.` });
     } catch (err) {
       setActionError(err.message);
+      setToast({ tone: "error", message: err.message });
     } finally {
       setSaving(false);
     }
@@ -103,7 +107,15 @@ export default function Requests() {
               <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
             </select>
-            <button className="agri-icon-btn"><Filter size={16} /></button>
+            <button
+              type="button"
+              className="agri-icon-btn"
+              title="Reset filters"
+              aria-label="Reset filters"
+              onClick={() => { setSearch(""); setStatusFilter("All"); }}
+            >
+              <Filter size={16} />
+            </button>
           </div>
 
           <div className="agri-table-wrap">
@@ -192,6 +204,8 @@ export default function Requests() {
           </div>
         )}
       </div>
+
+      {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
     </div>
   );
 }

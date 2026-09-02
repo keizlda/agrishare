@@ -10,6 +10,8 @@ import { Users, ShieldCheck, ShieldX } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
+import Toast from "../components/ui/Toast.jsx";
+import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { commodityCategories, computeFarmerStats } from "../data/mockData.js";
 import { createFarmer, deleteFarmer, listFarmers, setFarmerStatus, updateFarmer } from "../lib/api/farmers.js";
 
@@ -119,6 +121,7 @@ export default function Farmers() {
   const isMAO = user?.role !== "FA President";
   const { data: farmers, setData: setFarmers, loading, error: loadError } = useSupabaseList(listFarmers);
   const [search, setSearch] = useState(location.state?.presetSearch ?? "");
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [commodityFilter, setCommodityFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
 
@@ -127,21 +130,34 @@ export default function Farmers() {
   useEffect(() => {
     if (location.state?.presetSearch) setSearch(location.state.presetSearch);
   }, [location.state]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", farmer }
   const [pendingDelete, setPendingDelete] = useState(null);
   const [actionError, setActionError] = useState("");
+  const [toast, setToast] = useState(null);
 
   const stats = computeFarmerStats(farmers);
 
   const filtered = useMemo(() => {
     return farmers.filter((f) => {
       const fullName = `${f.firstName} ${f.lastName}`.toLowerCase();
-      const matchesSearch = !search || fullName.includes(search.toLowerCase()) || f.rsbsaNo.includes(search);
+      const matchesSearch = !debouncedSearch || fullName.includes(debouncedSearch.toLowerCase()) || f.rsbsaNo.includes(debouncedSearch);
       const matchesCommodity = commodityFilter === "All" || f.commodity === commodityFilter;
       const matchesStatus = statusFilter === "All" || f.status === statusFilter;
       return matchesSearch && matchesCommodity && matchesStatus;
     });
-  }, [farmers, search, commodityFilter, statusFilter]);
+  }, [farmers, debouncedSearch, commodityFilter, statusFilter]);
+
+  function resetFilters() {
+    setSearch("");
+    setCommodityFilter("All");
+    setStatusFilter("All");
+  }
 
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
 
@@ -207,7 +223,9 @@ export default function Farmers() {
             <option value="Inactive">Inactive</option>
           </select>
 
-          <button className="agri-icon-btn"><Filter size={16} /></button>
+          <button type="button" className="agri-icon-btn" title="Reset filters" aria-label="Reset filters" onClick={resetFilters}>
+            <Filter size={16} />
+          </button>
 
           {isMAO && (
             <button className="btn btn-agri-primary ms-auto d-flex align-items-center gap-2" onClick={() => setModal({ mode: "add" })}>
@@ -241,10 +259,20 @@ export default function Farmers() {
                     <div style={{ display: "flex", gap: 6 }}>
                       {isMAO ? (
                         <>
-                          <button className="agri-icon-btn" title="Edit" onClick={() => setModal({ mode: "edit", farmer: f })}>
+                          <button
+                            className="agri-icon-btn"
+                            title="Edit"
+                            aria-label={`Edit ${f.firstName} ${f.lastName}`}
+                            onClick={() => setModal({ mode: "edit", farmer: f })}
+                          >
                             <Pencil size={14} />
                           </button>
-                          <button className="agri-icon-btn" title="Delete" onClick={() => setPendingDelete(f)}>
+                          <button
+                            className="agri-icon-btn"
+                            title="Delete"
+                            aria-label={`Delete ${f.firstName} ${f.lastName}`}
+                            onClick={() => setPendingDelete(f)}
+                          >
                             <Trash2 size={14} color="var(--agri-red)" />
                           </button>
                         </>
@@ -252,6 +280,7 @@ export default function Farmers() {
                         <button
                           className="agri-icon-btn"
                           title={f.status === "Active" ? "Mark Inactive" : "Mark Active"}
+                          aria-label={`${f.status === "Active" ? "Mark Inactive" : "Mark Active"}: ${f.firstName} ${f.lastName}`}
                           onClick={() => handleToggleStatus(f.id)}
                         >
                           <Power size={14} color={f.status === "Active" ? "var(--agri-red)" : "var(--agri-primary)"} />
@@ -289,8 +318,10 @@ export default function Farmers() {
           onSaved={(saved) => {
             if (modal.mode === "edit") {
               setFarmers((prev) => prev.map((f) => (f.id === saved.id ? saved : f)));
+              setToast({ tone: "success", message: "Farmer record updated." });
             } else {
               setFarmers((prev) => [saved, ...prev]);
+              setToast({ tone: "success", message: "Farmer added." });
             }
             setModal(null);
           }}
@@ -306,6 +337,8 @@ export default function Farmers() {
           onCancel={() => setPendingDelete(null)}
         />
       )}
+
+      {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
     </div>
   );
 }
@@ -316,6 +349,8 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
   const [duplicate, setDuplicate] = useState(null);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEscapeToClose(true, onClose);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
