@@ -1,13 +1,16 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme";
+import { Bell, Sprout } from "lucide-react-native";
+import { colors, sizes } from "../theme";
 
+// White bg + bottom hairline, matching web's Topbar exactly (theme.css:60-66)
+// — AGRISHARE wordmark in the same green, same weight/letter-spacing, same
+// Sprout logo icon (Topbar.jsx:84).
 export default function ScreenHeader({ title, showLogo, onBellPress }) {
   return (
     <View style={styles.row}>
       {showLogo ? (
         <View style={styles.logoRow}>
-          <Ionicons name="leaf" size={18} color={colors.primary} />
+          <Sprout size={18} color={colors.primary} />
           <Text style={styles.logo}>
             AGRI<Text style={{ color: colors.primary }}>SHARE</Text>
           </Text>
@@ -17,7 +20,7 @@ export default function ScreenHeader({ title, showLogo, onBellPress }) {
       )}
       {onBellPress && (
         <TouchableOpacity onPress={onBellPress} style={styles.bellBtn}>
-          <Ionicons name="notifications-outline" size={20} color={colors.text} />
+          <Bell size={20} color={colors.text} />
           <View style={styles.dot} />
         </TouchableOpacity>
       )}
@@ -33,14 +36,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 14,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   logoRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   logo: { fontSize: 17, fontWeight: "800", color: colors.primaryDarker },
   title: { fontSize: 20, fontWeight: "700", color: colors.text },
   bellBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: sizes.minTouchTarget,
+    height: sizes.minTouchTarget,
+    borderRadius: sizes.minTouchTarget / 2,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
@@ -48,8 +54,8 @@ const styles = StyleSheet.create({
   },
   dot: {
     position: "absolute",
-    top: 7,
-    right: 8,
+    top: 11,
+    right: 12,
     width: 7,
     height: 7,
     borderRadius: 4,

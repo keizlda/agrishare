@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Eye, EyeOff, Lock, Mail, Sprout, User } from "lucide-react-native";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import daSeal from "../assets/da-seal.png";
@@ -51,7 +51,7 @@ export default function LoginScreen() {
         style={styles.flex}
       >
         <View style={styles.logoRow}>
-          <Ionicons name="leaf" size={20} color="#fff" />
+          <Sprout size={20} color="#fff" />
           <Text style={styles.logo}>AGRISHARE</Text>
         </View>
 
@@ -69,7 +69,7 @@ export default function LoginScreen() {
 
         <View style={styles.card}>
           <View style={styles.iconCircle}>
-            <Ionicons name="person" size={26} color="#fff" />
+            <User size={26} color="#fff" />
           </View>
           <Text style={styles.title}>Welcome Back!</Text>
           <Text style={styles.subtitle}>Login to your AgriShare account</Text>
@@ -77,7 +77,7 @@ export default function LoginScreen() {
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <View style={styles.inputWrap}>
-            <Ionicons name="mail-outline" size={16} color={colors.textMuted} style={styles.inputIcon} />
+            <Mail size={16} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Enter your RSBSA number"
@@ -89,7 +89,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputWrap}>
-            <Ionicons name="lock-closed-outline" size={16} color={colors.textMuted} style={styles.inputIcon} />
+            <Lock size={16} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { paddingRight: 34 }]}
               placeholder="Enter your password"
@@ -99,7 +99,7 @@ export default function LoginScreen() {
               secureTextEntry={!showPassword}
             />
             <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword((s) => !s)}>
-              <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={16} color={colors.textMuted} />
+              {showPassword ? <EyeOff size={16} color={colors.textMuted} /> : <Eye size={16} color={colors.textMuted} />}
             </TouchableOpacity>
           </View>
 

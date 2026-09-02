@@ -1,11 +1,11 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Info } from "lucide-react-native";
 import { colors, radius } from "../theme";
 
 export default function ReminderBanner({ text, actionLabel, onPress }) {
   return (
     <View style={styles.wrap}>
-      <Ionicons name="information-circle-outline" size={18} color={colors.primaryDark} />
+      <Info size={18} color={colors.primaryDark} />
       <Text style={styles.text}>{text}</Text>
       {actionLabel && (
         <TouchableOpacity onPress={onPress}>

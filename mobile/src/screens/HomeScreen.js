@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ChevronRight, Leaf } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScreenHeader from "../components/ScreenHeader";
 import StatTile from "../components/StatTile";
@@ -9,6 +9,7 @@ import ReminderBanner from "../components/ReminderBanner";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listDistributions } from "../lib/api/distributions";
+import dashboardBanner from "../assets/dashboard-banner.png";
 
 export default function HomeScreen({ navigation }) {
   const { farmer } = useAuth();
@@ -28,7 +29,11 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <ImageBackground
+      source={dashboardBanner}
+      resizeMode="cover"
+      style={[styles.screen, { paddingTop: insets.top }]}
+    >
       <ScreenHeader showLogo onBellPress={() => navigation.navigate("Announcements")} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.welcome}>Welcome Back, {farmer?.firstName}!</Text>
@@ -39,7 +44,7 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.infoTitle}>My Information</Text>
             <View style={styles.viewProfileRow}>
               <Text style={styles.viewProfile}>View Profile</Text>
-              <Ionicons name="chevron-forward" size={13} color={colors.primaryDark} />
+              <ChevronRight size={13} color={colors.primaryDark} />
             </View>
           </View>
           <InfoRow label="Farmer ID" value={farmer?.farmerId} />
@@ -69,7 +74,7 @@ export default function HomeScreen({ navigation }) {
           {recent.map((d, i) => (
             <View key={d.id} style={[styles.distRow, i === recent.length - 1 && { borderBottomWidth: 0 }]}>
               <View style={styles.distIcon}>
-                <Ionicons name="leaf-outline" size={16} color={colors.primaryDark} />
+                <Leaf size={16} color={colors.primaryDark} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.distTitle}>{d.program}</Text>
@@ -84,7 +89,7 @@ export default function HomeScreen({ navigation }) {
 
         <ReminderBanner text="Please make sure all distribution records are accurate and secured with your signature." actionLabel="Learn More" />
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 }
 

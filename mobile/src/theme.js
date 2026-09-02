@@ -37,6 +37,10 @@ export const colors = {
   blueBg: "#eaf2fe",
   red: "#e03131",
   redBg: "#fdeeee",
+  // Lighter red used only for icon color on dark surfaces (e.g. error
+  // toasts) — --agri-red itself is too dark to read on colors.text.
+  // web/src/theme.css:969.
+  redOnDark: "#ff8383",
   orange: "#f08c00",
   orangeBg: "#fff4e0",
   purple: "#7048e8",
