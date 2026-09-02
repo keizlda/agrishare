@@ -393,11 +393,6 @@ export default function CropValidationScreen({ navigation }) {
                   <Text style={styles.stampLine}>
                     {toDMS(location.latitude, true)} {toDMS(location.longitude, false)}
                   </Text>
-                  {location.bearing != null && (
-                    <Text style={styles.stampLine}>
-                      Bearing {Math.round(location.bearing)}° {compassLabel(location.bearing)}
-                    </Text>
-                  )}
                   <Text style={styles.stampMeta}>
                     {location.capturedAt} · ±{Math.round(location.accuracy)} m accuracy · {location.distanceKm.toFixed(1)} km from
                     Brgy. Langapud
