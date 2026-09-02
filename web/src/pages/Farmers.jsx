@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Filter, Pencil, Plus, Power, Search, Trash2, X } from "lucide-react";
 import StatCard from "../components/ui/StatCard.jsx";
 import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
@@ -114,11 +115,18 @@ function validateFarmerForm(form) {
 
 export default function Farmers() {
   const { user } = useAuth();
+  const location = useLocation();
   const isMAO = user?.role !== "FA President";
   const { data: farmers, setData: setFarmers, loading, error: loadError } = useSupabaseList(listFarmers);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(location.state?.presetSearch ?? "");
   const [commodityFilter, setCommodityFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+
+  // Deep-link support: the Validation page's "View full profile" / "Open
+  // farmer record" links navigate here with a preset search term.
+  useEffect(() => {
+    if (location.state?.presetSearch) setSearch(location.state.presetSearch);
+  }, [location.state]);
   const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", farmer }
   const [pendingDelete, setPendingDelete] = useState(null);
   const [actionError, setActionError] = useState("");
