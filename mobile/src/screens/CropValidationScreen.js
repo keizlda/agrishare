@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Image, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { WebView } from "react-native-webview";
+import { captureRef } from "react-native-view-shot";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Pill from "../components/Pill";
 import { colors, radius } from "../theme";
@@ -37,6 +38,18 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Degrees-minutes-seconds — the traditional cadastral survey convention,
+// alongside the decimal form GPS actually returns.
+function toDMS(value, isLat) {
+  const dir = isLat ? (value >= 0 ? "N" : "S") : value >= 0 ? "E" : "W";
+  const abs = Math.abs(value);
+  const deg = Math.floor(abs);
+  const minFloat = (abs - deg) * 60;
+  const min = Math.floor(minFloat);
+  const sec = ((minFloat - min) * 60).toFixed(1);
+  return `${deg}°${min}'${sec}"${dir}`;
+}
+
 // The keyless output=embed URL only renders when it's actually loaded inside
 // an <iframe> — Google's page checks window.top !== window.self and refuses
 // otherwise. A WebView's top-level document IS window.top, so loading the
@@ -62,15 +75,18 @@ export default function CropValidationScreen({ navigation }) {
   const [remarks, setRemarks] = useState("");
   const [photoCaptured, setPhotoCaptured] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [stamping, setStamping] = useState(false);
   const [photoPath, setPhotoPath] = useState(null);
   const [photoUri, setPhotoUri] = useState(null);
+  const [stampJob, setStampJob] = useState(null);
   const [location, setLocation] = useState(null);
   const [locatingGps, setLocatingGps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const stampRef = useRef(null);
 
   const checklist = [
     { label: "GPS successfully captured", done: !!location },
-    { label: "Crop photo uploaded", done: photoCaptured },
+    { label: "Geotagged photo uploaded", done: photoCaptured },
     { label: "Commodity has been planted", done: true },
     { label: "Information verified by farmer", done: true },
   ];
@@ -138,6 +154,10 @@ export default function CropValidationScreen({ navigation }) {
   }
 
   async function handleCapturePhoto() {
+    if (!location) {
+      Alert.alert("Capture your location first", "Please capture your GPS location before taking a photo, so it can be geotagged and stamped.");
+      return;
+    }
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
@@ -154,15 +174,35 @@ export default function CropValidationScreen({ navigation }) {
       const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
       if (result.canceled) return;
 
-      const uri = result.assets[0].uri;
+      const asset = result.assets[0];
+      const aspect = asset.width && asset.height ? asset.height / asset.width : 4 / 3;
+      const displayWidth = 500;
+      setStamping(true);
+      setStampJob({ uri: asset.uri, displayWidth, displayHeight: Math.round(displayWidth * aspect) });
+    } catch (err) {
+      Alert.alert("Photo capture failed", err.message);
+    }
+  }
+
+  // Runs once the off-screen composite (raw photo + data stamp overlay) has
+  // fully rendered — signaled by the Image's onLoadEnd, since the Text nodes
+  // around it lay out synchronously but the bitmap decode doesn't. Flattens
+  // that composite into a single JPEG and uploads *that*, so the geotag
+  // travels with the image itself instead of living only in form fields.
+  async function handleStampReady() {
+    try {
+      const uri = await captureRef(stampRef, { format: "jpg", quality: 0.85, result: "tmpfile" });
+      setStampJob(null);
+      setStamping(false);
       setPhotoUri(uri);
       setUploadingPhoto(true);
       const path = await uploadCropPhoto(farmer.farmerId, uri);
       setPhotoPath(path);
       setPhotoCaptured(true);
     } catch (err) {
-      setPhotoUri(null);
-      Alert.alert("Photo upload failed", err.message);
+      setStampJob(null);
+      setStamping(false);
+      Alert.alert("Photo stamping failed", err.message);
     } finally {
       setUploadingPhoto(false);
     }
@@ -296,7 +336,7 @@ export default function CropValidationScreen({ navigation }) {
           <TouchableOpacity
             style={[styles.photoBox, !!photoUri && styles.photoBoxFilled]}
             onPress={handleCapturePhoto}
-            disabled={uploadingPhoto || photoCaptured}
+            disabled={uploadingPhoto || photoCaptured || stamping}
           >
             {photoUri ? (
               <>
@@ -308,25 +348,56 @@ export default function CropValidationScreen({ navigation }) {
                       size={14}
                       color="#fff"
                     />
-                    <Text style={styles.photoOverlayTitle}>{uploadingPhoto ? "Uploading…" : "Photo captured"}</Text>
+                    <Text style={styles.photoOverlayTitle}>{uploadingPhoto ? "Uploading…" : "Geotagged photo captured"}</Text>
                   </View>
-                  {!uploadingPhoto && (
-                    <Text style={styles.photoOverlayMeta}>
-                      {location
-                        ? `${location.placeLabel ? `${location.placeLabel} · ` : ""}${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
-                        : "GPS not yet captured"}
-                    </Text>
-                  )}
                 </View>
               </>
             ) : (
               <>
                 <Ionicons name="camera" size={26} color={colors.textMuted} />
-                <Text style={styles.photoCaption}>Tap to take a geotagged photo</Text>
+                <Text style={styles.photoCaption}>
+                  {stamping ? "Stamping geotag onto photo…" : location ? "Tap to take a geotagged photo" : "Capture your GPS location first"}
+                </Text>
               </>
             )}
           </TouchableOpacity>
         </Card>
+
+        {/* Off-screen: composites the raw photo + a burned-in geotag stamp
+            box, then captureRef flattens it into the JPEG that actually gets
+            uploaded. Never visible — positioned far outside the viewport. */}
+        {stampJob && location && (
+          <View style={styles.offscreenHost} pointerEvents="none">
+            <View ref={stampRef} collapsable={false} style={{ width: stampJob.displayWidth, height: stampJob.displayHeight }}>
+              <Image
+                source={{ uri: stampJob.uri }}
+                style={StyleSheet.absoluteFillObject}
+                resizeMode="cover"
+                onLoadEnd={handleStampReady}
+              />
+              <View style={styles.stampBox}>
+                <View style={styles.stampHeaderRow}>
+                  <Ionicons name="location" size={13} color="#fff" />
+                  <Text style={styles.stampHeaderText}>AGRISHARE CROP VALIDATION</Text>
+                </View>
+                <Text style={styles.stampPlace}>{location.placeLabel || "Unknown location"}</Text>
+                <Text style={styles.stampLine}>
+                  {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}°
+                </Text>
+                <Text style={styles.stampLine}>
+                  {toDMS(location.latitude, true)} {toDMS(location.longitude, false)}
+                </Text>
+                <Text style={styles.stampMeta}>
+                  {location.capturedAt} · ±{Math.round(location.accuracy)} m accuracy · {location.distanceKm.toFixed(1)} km from Brgy.
+                  Langapud
+                </Text>
+                <Text style={styles.stampRef}>
+                  RSBSA {farmer?.rsbsaNo ?? "—"} · {farmer?.firstName} {farmer?.lastName}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         <Card title="Validation Details" icon="document-text-outline">
           <Text style={styles.fieldLabel}>Crop Type</Text>
@@ -507,7 +578,23 @@ const styles = StyleSheet.create({
   },
   photoOverlayRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   photoOverlayTitle: { color: "#fff", fontWeight: "700", fontSize: 12 },
-  photoOverlayMeta: { color: "rgba(255,255,255,0.85)", fontSize: 9.5, marginTop: 2 },
+
+  offscreenHost: { position: "absolute", top: 0, left: -10000 },
+  stampBox: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(10,25,15,0.72)",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  stampHeaderRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 5 },
+  stampHeaderText: { color: "#fff", fontSize: 10, fontWeight: "700", letterSpacing: 0.4 },
+  stampPlace: { color: "#fff", fontSize: 13.5, fontWeight: "800", marginBottom: 3 },
+  stampLine: { color: "rgba(255,255,255,0.92)", fontSize: 10.5, marginBottom: 1 },
+  stampMeta: { color: "rgba(255,255,255,0.8)", fontSize: 9, marginTop: 4 },
+  stampRef: { color: "rgba(255,255,255,0.7)", fontSize: 8.5, marginTop: 2 },
 
   fieldLabel: { fontSize: 10.5, fontWeight: "700", color: colors.textMuted, marginTop: 8, marginBottom: 4 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
