@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Pill from "../components/Pill";
 import { colors, radius } from "../theme";
 import { cropValidationSample } from "../data/mockData";
 import { useAuth } from "../context/AuthContext";
-import { submitCropValidation, uploadPlaceholderCropPhoto } from "../lib/api/cropValidation";
+import { submitCropValidation, uploadCropPhoto } from "../lib/api/cropValidation";
 
 const CROP_TYPES = ["Rice", "Corn", "Vegetables", "Other"];
 
@@ -18,10 +19,9 @@ function accuracyRating(meters) {
   return "Low";
 }
 
-// Camera capture is still mocked (see uploadPlaceholderCropPhoto) — a real
-// camera flow needs expo-image-picker, out of scope here. GPS geotagging is
-// real: it uses the device's actual location via expo-location, gated behind
-// a real permission prompt, and that's what gets submitted with the record.
+// Both the photo and GPS geotag are real: the photo comes from the device
+// camera via expo-image-picker, and the location from expo-location, each
+// gated behind a real native permission prompt before the record is built.
 export default function CropValidationScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { farmer } = useAuth();
@@ -91,9 +91,24 @@ export default function CropValidationScreen({ navigation }) {
   }
 
   async function handleCapturePhoto() {
-    setUploadingPhoto(true);
     try {
-      const path = await uploadPlaceholderCropPhoto(farmer.farmerId);
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          "Camera permission needed",
+          "AgriShare needs access to your camera to take a proof-of-planting photo.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+      if (result.canceled) return;
+
+      setUploadingPhoto(true);
+      const path = await uploadCropPhoto(farmer.farmerId, result.assets[0].uri);
       setPhotoPath(path);
       setPhotoCaptured(true);
     } catch (err) {

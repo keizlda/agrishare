@@ -27,6 +27,12 @@
         {
           "locationWhenInUsePermission": "AgriShare uses your location to geotag crop validation photos as proof of where they were taken."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "AgriShare uses your camera to take a proof-of-planting photo for crop validation."
+        }
       ]
     ]
   }
