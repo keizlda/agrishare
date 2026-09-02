@@ -66,10 +66,25 @@ export default function CropValidationScreen({ navigation }) {
         return;
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const { latitude, longitude } = position.coords;
+
+      let placeLabel = null;
+      try {
+        const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (address) {
+          const locality = address.city || address.district || address.subregion;
+          const region = address.region || address.country;
+          placeLabel = [locality, region].filter(Boolean).join(", ") || null;
+        }
+      } catch {
+        // Reverse geocoding is a label nicety, not required for a valid geotag.
+      }
+
       setLocation({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
+        latitude,
+        longitude,
         accuracy: position.coords.accuracy,
+        placeLabel,
         capturedAt: new Date(position.timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }),
       });
     } catch (err) {
@@ -175,8 +190,8 @@ export default function CropValidationScreen({ navigation }) {
               disabled={locatingGps}
             >
               <Ionicons name={location ? "checkmark-circle" : "location"} size={22} color={colors.primary} />
-              <Text style={styles.mapPlaceholderText}>
-                {locatingGps ? "Locating…" : location ? "Tap to view on map" : "Tap to capture"}
+              <Text style={styles.mapPlaceholderText} numberOfLines={2}>
+                {locatingGps ? "Locating…" : location ? location.placeLabel || "Tap to view on map" : "Tap to capture"}
               </Text>
             </TouchableOpacity>
           </Card>
@@ -204,7 +219,9 @@ export default function CropValidationScreen({ navigation }) {
                 <Ionicons name="checkmark-circle" size={26} color={colors.primary} />
                 <Text style={styles.photoCaptionFilled}>Photo captured</Text>
                 <Text style={styles.photoMeta}>
-                  {s.barangay}, Labangan{location ? ` · ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : ""}
+                  {location
+                    ? `${location.placeLabel ? `${location.placeLabel} · ` : ""}${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
+                    : "GPS not yet captured"}
                 </Text>
               </>
             ) : (
