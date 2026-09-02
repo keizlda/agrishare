@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { commodityCategories, computeFarmerStats } from "../data/mockData.js";
-import { createFarmer, deleteFarmer, listFarmers, setFarmerStatus } from "../lib/api/farmers.js";
+import { createFarmer, deleteFarmer, listFarmers, setFarmerStatus, updateFarmer } from "../lib/api/farmers.js";
 
 const PAGE_SIZE = 5;
 
@@ -18,11 +18,99 @@ const PAGE_SIZE = 5;
 // Tools/Livestock are program categories (still valid on the Commodities
 // page), not something a farmer record is planted with.
 const FARMER_COMMODITY_OPTIONS = commodityCategories.filter((c) => c !== "Farm Tools" && c !== "Livestock");
+const OWNERSHIP_OPTIONS = ["Owner", "Tenant", "Lessee", "Farmworker"];
+const PCIC_OPTIONS = ["Yes", "No", "Not Applicable"];
 
 const EMPTY_FORM = {
-  rsbsaNo: "", firstName: "", lastName: "", sex: "Male", birthDate: "",
-  contactNo: "", barangay: "Langapud", commodity: "Rice", farmSize: "", farmLocation: "Langapud",
+  rsbsaNo: "",
+  firstName: "",
+  middleName: "",
+  lastName: "",
+  sex: "Male",
+  birthDate: "",
+  contactNo: "",
+  sitioPurok: "",
+  barangay: "Langapud",
+  municipality: "Labangan",
+  province: "Zamboanga del Sur",
+  householdHead: "No",
+  householdMembers: "",
+  commodity: "Rice",
+  farmSize: "",
+  farmLocation: "",
+  ownershipType: "Owner",
+  pcicInsured: "Not Applicable",
+  livestockDetails: "",
+  orgAffiliation: "",
+  status: "Active",
 };
+
+function farmerToForm(f) {
+  return {
+    rsbsaNo: f.rsbsaNo ?? "",
+    firstName: f.firstName ?? "",
+    middleName: f.middleName ?? "",
+    lastName: f.lastName ?? "",
+    sex: f.sex ?? "Male",
+    birthDate: f.birthDate ?? "",
+    contactNo: f.contactNo ?? "",
+    sitioPurok: f.sitioPurok ?? "",
+    barangay: f.barangay ?? "Langapud",
+    municipality: f.municipality ?? "Labangan",
+    province: f.province ?? "Zamboanga del Sur",
+    householdHead: f.householdHead ?? "No",
+    householdMembers: f.householdMembers ?? "",
+    commodity: f.commodity || "Rice",
+    farmSize: f.farmSize ?? "",
+    farmLocation: f.farmLocation ?? "",
+    ownershipType: f.ownershipType || "Owner",
+    pcicInsured: f.pcicInsured || "Not Applicable",
+    livestockDetails: f.livestockDetails ?? "",
+    orgAffiliation: f.orgAffiliation ?? "",
+    status: f.status || "Active",
+  };
+}
+
+function normalizeName(form) {
+  return `${form.firstName} ${form.middleName} ${form.lastName}`.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function findDuplicateFarmer(farmers, form, excludeId) {
+  const rsbsa = form.rsbsaNo.trim().toLowerCase();
+  const name = normalizeName(form);
+  return farmers.find((f) => {
+    if (excludeId != null && f.id === excludeId) return false;
+    const rsbsaMatch = f.rsbsaNo.trim().toLowerCase() === rsbsa;
+    const nameMatch = normalizeName(f) === name && f.birthDate === form.birthDate;
+    return rsbsaMatch || nameMatch;
+  });
+}
+
+function validateFarmerForm(form) {
+  const errors = {};
+  if (!form.rsbsaNo.trim()) errors.rsbsaNo = "RSBSA number is required.";
+  if (!form.firstName.trim()) errors.firstName = "First name is required.";
+  if (!form.lastName.trim()) errors.lastName = "Last name is required.";
+  if (!form.sex) errors.sex = "Sex is required.";
+  if (!form.birthDate) errors.birthDate = "Birth date is required.";
+
+  const cleanedContact = form.contactNo.replace(/\s+/g, "");
+  if (!cleanedContact) {
+    errors.contactNo = "Contact number is required.";
+  } else if (!/^09\d{9}$/.test(cleanedContact)) {
+    errors.contactNo = "Enter an 11-digit number starting with 09 (e.g. 09XX XXX XXXX).";
+  }
+
+  if (form.householdMembers !== "" && Number(form.householdMembers) < 1) {
+    errors.householdMembers = "Must be at least 1.";
+  }
+
+  if (!(Number(form.farmSize) > 0)) {
+    errors.farmSize = "Farm size must be a positive number.";
+  }
+
+  return errors;
+}
 
 export default function Farmers() {
   const { user } = useAuth();
@@ -31,10 +119,7 @@ export default function Farmers() {
   const [search, setSearch] = useState("");
   const [commodityFilter, setCommodityFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [formError, setFormError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", farmer }
   const [pendingDelete, setPendingDelete] = useState(null);
   const [actionError, setActionError] = useState("");
 
@@ -51,22 +136,6 @@ export default function Farmers() {
   }, [farmers, search, commodityFilter, statusFilter]);
 
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
-
-  async function handleAddFarmer(e) {
-    e.preventDefault();
-    setFormError("");
-    setSaving(true);
-    try {
-      const newFarmer = await createFarmer(form);
-      setFarmers((prev) => [newFarmer, ...prev]);
-      setForm(EMPTY_FORM);
-      setShowModal(false);
-    } catch (err) {
-      setFormError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function handleDelete(id) {
     setActionError("");
@@ -133,7 +202,7 @@ export default function Farmers() {
           <button className="agri-icon-btn"><Filter size={16} /></button>
 
           {isMAO && (
-            <button className="btn btn-agri-primary ms-auto d-flex align-items-center gap-2" onClick={() => setShowModal(true)}>
+            <button className="btn btn-agri-primary ms-auto d-flex align-items-center gap-2" onClick={() => setModal({ mode: "add" })}>
               <Plus size={16} /> Add Farmer
             </button>
           )}
@@ -164,7 +233,9 @@ export default function Farmers() {
                     <div style={{ display: "flex", gap: 6 }}>
                       {isMAO ? (
                         <>
-                          <button className="agri-icon-btn" title="Edit"><Pencil size={14} /></button>
+                          <button className="agri-icon-btn" title="Edit" onClick={() => setModal({ mode: "edit", farmer: f })}>
+                            <Pencil size={14} />
+                          </button>
                           <button className="agri-icon-btn" title="Delete" onClick={() => setPendingDelete(f)}>
                             <Trash2 size={14} color="var(--agri-red)" />
                           </button>
@@ -197,14 +268,24 @@ export default function Farmers() {
         <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       </div>
 
-      {showModal && (
+      {modal && (
         <FarmerModal
-          form={form}
-          setForm={setForm}
-          error={formError}
-          saving={saving}
-          onClose={() => setShowModal(false)}
-          onSubmit={handleAddFarmer}
+          mode={modal.mode}
+          farmer={modal.farmer}
+          farmers={farmers}
+          onClose={() => setModal(null)}
+          onViewExisting={(rsbsaNo) => {
+            setSearch(rsbsaNo);
+            setModal(null);
+          }}
+          onSaved={(saved) => {
+            if (modal.mode === "edit") {
+              setFarmers((prev) => prev.map((f) => (f.id === saved.id ? saved : f)));
+            } else {
+              setFarmers((prev) => [saved, ...prev]);
+            }
+            setModal(null);
+          }}
         />
       )}
 
@@ -221,9 +302,44 @@ export default function Farmers() {
   );
 }
 
-function FarmerModal({ form, setForm, error, saving, onClose, onSubmit }) {
+function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }) {
+  const [form, setForm] = useState(() => (mode === "edit" ? farmerToForm(farmer) : EMPTY_FORM));
+  const [errors, setErrors] = useState({});
+  const [duplicate, setDuplicate] = useState(null);
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setFormError("");
+    setDuplicate(null);
+
+    const fieldErrors = validateFarmerForm(form);
+    setErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length > 0) return;
+
+    const excludeId = mode === "edit" ? farmer.id : null;
+    const match = findDuplicateFarmer(farmers, form, excludeId);
+    if (match) {
+      setDuplicate(match);
+      return;
+    }
+
+    const cleanForm = { ...form, contactNo: form.contactNo.replace(/\s+/g, "") };
+
+    setSaving(true);
+    try {
+      const saved = mode === "edit" ? await updateFarmer(farmer.id, cleanForm) : await createFarmer(cleanForm);
+      onSaved(saved);
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -231,65 +347,163 @@ function FarmerModal({ form, setForm, error, saving, onClose, onSubmit }) {
       style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}
       onClick={onClose}
     >
-      <div className="agri-card" style={{ width: 520, maxWidth: "92vw", padding: 22, maxHeight: "88vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-        <div className="agri-panel-header">
-          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>Add Farmer</div>
+      <div
+        className="agri-card"
+        style={{ width: 640, maxWidth: "94vw", maxHeight: "88vh", display: "flex", flexDirection: "column" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="agri-panel-header" style={{ margin: 0, padding: "18px 22px", borderBottom: "1px solid var(--agri-border)" }}>
+          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{mode === "edit" ? "Edit Farmer" : "Add Farmer"}</div>
           <button className="agri-icon-btn" onClick={onClose}><X size={16} /></button>
         </div>
 
-        {error && (
-          <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
-            {error}
-          </div>
-        )}
+        <div style={{ padding: "18px 22px", overflowY: "auto", flex: 1 }}>
+          {duplicate && (
+            <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "10px 12px" }}>
+              A farmer with matching RSBSA number / name and birthdate already exists.
+              <button
+                type="button"
+                className="btn btn-link p-0"
+                style={{ display: "block", fontSize: "0.8rem", marginTop: 4 }}
+                onClick={() => onViewExisting(duplicate.rsbsaNo)}
+              >
+                View existing record: {duplicate.firstName} {duplicate.lastName} — RSBSA {duplicate.rsbsaNo}
+              </button>
+            </div>
+          )}
+          {formError && (
+            <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
+              {formError}
+            </div>
+          )}
 
-        <form onSubmit={onSubmit}>
-          <div className="row g-3">
-            <Field label="RSBSA Number" col={12}>
-              <input required className="form-control" value={form.rsbsaNo} onChange={(e) => update("rsbsaNo", e.target.value)} placeholder="2024-01-002-000XXX" />
-            </Field>
-            <Field label="First Name" col={6}>
-              <input required className="form-control" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} />
-            </Field>
-            <Field label="Last Name" col={6}>
-              <input required className="form-control" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} />
-            </Field>
-            <Field label="Sex" col={4}>
-              <select className="form-select" value={form.sex} onChange={(e) => update("sex", e.target.value)}>
-                <option>Male</option><option>Female</option>
-              </select>
-            </Field>
-            <Field label="Birth Date" col={4}>
-              <input required type="date" className="form-control" value={form.birthDate} onChange={(e) => update("birthDate", e.target.value)} />
-            </Field>
-            <Field label="Contact No." col={4}>
-              <input required className="form-control" value={form.contactNo} onChange={(e) => update("contactNo", e.target.value)} placeholder="09XX XXX XXXX" />
-            </Field>
-            <Field label="Commodity" col={6}>
-              <select className="form-select" value={form.commodity} onChange={(e) => update("commodity", e.target.value)}>
-                {FARMER_COMMODITY_OPTIONS.map((c) => <option key={c}>{c}</option>)}
-              </select>
-            </Field>
-            <Field label="Farm Size (ha)" col={6}>
-              <input required type="number" step="0.01" min="0" className="form-control" value={form.farmSize} onChange={(e) => update("farmSize", e.target.value)} />
-            </Field>
-          </div>
+          <form id="farmer-form" onSubmit={handleSubmit}>
+            <Section title="Identification">
+              <Field label="RSBSA Number" col={12} required error={errors.rsbsaNo}>
+                <input className="form-control" placeholder="2024-01-002-000XXX" value={form.rsbsaNo} onChange={(e) => update("rsbsaNo", e.target.value)} />
+              </Field>
+              <Field label="First Name" col={4} required error={errors.firstName}>
+                <input className="form-control" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} />
+              </Field>
+              <Field label="Middle Name" col={4}>
+                <input className="form-control" value={form.middleName} onChange={(e) => update("middleName", e.target.value)} />
+              </Field>
+              <Field label="Last Name" col={4} required error={errors.lastName}>
+                <input className="form-control" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} />
+              </Field>
+              <Field label="Sex" col={4} required error={errors.sex}>
+                <select className="form-select" value={form.sex} onChange={(e) => update("sex", e.target.value)}>
+                  <option>Male</option><option>Female</option>
+                </select>
+              </Field>
+              <Field label="Birth Date" col={4} required error={errors.birthDate}>
+                <input type="date" className="form-control" value={form.birthDate} onChange={(e) => update("birthDate", e.target.value)} />
+              </Field>
+              <Field label="Contact No." col={4} required error={errors.contactNo}>
+                <input className="form-control" value={form.contactNo} onChange={(e) => update("contactNo", e.target.value)} placeholder="09XX XXX XXXX" />
+              </Field>
+            </Section>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-            <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : "Save Farmer"}</button>
-          </div>
-        </form>
+            <Section title="Address">
+              <Field label="Sitio / Purok" col={6}>
+                <input className="form-control" value={form.sitioPurok} onChange={(e) => update("sitioPurok", e.target.value)} />
+              </Field>
+              <Field label="Barangay" col={6}>
+                <input className="form-control" value={form.barangay} readOnly />
+              </Field>
+              <Field label="Municipality" col={6}>
+                <input className="form-control" value={form.municipality} readOnly />
+              </Field>
+              <Field label="Province" col={6}>
+                <input className="form-control" value={form.province} readOnly />
+              </Field>
+            </Section>
+
+            <Section title="Household">
+              <Field label="Household Head" col={6}>
+                <select className="form-select" value={form.householdHead} onChange={(e) => update("householdHead", e.target.value)}>
+                  <option>No</option><option>Yes</option>
+                </select>
+              </Field>
+              <Field label="No. of Household Members" col={6} error={errors.householdMembers}>
+                <input type="number" min="1" className="form-control" value={form.householdMembers} onChange={(e) => update("householdMembers", e.target.value)} />
+              </Field>
+            </Section>
+
+            <Section title="Farm Information">
+              <Field label="Commodity / Crop Type" col={6}>
+                <select className="form-select" value={form.commodity} onChange={(e) => update("commodity", e.target.value)}>
+                  {FARMER_COMMODITY_OPTIONS.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </Field>
+              <Field label="Farm Size (ha)" col={6} error={errors.farmSize}>
+                <input type="number" step="0.01" min="0" className="form-control" value={form.farmSize} onChange={(e) => update("farmSize", e.target.value)} />
+              </Field>
+              <Field label="Farm Location" col={12}>
+                <input className="form-control" placeholder="Sitio or parcel description" value={form.farmLocation} onChange={(e) => update("farmLocation", e.target.value)} />
+              </Field>
+              <Field label="Ownership / Tenurial Status" col={6}>
+                <select className="form-select" value={form.ownershipType} onChange={(e) => update("ownershipType", e.target.value)}>
+                  {OWNERSHIP_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                </select>
+              </Field>
+              <Field label="PCIC Insured" col={6}>
+                <select className="form-select" value={form.pcicInsured} onChange={(e) => update("pcicInsured", e.target.value)}>
+                  {PCIC_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                </select>
+              </Field>
+              <Field label="Livestock Details" col={12}>
+                <textarea className="form-control" rows={2} placeholder="e.g. 2 carabao, 5 goats" value={form.livestockDetails} onChange={(e) => update("livestockDetails", e.target.value)} />
+              </Field>
+            </Section>
+
+            <Section title="Affiliation & Status" last>
+              <Field label="Organization Affiliation" col={6}>
+                <input className="form-control" placeholder="Farmers' association name" value={form.orgAffiliation} onChange={(e) => update("orgAffiliation", e.target.value)} />
+              </Field>
+              <Field label="Status" col={6}>
+                <select className="form-select" value={form.status} onChange={(e) => update("status", e.target.value)}>
+                  <option>Active</option><option>Inactive</option>
+                </select>
+              </Field>
+            </Section>
+          </form>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "16px 22px", borderTop: "1px solid var(--agri-border)" }}>
+          <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" form="farmer-form" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : "Save Farmer"}</button>
+        </div>
       </div>
     </div>
   );
 }
 
-function Field({ label, col, children }) {
+function Section({ title, children, last }) {
+  return (
+    <div style={{ marginBottom: last ? 0 : 20 }}>
+      <div
+        style={{
+          fontWeight: 700, fontSize: "0.8rem", color: "var(--agri-primary-dark)", textTransform: "uppercase",
+          letterSpacing: "0.03em", marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid var(--agri-border)",
+        }}
+      >
+        {title}
+      </div>
+      <div className="row g-3">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, col, required, error, children }) {
   return (
     <div className={`col-${col}`}>
-      <label className="agri-form-label">{label}</label>
+      <label className="agri-form-label">
+        {label}
+        {required && <span style={{ color: "var(--agri-red)" }}> *</span>}
+      </label>
       {children}
+      {error && <div style={{ color: "var(--agri-red)", fontSize: "0.72rem", marginTop: 4 }}>{error}</div>}
     </div>
   );
 }
