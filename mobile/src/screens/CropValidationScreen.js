@@ -383,22 +383,15 @@ export default function CropValidationScreen({ navigation }) {
                 />
                 <View style={styles.stampBox}>
                   <View style={styles.stampHeaderRow}>
-                    <Ionicons name="location" size={13} color="#fff" />
+                    <Ionicons name="location" size={9} color="#fff" />
                     <Text style={styles.stampHeaderText}>AGRISHARE CROP VALIDATION</Text>
                   </View>
                   <Text style={styles.stampPlace}>{location.placeLabel || "Unknown location"}</Text>
                   <Text style={styles.stampLine}>
-                    {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}°
-                  </Text>
-                  <Text style={styles.stampLine}>
-                    {toDMS(location.latitude, true)} {toDMS(location.longitude, false)}
+                    {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}° · ±{Math.round(location.accuracy)} m
                   </Text>
                   <Text style={styles.stampMeta}>
-                    {location.capturedAt} · ±{Math.round(location.accuracy)} m accuracy · {location.distanceKm.toFixed(1)} km from
-                    Brgy. Langapud
-                  </Text>
-                  <Text style={styles.stampRef}>
-                    RSBSA {farmer?.rsbsaNo ?? "—"} · {farmer?.firstName} {farmer?.lastName}
+                    {location.capturedAt} · RSBSA {farmer?.rsbsaNo ?? "—"}
                   </Text>
                 </View>
               </View>
@@ -641,16 +634,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(10,25,15,0.72)",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    backgroundColor: "rgba(10,25,15,0.68)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
   },
-  stampHeaderRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 5 },
-  stampHeaderText: { color: "#fff", fontSize: 10, fontWeight: "700", letterSpacing: 0.4 },
-  stampPlace: { color: "#fff", fontSize: 13.5, fontWeight: "800", marginBottom: 3 },
-  stampLine: { color: "rgba(255,255,255,0.92)", fontSize: 10.5, marginBottom: 1 },
-  stampMeta: { color: "rgba(255,255,255,0.8)", fontSize: 9, marginTop: 4 },
-  stampRef: { color: "rgba(255,255,255,0.7)", fontSize: 8.5, marginTop: 2 },
+  stampHeaderRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 2 },
+  stampHeaderText: { color: "rgba(255,255,255,0.85)", fontSize: 7.5, fontWeight: "700", letterSpacing: 0.3 },
+  stampPlace: { color: "#fff", fontSize: 11, fontWeight: "800", marginBottom: 1 },
+  stampLine: { color: "rgba(255,255,255,0.92)", fontSize: 9, marginBottom: 1 },
+  stampMeta: { color: "rgba(255,255,255,0.75)", fontSize: 8 },
 
   fieldLabel: { fontSize: 10.5, fontWeight: "700", color: colors.textMuted, marginTop: 8, marginBottom: 4 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
