@@ -44,19 +44,6 @@ export default function MoreScreen({ navigation }) {
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.validationCard} onPress={() => navigation.navigate("CropValidation")}>
-          <View style={styles.validationIcon}>
-            <Ionicons name="leaf" size={20} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.validationTitle}>Crop Validation</Text>
-            <Text style={styles.validationSub}>Submit geotagged proof of planting for validation</Text>
-          </View>
-          <View style={styles.validationBtn}>
-            <Text style={styles.validationBtnText}>Validate Crops</Text>
-          </View>
-        </TouchableOpacity>
-
         <TouchableOpacity style={[styles.validationCard, { backgroundColor: colors.blueBg }]} onPress={() => navigation.navigate("Requests")}>
           <View style={[styles.validationIcon, { backgroundColor: colors.blue }]}>
             <Ionicons name="mail" size={20} color="#fff" />

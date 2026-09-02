@@ -10,7 +10,7 @@ import { listAnnouncements, markAnnouncementRead, setAnnouncementArchived } from
 const TABS = ["All Announcements", "Unread", "Archived"];
 const ICONS = ["megaphone-outline", "school-outline", "water-outline", "leaf-outline", "bug-outline", "leaf-outline"];
 
-export default function AnnouncementsScreen() {
+export default function AnnouncementsScreen({ navigation }) {
   const { farmer } = useAuth();
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState(TABS[0]);
@@ -41,7 +41,7 @@ export default function AnnouncementsScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="Announcements" />
+      <ScreenHeader title="Announcements" onBack={() => navigation.goBack()} />
 
       <View style={styles.tabsRow}>
         {TABS.map((t) => (

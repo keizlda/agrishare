@@ -2,6 +2,44 @@ import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { decode } from "base64-arraybuffer";
 import { supabase } from "../supabaseClient";
+import { dbStatusToLabel } from "../status";
+
+const LIST_SELECT = "validation_id, photo_url, latitude, longitude, captured_at, status, remarks, reviewed_at, created_at";
+
+function mapValidation(row) {
+  return {
+    id: row.validation_id,
+    photoPath: row.photo_url,
+    latitude: row.latitude != null ? Number(row.latitude) : null,
+    longitude: row.longitude != null ? Number(row.longitude) : null,
+    capturedAt: row.captured_at,
+    submittedAt: row.created_at,
+    status: dbStatusToLabel(row.status),
+    // Shared column on both clients: it's the farmer's own note while
+    // pending, then gets overwritten with the reviewer's remark once
+    // reviewed (web/src/lib/api/cropValidation.js's reviewSubmission) — so
+    // once status is Rejected, this IS the reviewer's reason.
+    remarks: row.remarks ?? "",
+    reviewedAt: row.reviewed_at,
+  };
+}
+
+// RLS scopes crop_validations to the requesting farmer's own rows (same
+// pattern as listMyRequests) — no explicit farmer_id filter needed.
+export async function listMyCropValidations() {
+  const { data, error } = await supabase.from("crop_validations").select(LIST_SELECT).order("created_at", { ascending: false });
+  if (error) throw error;
+  return data.map(mapValidation);
+}
+
+// photo_url is a private Storage object path, not a public URL — mirrors
+// web's getSignedPhotoUrl exactly.
+export async function getSignedPhotoUrl(path, expiresInSeconds = 3600) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from("crop-validation-photos").createSignedUrl(path, expiresInSeconds);
+  if (error) throw error;
+  return data.signedUrl;
+}
 
 // Uploads a photo captured via expo-image-picker (see CropValidationScreen)
 // to the real crop-validation-photos Storage bucket, under this farmer's own
