@@ -196,7 +196,7 @@ export default function Distributions() {
 
             <button
               className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
-              onClick={() => window.open(`/print/distributions/${selected.id}`, "_blank", "noopener,noreferrer")}
+              onClick={() => window.open(`/print/distributions/${selected.id}?autoPrint=1`, "_blank", "noopener,noreferrer")}
             >
               <Printer size={15} /> Print Distribution Report
             </button>

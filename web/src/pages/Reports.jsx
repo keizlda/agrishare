@@ -4,7 +4,6 @@ import { Download, Eye, FileBarChart2, FileText, Package, Users } from "lucide-r
 import StatCard from "../components/ui/StatCard.jsx";
 import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
 import { usePersistedState } from "../hooks/usePersistedState.js";
-import { downloadReportPdf, previewReportPdf } from "../utils/generateReportPdf.js";
 import { barangays, computeDistributionByCommodity, computeDistributionTrend, distributionTotalQty, reportTypes } from "../data/mockData.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { listFarmers } from "../lib/api/farmers.js";
@@ -38,6 +37,12 @@ export default function Reports() {
 
   const totalQuantity = distributions.reduce((sum, d) => sum + distributionTotalQty(d), 0);
 
+  function printUrl({ type, dateFrom, dateTo, commodity, barangay }, autoPrint) {
+    const params = new URLSearchParams({ type, dateFrom, dateTo, commodity, barangay });
+    if (autoPrint) params.set("autoPrint", "1");
+    return `/print/reports?${params.toString()}`;
+  }
+
   function handleGenerate(e) {
     e.preventDefault();
     const id = `RPT-${String(reports.length + 29).padStart(3, "0")}`;
@@ -54,15 +59,15 @@ export default function Reports() {
       },
       ...prev,
     ]);
-    downloadReportPdf({ reportType, dateFrom, dateTo, commodity, barangay, farmers, distributions, commodities });
+    window.open(printUrl({ type: reportType, dateFrom, dateTo, commodity, barangay }, true), "_blank", "noopener,noreferrer");
   }
 
   function handlePreview(r) {
-    previewReportPdf({ reportType: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, commodity: r.commodity, barangay: r.barangay, farmers, distributions, commodities });
+    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, commodity: r.commodity, barangay: r.barangay }, false), "_blank", "noopener,noreferrer");
   }
 
   function handleDownload(r) {
-    downloadReportPdf({ reportType: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, commodity: r.commodity, barangay: r.barangay, farmers, distributions, commodities });
+    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, commodity: r.commodity, barangay: r.barangay }, true), "_blank", "noopener,noreferrer");
   }
 
   return (

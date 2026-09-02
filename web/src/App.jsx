@@ -10,12 +10,14 @@ import Reports from "./pages/Reports.jsx";
 import Commodities from "./pages/Commodities.jsx";
 import Settings from "./pages/Settings.jsx";
 import PrintDistribution from "./pages/PrintDistribution.jsx";
+import PrintReport from "./pages/PrintReport.jsx";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/print/distributions/:id" element={<PrintDistribution />} />
+      <Route path="/print/reports" element={<PrintReport />} />
 
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />

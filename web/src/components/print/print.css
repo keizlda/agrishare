@@ -1,6 +1,7 @@
-/* Scoped to the standalone print-report route only — every class is
-   prefixed pr- so nothing here can collide with the app's agri- classes,
-   even though this stylesheet loads into the same bundle. */
+/* Shared shell for every printable route (/print/distributions/:id,
+   /print/reports). Every class is prefixed pr- so nothing here can collide
+   with the app's agri- classes, even though this stylesheet loads into the
+   same bundle as the rest of the app. */
 
 .pr-page {
   font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", Arial, sans-serif;
@@ -180,15 +181,12 @@
 
 .pr-num { text-align: right; }
 
-.pr-items-table th:nth-child(2),
-.pr-items-table td:nth-child(2) {
-  width: 110px;
-}
-
-.pr-items-table th:nth-child(3),
-.pr-items-table td:nth-child(3) {
-  padding-left: 20px;
-}
+/* Utility modifiers (applied per-column via className, not positional
+   selectors — different report tables have different column counts).
+   Scoped under .pr-items-table so they outrank the base th/td rule above,
+   which resets horizontal padding to 0. */
+.pr-items-table .pr-col-narrow { width: 110px; }
+.pr-items-table .pr-col-pad-left { padding-left: 20px; }
 
 .pr-items-total td {
   border-top: 1.5px solid #14251a;
