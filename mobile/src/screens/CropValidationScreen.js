@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Alert, Image, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -77,6 +77,7 @@ export default function CropValidationScreen({ navigation }) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPath, setPhotoPath] = useState(null);
   const [photoUri, setPhotoUri] = useState(null);
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [stampJob, setStampJob] = useState(null);
   const [location, setLocation] = useState(null);
   const [locatingGps, setLocatingGps] = useState(false);
@@ -329,8 +330,8 @@ export default function CropValidationScreen({ navigation }) {
         <Card title="Crop Photo (Proof of Planting)" icon="camera-outline">
           <TouchableOpacity
             style={[styles.photoBox, (!!photoUri || !!stampJob) && styles.photoBoxFilled]}
-            onPress={handleCapturePhoto}
-            disabled={uploadingPhoto || photoCaptured || !!stampJob}
+            onPress={photoUri ? () => setPhotoViewerOpen(true) : handleCapturePhoto}
+            disabled={!!stampJob}
           >
             {stampJob && location ? (
               // Live, on-screen: the farmer watches the stamp render onto
@@ -377,6 +378,10 @@ export default function CropValidationScreen({ navigation }) {
                     <Text style={styles.finalizingPillText}>Uploading…</Text>
                   </View>
                 )}
+                <View style={styles.viewHintPill}>
+                  <Ionicons name="expand-outline" size={11} color="#fff" />
+                  <Text style={styles.finalizingPillText}>Tap to view</Text>
+                </View>
               </>
             ) : (
               <>
@@ -386,6 +391,19 @@ export default function CropValidationScreen({ navigation }) {
             )}
           </TouchableOpacity>
         </Card>
+
+        <Modal visible={photoViewerOpen} transparent animationType="fade" onRequestClose={() => setPhotoViewerOpen(false)}>
+          <TouchableOpacity
+            style={styles.viewerBackdrop}
+            activeOpacity={1}
+            onPress={() => setPhotoViewerOpen(false)}
+          >
+            <TouchableOpacity style={styles.viewerCloseBtn} onPress={() => setPhotoViewerOpen(false)}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+            {photoUri && <Image source={{ uri: photoUri }} style={styles.viewerImage} resizeMode="contain" />}
+          </TouchableOpacity>
+        </Modal>
 
         <Card title="Validation Details" icon="document-text-outline">
           <Text style={styles.fieldLabel}>Crop Type</Text>
@@ -569,6 +587,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   finalizingPillText: { color: "#fff", fontWeight: "700", fontSize: 10 },
+
+  viewHintPill: {
+    position: "absolute",
+    bottom: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(10,25,15,0.72)",
+    borderRadius: radius.pill,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+
+  viewerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewerCloseBtn: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 1,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewerImage: { width: "100%", height: "80%" },
 
   stampBox: {
     position: "absolute",
