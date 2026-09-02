@@ -3,6 +3,7 @@ import { Alert, Image, Linking, Platform, ScrollView, StyleSheet, Text, TextInpu
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
+import { WebView } from "react-native-webview";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Pill from "../components/Pill";
 import { colors, radius } from "../theme";
@@ -219,37 +220,57 @@ export default function CropValidationScreen({ navigation }) {
           <InfoRow label="Distribution Date" value={s.distributionDate} last />
         </Card>
 
-        <View style={styles.twoCol}>
-          <Card title="Current Location" icon="location-outline" style={{ flex: 1 }}>
-            <TouchableOpacity
-              style={[styles.mapPlaceholder, location && styles.mapPlaceholderFilled]}
-              onPress={location ? handleOpenMap : handleCaptureLocation}
-              disabled={locatingGps}
-            >
-              <Ionicons name={location ? "checkmark-circle" : "location"} size={22} color={colors.primary} />
-              <Text style={styles.mapPlaceholderText} numberOfLines={2}>
-                {locatingGps ? "Locating…" : location ? location.placeLabel || "Tap to view on map" : "Tap to capture"}
-              </Text>
+        <Card
+          title="Current Location"
+          icon="location-outline"
+          action={
+            location && (
+              <TouchableOpacity style={styles.recaptureBtn} onPress={handleCaptureLocation} disabled={locatingGps}>
+                <Ionicons name="refresh" size={12} color={colors.primaryDark} />
+                <Text style={styles.recaptureText}>{locatingGps ? "Locating…" : "Recapture"}</Text>
+              </TouchableOpacity>
+            )
+          }
+        >
+          {location ? (
+            <>
+              <View style={styles.mapFrameWrap}>
+                <WebView
+                  source={{ uri: `https://www.google.com/maps?q=${location.latitude},${location.longitude}&z=15&output=embed` }}
+                  style={styles.mapFrame}
+                />
+              </View>
+              <TouchableOpacity style={styles.mapOpenLink} onPress={handleOpenMap}>
+                <Ionicons name="open-outline" size={12} color={colors.primaryDark} />
+                <Text style={styles.mapOpenLinkText}>Open in Maps app</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity style={styles.mapPlaceholder} onPress={handleCaptureLocation} disabled={locatingGps}>
+              <Ionicons name="location" size={22} color={colors.primary} />
+              <Text style={styles.mapPlaceholderText}>{locatingGps ? "Locating…" : "Tap to capture"}</Text>
             </TouchableOpacity>
-          </Card>
-          <Card title="GPS Geotag" icon="navigate-outline" style={{ flex: 1 }}>
-            <InfoRow label="Latitude" value={location ? location.latitude.toFixed(6) : "—"} small />
-            <InfoRow label="Longitude" value={location ? location.longitude.toFixed(6) : "—"} small />
-            <InfoRow label="Captured" value={location ? location.capturedAt : "—"} small />
-            <InfoRow
-              label="Accuracy"
-              value={location ? `±${Math.round(location.accuracy)} m · ${accuracyRating(location.accuracy)}` : "—"}
-              small
-            />
-            <InfoRow
-              label="From Barangay"
-              value={location ? `${location.distanceKm.toFixed(1)} km` : "—"}
-              small
-              last
-              warn={location && location.distanceKm > FAR_THRESHOLD_KM}
-            />
-          </Card>
-        </View>
+          )}
+        </Card>
+
+        <Card title="GPS Geotag" icon="navigate-outline">
+          <InfoRow label="Latitude" value={location ? location.latitude.toFixed(6) : "—"} small />
+          <InfoRow label="Longitude" value={location ? location.longitude.toFixed(6) : "—"} small />
+          <InfoRow label="Place" value={location ? location.placeLabel || "Unknown" : "—"} small />
+          <InfoRow label="Captured" value={location ? location.capturedAt : "—"} small />
+          <InfoRow
+            label="Accuracy"
+            value={location ? `±${Math.round(location.accuracy)} m · ${accuracyRating(location.accuracy)}` : "—"}
+            small
+          />
+          <InfoRow
+            label="From Barangay"
+            value={location ? `${location.distanceKm.toFixed(1)} km` : "—"}
+            small
+            last
+            warn={location && location.distanceKm > FAR_THRESHOLD_KM}
+          />
+        </Card>
 
         {location && location.distanceKm > FAR_THRESHOLD_KM && (
           <View style={styles.warningBanner}>
@@ -347,12 +368,13 @@ export default function CropValidationScreen({ navigation }) {
   );
 }
 
-function Card({ title, icon, children, style }) {
+function Card({ title, icon, children, style, action }) {
   return (
     <View style={[styles.card, style]}>
       <View style={styles.cardHeader}>
         <Ionicons name={icon} size={14} color={colors.primaryDark} />
         <Text style={styles.cardTitle}>{title}</Text>
+        {action && <View style={styles.cardHeaderAction}>{action}</View>}
       </View>
       {children}
     </View>
@@ -391,7 +413,6 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 14.5, fontWeight: "700", color: colors.text },
   content: { padding: 16, paddingBottom: 32 },
-  twoCol: { flexDirection: "row", gap: 10 },
 
   card: {
     backgroundColor: colors.card,
@@ -415,6 +436,7 @@ const styles = StyleSheet.create({
   warningText: { flex: 1, fontSize: 11, color: colors.text, lineHeight: 15.5 },
   cardHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
   cardTitle: { fontSize: 12, fontWeight: "700", color: colors.text },
+  cardHeaderAction: { marginLeft: "auto" },
 
   infoRow: {
     flexDirection: "row",
@@ -427,15 +449,28 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 11.5, color: colors.text, fontWeight: "600" },
 
   mapPlaceholder: {
-    height: 90,
+    height: 110,
     borderRadius: radius.sm,
     backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
   },
-  mapPlaceholderFilled: { backgroundColor: colors.primaryLight },
-  mapPlaceholderText: { fontSize: 10, color: colors.primaryDark, fontWeight: "600", textAlign: "center", paddingHorizontal: 6 },
+  mapPlaceholderText: { fontSize: 11, color: colors.primaryDark, fontWeight: "600", textAlign: "center", paddingHorizontal: 6 },
+
+  mapFrameWrap: {
+    height: 200,
+    borderRadius: radius.sm,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mapFrame: { flex: 1 },
+  mapOpenLink: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8, alignSelf: "flex-start" },
+  mapOpenLinkText: { fontSize: 11, color: colors.primaryDark, fontWeight: "600" },
+
+  recaptureBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  recaptureText: { fontSize: 10.5, color: colors.primaryDark, fontWeight: "600" },
 
   photoBox: {
     height: 180,
