@@ -159,18 +159,6 @@ a {
   padding: 24px;
 }
 
-.agri-page-title {
-  font-size: 1.4rem;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.agri-page-subtitle {
-  color: var(--agri-text-muted);
-  font-size: 0.9rem;
-  margin-bottom: 20px;
-}
-
 /* ---------- Cards ---------- */
 .agri-card {
   background: var(--agri-card);
@@ -179,53 +167,111 @@ a {
   box-shadow: var(--agri-shadow);
 }
 
-/* ---------- Overview at a Glance (right-edge drawer) ---------- */
-.agri-overview-tab {
-  position: fixed;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-  width: 30px;
+/* ---------- Overview at a Glance (info button + panel) ---------- */
+.agri-overview-trigger-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.agri-info-btn {
+  position: relative;
+  width: 44px;
   height: 44px;
-  border-radius: 10px 0 0 10px;
-  background: #ffffff;
-  border: 1px solid var(--agri-border);
-  border-right: none;
-  color: var(--agri-primary-dark);
+  border-radius: 50%;
+  background: var(--agri-primary);
+  color: #ffffff;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: -2px 0 10px rgba(20, 40, 25, 0.1);
-  z-index: 41;
+  box-shadow: 0 4px 14px rgba(20, 83, 45, 0.28);
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 
-.agri-overview-backdrop {
+.agri-info-btn:hover,
+.agri-info-btn:focus-visible {
+  transform: scale(1.08);
+  background: var(--agri-primary-dark);
+}
+
+.agri-info-btn:hover .agri-info-tooltip,
+.agri-info-btn:focus-visible .agri-info-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.agri-info-tooltip {
+  position: absolute;
+  top: 52px;
+  right: 0;
+  background: #1f2a24;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+  z-index: 45;
+}
+
+.agri-overview-overlay {
   position: fixed;
   inset: 0;
   background: rgba(20, 40, 25, 0.25);
   z-index: 39;
+  animation: agri-fade-in 0.2s ease;
 }
 
-.agri-overview-drawer {
+.agri-overview-panel {
   position: fixed;
-  top: 0;
-  right: 0;
-  height: 100vh;
-  width: 340px;
-  max-width: 88vw;
+  top: 90px;
+  right: 24px;
+  width: 380px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 120px);
   background: var(--agri-card);
-  box-shadow: -8px 0 28px rgba(20, 40, 25, 0.16);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(10, 30, 15, 0.24);
   z-index: 40;
-  transform: translateX(100%);
-  transition: transform 0.25s ease;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  animation: agri-panel-in 0.22s ease;
 }
 
-.agri-overview-drawer.open {
-  transform: translateX(0);
+@keyframes agri-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes agri-panel-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 640px) {
+  .agri-overview-panel {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 16px 16px 0 0;
+    animation: agri-sheet-in 0.22s ease;
+  }
+
+  @keyframes agri-sheet-in {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
 }
 
 .agri-overview-drawer-header {
@@ -302,8 +348,8 @@ a {
 }
 
 .agri-overview-item-value {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .agri-overview-item-sub {

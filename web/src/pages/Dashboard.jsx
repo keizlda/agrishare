@@ -53,9 +53,6 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="agri-page-title">Welcome back, {user?.name ?? "Admin"}!</div>
-      <div className="agri-page-subtitle">Here's what's happening in Barangay Langapud today.</div>
-
       <OverviewDrawer>
         <StatCard icon={Users} label="Total Farmers" value={stats.total.toLocaleString()} sub="All registered farmers" color="green" />
         <StatCard icon={UserCheck} label="Active Farmers" value={stats.active.toLocaleString()} sub="Currently active" color="blue" />
