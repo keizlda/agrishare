@@ -50,6 +50,11 @@ function toDMS(value, isLat) {
   return `${deg}°${min}'${sec}"${dir}`;
 }
 
+const COMPASS_POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+function compassLabel(deg) {
+  return COMPASS_POINTS[Math.round(deg / 45) % 8];
+}
+
 // The keyless output=embed URL only renders when it's actually loaded inside
 // an <iframe> — Google's page checks window.top !== window.self and refuses
 // otherwise. A WebView's top-level document IS window.top, so loading the
@@ -126,11 +131,21 @@ export default function CropValidationScreen({ navigation }) {
         // Reverse geocoding is a label nicety, not required for a valid geotag.
       }
 
+      let bearing = null;
+      try {
+        const heading = await Location.getHeadingAsync();
+        const deg = heading.trueHeading >= 0 ? heading.trueHeading : heading.magHeading;
+        if (deg != null && deg >= 0) bearing = deg;
+      } catch {
+        // Compass bearing is a label nicety, not required for a valid geotag.
+      }
+
       setLocation({
         latitude,
         longitude,
         accuracy: position.coords.accuracy,
         placeLabel,
+        bearing,
         distanceKm: haversineKm(latitude, longitude, LANGAPUD_REF.lat, LANGAPUD_REF.lng),
         capturedAt: new Date(position.timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }),
       });
@@ -177,6 +192,16 @@ export default function CropValidationScreen({ navigation }) {
     } catch (err) {
       Alert.alert("Photo capture failed", err.message);
     }
+  }
+
+  // Also doubles as the recovery path if uploadCropPhoto fails after a
+  // successful capture: photoUri stays set but photoCaptured never flips to
+  // true, so Retake is the only way back in rather than a dead end.
+  function handleRetakePhoto() {
+    setPhotoUri(null);
+    setPhotoPath(null);
+    setPhotoCaptured(false);
+    handleCapturePhoto();
   }
 
   // Runs once the live stamp preview (raw photo + data overlay, rendered
@@ -304,6 +329,11 @@ export default function CropValidationScreen({ navigation }) {
             small
           />
           <InfoRow
+            label="Bearing"
+            value={location ? (location.bearing != null ? `${Math.round(location.bearing)}° ${compassLabel(location.bearing)}` : "Unavailable") : "—"}
+            small
+          />
+          <InfoRow
             label="From Barangay"
             value={location ? `${location.distanceKm.toFixed(1)} km` : "—"}
             small
@@ -323,7 +353,18 @@ export default function CropValidationScreen({ navigation }) {
           </View>
         )}
 
-        <Card title="Crop Photo (Proof of Planting)" icon="camera-outline">
+        <Card
+          title="Crop Photo (Proof of Planting)"
+          icon="camera-outline"
+          action={
+            photoUri && (
+              <TouchableOpacity style={styles.recaptureBtn} onPress={handleRetakePhoto}>
+                <Ionicons name="refresh" size={12} color={colors.primaryDark} />
+                <Text style={styles.recaptureText}>Retake</Text>
+              </TouchableOpacity>
+            )
+          }
+        >
           <TouchableOpacity
             style={[styles.photoBox, (!!photoUri || !!stampJob) && styles.photoBoxFilled]}
             onPress={photoUri ? () => setPhotoViewerOpen(true) : handleCapturePhoto}
@@ -352,6 +393,11 @@ export default function CropValidationScreen({ navigation }) {
                   <Text style={styles.stampLine}>
                     {toDMS(location.latitude, true)} {toDMS(location.longitude, false)}
                   </Text>
+                  {location.bearing != null && (
+                    <Text style={styles.stampLine}>
+                      Bearing {Math.round(location.bearing)}° {compassLabel(location.bearing)}
+                    </Text>
+                  )}
                   <Text style={styles.stampMeta}>
                     {location.capturedAt} · ±{Math.round(location.accuracy)} m accuracy · {location.distanceKm.toFixed(1)} km from
                     Brgy. Langapud
