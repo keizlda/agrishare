@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Pill from "../components/Pill";
 import { colors, radius } from "../theme";
@@ -10,11 +11,17 @@ import { submitCropValidation, uploadPlaceholderCropPhoto } from "../lib/api/cro
 
 const CROP_TYPES = ["Rice", "Corn", "Vegetables", "Other"];
 
-// Camera capture and GPS tagging are mocked here (a real build wires these to
-// expo-image-picker + expo-location, which need native permission prompts
-// that don't make sense to simulate in a UI-first pass) — tapping the photo
-// box uploads a placeholder image to the real Storage bucket instead of an
-// actual camera capture. Submitting creates a real crop_validations row.
+function accuracyRating(meters) {
+  if (meters == null) return "Unknown";
+  if (meters <= 10) return "High";
+  if (meters <= 30) return "Medium";
+  return "Low";
+}
+
+// Camera capture is still mocked (see uploadPlaceholderCropPhoto) — a real
+// camera flow needs expo-image-picker, out of scope here. GPS geotagging is
+// real: it uses the device's actual location via expo-location, gated behind
+// a real permission prompt, and that's what gets submitted with the record.
 export default function CropValidationScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { farmer } = useAuth();
@@ -26,16 +33,62 @@ export default function CropValidationScreen({ navigation }) {
   const [photoCaptured, setPhotoCaptured] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPath, setPhotoPath] = useState(null);
-  const [gpsCaptured, setGpsCaptured] = useState(true);
+  const [location, setLocation] = useState(null);
+  const [locatingGps, setLocatingGps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const checklist = [
-    { label: "GPS successfully captured", done: gpsCaptured },
+    { label: "GPS successfully captured", done: !!location },
     { label: "Crop photo uploaded", done: photoCaptured },
     { label: "Commodity has been planted", done: true },
     { label: "Information verified by farmer", done: true },
   ];
   const allDone = checklist.every((c) => c.done);
+
+  async function handleCaptureLocation() {
+    setLocatingGps(true);
+    try {
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        Alert.alert("Location services off", "Please enable location services on your device and try again.");
+        return;
+      }
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Location permission needed",
+          "AgriShare needs access to your location to geotag this crop validation.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setLocation({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        capturedAt: new Date(position.timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }),
+      });
+    } catch (err) {
+      Alert.alert("Couldn't get your location", err.message);
+    } finally {
+      setLocatingGps(false);
+    }
+  }
+
+  function handleOpenMap() {
+    if (!location) return;
+    const query = `${location.latitude},${location.longitude}`;
+    const url = Platform.select({
+      ios: `maps:0,0?q=Crop Validation Location@${query}`,
+      android: `geo:0,0?q=${query}(Crop Validation Location)`,
+      default: `https://www.google.com/maps/search/?api=1&query=${query}`,
+    });
+    Linking.openURL(url).catch(() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`));
+  }
 
   async function handleCapturePhoto() {
     setUploadingPhoto(true);
@@ -51,6 +104,10 @@ export default function CropValidationScreen({ navigation }) {
   }
 
   async function handleSubmit() {
+    if (!location) {
+      Alert.alert("Incomplete", "Please capture your GPS location before submitting.");
+      return;
+    }
     if (!allDone) {
       Alert.alert("Incomplete", "Please capture a crop photo before submitting.");
       return;
@@ -60,9 +117,9 @@ export default function CropValidationScreen({ navigation }) {
       await submitCropValidation({
         farmerId: farmer.farmerId,
         photoPath,
-        latitude: 7.245123,
-        longitude: 123.654321,
-        gpsAccuracyMeters: 5.2,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        gpsAccuracyMeters: location.accuracy,
         remarks: remarks || `${cropType} · ${areaPlanted} ha · planted ${plantingDate}`,
       });
       Alert.alert("Submitted", "Your crop validation has been submitted for MAO/FA President review.");
@@ -97,15 +154,27 @@ export default function CropValidationScreen({ navigation }) {
 
         <View style={styles.twoCol}>
           <Card title="Current Location" icon="location-outline" style={{ flex: 1 }}>
-            <View style={styles.mapPlaceholder}>
-              <Ionicons name="location" size={22} color={colors.primary} />
-            </View>
+            <TouchableOpacity
+              style={[styles.mapPlaceholder, location && styles.mapPlaceholderFilled]}
+              onPress={location ? handleOpenMap : handleCaptureLocation}
+              disabled={locatingGps}
+            >
+              <Ionicons name={location ? "checkmark-circle" : "location"} size={22} color={colors.primary} />
+              <Text style={styles.mapPlaceholderText}>
+                {locatingGps ? "Locating…" : location ? "Tap to view on map" : "Tap to capture"}
+              </Text>
+            </TouchableOpacity>
           </Card>
           <Card title="GPS Geotag" icon="navigate-outline" style={{ flex: 1 }}>
-            <InfoRow label="Latitude" value={s.gps.latitude} small />
-            <InfoRow label="Longitude" value={s.gps.longitude} small />
-            <InfoRow label="Captured" value={s.gps.capturedAt} small />
-            <InfoRow label="Accuracy" value={`${s.gps.accuracy} · ${s.gps.accuracyRating}`} small last />
+            <InfoRow label="Latitude" value={location ? location.latitude.toFixed(6) : "—"} small />
+            <InfoRow label="Longitude" value={location ? location.longitude.toFixed(6) : "—"} small />
+            <InfoRow label="Captured" value={location ? location.capturedAt : "—"} small />
+            <InfoRow
+              label="Accuracy"
+              value={location ? `±${Math.round(location.accuracy)} m · ${accuracyRating(location.accuracy)}` : "—"}
+              small
+              last
+            />
           </Card>
         </View>
 
@@ -119,7 +188,9 @@ export default function CropValidationScreen({ navigation }) {
               <>
                 <Ionicons name="checkmark-circle" size={26} color={colors.primary} />
                 <Text style={styles.photoCaptionFilled}>Photo captured</Text>
-                <Text style={styles.photoMeta}>{s.barangay}, Labangan · {s.gps.latitude} {s.gps.longitude}</Text>
+                <Text style={styles.photoMeta}>
+                  {s.barangay}, Labangan{location ? ` · ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : ""}
+                </Text>
               </>
             ) : (
               <>
@@ -252,7 +323,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
   },
+  mapPlaceholderFilled: { backgroundColor: colors.primaryLight },
+  mapPlaceholderText: { fontSize: 10, color: colors.primaryDark, fontWeight: "600", textAlign: "center", paddingHorizontal: 6 },
 
   photoBox: {
     height: 120,

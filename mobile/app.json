@@ -21,7 +21,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "AgriShare uses your location to geotag crop validation photos as proof of where they were taken."
+        }
+      ]
     ]
   }
 }

@@ -66,5 +66,4 @@ export const cropValidationSample = {
   commodityReceived: "Hybrid Rice Seeds",
   distributionDate: "2024-05-15",
   status: "PENDING VALIDATION",
-  gps: { latitude: "7.245123° N", longitude: "123.654321° E", capturedAt: "2024-05-22, 10:30 AM", accuracy: "±5.2 meters", accuracyRating: "Good" },
 };
