@@ -75,7 +75,6 @@ export default function CropValidationScreen({ navigation }) {
   const [remarks, setRemarks] = useState("");
   const [photoCaptured, setPhotoCaptured] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [stamping, setStamping] = useState(false);
   const [photoPath, setPhotoPath] = useState(null);
   const [photoUri, setPhotoUri] = useState(null);
   const [stampJob, setStampJob] = useState(null);
@@ -174,26 +173,22 @@ export default function CropValidationScreen({ navigation }) {
       const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
       if (result.canceled) return;
 
-      const asset = result.assets[0];
-      const aspect = asset.width && asset.height ? asset.height / asset.width : 4 / 3;
-      const displayWidth = 500;
-      setStamping(true);
-      setStampJob({ uri: asset.uri, displayWidth, displayHeight: Math.round(displayWidth * aspect) });
+      setStampJob({ uri: result.assets[0].uri });
     } catch (err) {
       Alert.alert("Photo capture failed", err.message);
     }
   }
 
-  // Runs once the off-screen composite (raw photo + data stamp overlay) has
+  // Runs once the live stamp preview (raw photo + data overlay, rendered
+  // right in the visible photo box so the farmer can see it happen) has
   // fully rendered — signaled by the Image's onLoadEnd, since the Text nodes
   // around it lay out synchronously but the bitmap decode doesn't. Flattens
-  // that composite into a single JPEG and uploads *that*, so the geotag
+  // that same view into a single JPEG and uploads *that*, so the geotag
   // travels with the image itself instead of living only in form fields.
   async function handleStampReady() {
     try {
       const uri = await captureRef(stampRef, { format: "jpg", quality: 0.85, result: "tmpfile" });
       setStampJob(null);
-      setStamping(false);
       setPhotoUri(uri);
       setUploadingPhoto(true);
       const path = await uploadCropPhoto(farmer.farmerId, uri);
@@ -201,7 +196,6 @@ export default function CropValidationScreen({ navigation }) {
       setPhotoCaptured(true);
     } catch (err) {
       setStampJob(null);
-      setStamping(false);
       Alert.alert("Photo stamping failed", err.message);
     } finally {
       setUploadingPhoto(false);
@@ -334,70 +328,64 @@ export default function CropValidationScreen({ navigation }) {
 
         <Card title="Crop Photo (Proof of Planting)" icon="camera-outline">
           <TouchableOpacity
-            style={[styles.photoBox, !!photoUri && styles.photoBoxFilled]}
+            style={[styles.photoBox, (!!photoUri || !!stampJob) && styles.photoBoxFilled]}
             onPress={handleCapturePhoto}
-            disabled={uploadingPhoto || photoCaptured || stamping}
+            disabled={uploadingPhoto || photoCaptured || !!stampJob}
           >
-            {photoUri ? (
+            {stampJob && location ? (
+              // Live, on-screen: the farmer watches the stamp render onto
+              // their actual photo. This exact view is what captureRef
+              // flattens, so what they see here is what gets uploaded.
+              <View ref={stampRef} collapsable={false} style={StyleSheet.absoluteFillObject}>
+                <Image
+                  source={{ uri: stampJob.uri }}
+                  style={StyleSheet.absoluteFillObject}
+                  resizeMode="cover"
+                  onLoadEnd={handleStampReady}
+                />
+                <View style={styles.stampBox}>
+                  <View style={styles.stampHeaderRow}>
+                    <Ionicons name="location" size={13} color="#fff" />
+                    <Text style={styles.stampHeaderText}>AGRISHARE CROP VALIDATION</Text>
+                  </View>
+                  <Text style={styles.stampPlace}>{location.placeLabel || "Unknown location"}</Text>
+                  <Text style={styles.stampLine}>
+                    {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}°
+                  </Text>
+                  <Text style={styles.stampLine}>
+                    {toDMS(location.latitude, true)} {toDMS(location.longitude, false)}
+                  </Text>
+                  <Text style={styles.stampMeta}>
+                    {location.capturedAt} · ±{Math.round(location.accuracy)} m accuracy · {location.distanceKm.toFixed(1)} km from
+                    Brgy. Langapud
+                  </Text>
+                  <Text style={styles.stampRef}>
+                    RSBSA {farmer?.rsbsaNo ?? "—"} · {farmer?.firstName} {farmer?.lastName}
+                  </Text>
+                </View>
+                <View style={styles.finalizingPill}>
+                  <Ionicons name="sync" size={11} color="#fff" />
+                  <Text style={styles.finalizingPillText}>Finalizing…</Text>
+                </View>
+              </View>
+            ) : photoUri ? (
               <>
                 <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
-                <View style={styles.photoOverlay}>
-                  <View style={styles.photoOverlayRow}>
-                    <Ionicons
-                      name={uploadingPhoto ? "cloud-upload-outline" : "checkmark-circle"}
-                      size={14}
-                      color="#fff"
-                    />
-                    <Text style={styles.photoOverlayTitle}>{uploadingPhoto ? "Uploading…" : "Geotagged photo captured"}</Text>
+                {uploadingPhoto && (
+                  <View style={styles.finalizingPill}>
+                    <Ionicons name="cloud-upload-outline" size={11} color="#fff" />
+                    <Text style={styles.finalizingPillText}>Uploading…</Text>
                   </View>
-                </View>
+                )}
               </>
             ) : (
               <>
                 <Ionicons name="camera" size={26} color={colors.textMuted} />
-                <Text style={styles.photoCaption}>
-                  {stamping ? "Stamping geotag onto photo…" : location ? "Tap to take a geotagged photo" : "Capture your GPS location first"}
-                </Text>
+                <Text style={styles.photoCaption}>{location ? "Tap to take a geotagged photo" : "Capture your GPS location first"}</Text>
               </>
             )}
           </TouchableOpacity>
         </Card>
-
-        {/* Off-screen: composites the raw photo + a burned-in geotag stamp
-            box, then captureRef flattens it into the JPEG that actually gets
-            uploaded. Never visible — positioned far outside the viewport. */}
-        {stampJob && location && (
-          <View style={styles.offscreenHost} pointerEvents="none">
-            <View ref={stampRef} collapsable={false} style={{ width: stampJob.displayWidth, height: stampJob.displayHeight }}>
-              <Image
-                source={{ uri: stampJob.uri }}
-                style={StyleSheet.absoluteFillObject}
-                resizeMode="cover"
-                onLoadEnd={handleStampReady}
-              />
-              <View style={styles.stampBox}>
-                <View style={styles.stampHeaderRow}>
-                  <Ionicons name="location" size={13} color="#fff" />
-                  <Text style={styles.stampHeaderText}>AGRISHARE CROP VALIDATION</Text>
-                </View>
-                <Text style={styles.stampPlace}>{location.placeLabel || "Unknown location"}</Text>
-                <Text style={styles.stampLine}>
-                  {location.latitude.toFixed(6)}°, {location.longitude.toFixed(6)}°
-                </Text>
-                <Text style={styles.stampLine}>
-                  {toDMS(location.latitude, true)} {toDMS(location.longitude, false)}
-                </Text>
-                <Text style={styles.stampMeta}>
-                  {location.capturedAt} · ±{Math.round(location.accuracy)} m accuracy · {location.distanceKm.toFixed(1)} km from Brgy.
-                  Langapud
-                </Text>
-                <Text style={styles.stampRef}>
-                  RSBSA {farmer?.rsbsaNo ?? "—"} · {farmer?.firstName} {farmer?.lastName}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
 
         <Card title="Validation Details" icon="document-text-outline">
           <Text style={styles.fieldLabel}>Crop Type</Text>
@@ -553,7 +541,7 @@ const styles = StyleSheet.create({
   recaptureText: { fontSize: 10.5, color: colors.primaryDark, fontWeight: "600" },
 
   photoBox: {
-    height: 180,
+    height: 230,
     borderRadius: radius.sm,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -567,19 +555,21 @@ const styles = StyleSheet.create({
   photoBoxFilled: { backgroundColor: colors.primarySoft, borderColor: colors.primary, borderStyle: "solid" },
   photoCaption: { fontSize: 11.5, color: colors.textMuted },
   photoPreview: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-  photoOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(15,35,20,0.6)",
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  photoOverlayRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  photoOverlayTitle: { color: "#fff", fontWeight: "700", fontSize: 12 },
 
-  offscreenHost: { position: "absolute", top: 0, left: -10000 },
+  finalizingPill: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(10,25,15,0.72)",
+    borderRadius: radius.pill,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  finalizingPillText: { color: "#fff", fontWeight: "700", fontSize: 10 },
+
   stampBox: {
     position: "absolute",
     left: 0,
