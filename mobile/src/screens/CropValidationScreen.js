@@ -37,6 +37,18 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// The keyless output=embed URL only renders when it's actually loaded inside
+// an <iframe> — Google's page checks window.top !== window.self and refuses
+// otherwise. A WebView's top-level document IS window.top, so loading the
+// URL directly trips that check. Wrapping it in a one-line local HTML page
+// that itself puts the map in a real iframe satisfies the check.
+function mapEmbedHtml(latitude, longitude) {
+  const src = `https://www.google.com/maps?q=${latitude},${longitude}&z=15&output=embed`;
+  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>html,body{margin:0;padding:0;height:100%;}iframe{border:0;width:100%;height:100%;}</style></head>
+    <body><iframe src="${src}"></iframe></body></html>`;
+}
+
 // Both the photo and GPS geotag are real: the photo comes from the device
 // camera via expo-image-picker, and the location from expo-location, each
 // gated behind a real native permission prompt before the record is built.
@@ -235,10 +247,7 @@ export default function CropValidationScreen({ navigation }) {
           {location ? (
             <>
               <View style={styles.mapFrameWrap}>
-                <WebView
-                  source={{ uri: `https://www.google.com/maps?q=${location.latitude},${location.longitude}&z=15&output=embed` }}
-                  style={styles.mapFrame}
-                />
+                <WebView source={{ html: mapEmbedHtml(location.latitude, location.longitude) }} style={styles.mapFrame} />
               </View>
               <TouchableOpacity style={styles.mapOpenLink} onPress={handleOpenMap}>
                 <Ionicons name="open-outline" size={12} color={colors.primaryDark} />
