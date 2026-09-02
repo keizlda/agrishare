@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Image, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -33,6 +33,7 @@ export default function CropValidationScreen({ navigation }) {
   const [photoCaptured, setPhotoCaptured] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoPath, setPhotoPath] = useState(null);
+  const [photoUri, setPhotoUri] = useState(null);
   const [location, setLocation] = useState(null);
   const [locatingGps, setLocatingGps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -122,11 +123,14 @@ export default function CropValidationScreen({ navigation }) {
       const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
       if (result.canceled) return;
 
+      const uri = result.assets[0].uri;
+      setPhotoUri(uri);
       setUploadingPhoto(true);
-      const path = await uploadCropPhoto(farmer.farmerId, result.assets[0].uri);
+      const path = await uploadCropPhoto(farmer.farmerId, uri);
       setPhotoPath(path);
       setPhotoCaptured(true);
     } catch (err) {
+      setPhotoUri(null);
       Alert.alert("Photo upload failed", err.message);
     } finally {
       setUploadingPhoto(false);
@@ -210,24 +214,35 @@ export default function CropValidationScreen({ navigation }) {
 
         <Card title="Crop Photo (Proof of Planting)" icon="camera-outline">
           <TouchableOpacity
-            style={[styles.photoBox, photoCaptured && styles.photoBoxFilled]}
+            style={[styles.photoBox, !!photoUri && styles.photoBoxFilled]}
             onPress={handleCapturePhoto}
             disabled={uploadingPhoto || photoCaptured}
           >
-            {photoCaptured ? (
+            {photoUri ? (
               <>
-                <Ionicons name="checkmark-circle" size={26} color={colors.primary} />
-                <Text style={styles.photoCaptionFilled}>Photo captured</Text>
-                <Text style={styles.photoMeta}>
-                  {location
-                    ? `${location.placeLabel ? `${location.placeLabel} · ` : ""}${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
-                    : "GPS not yet captured"}
-                </Text>
+                <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="cover" />
+                <View style={styles.photoOverlay}>
+                  <View style={styles.photoOverlayRow}>
+                    <Ionicons
+                      name={uploadingPhoto ? "cloud-upload-outline" : "checkmark-circle"}
+                      size={14}
+                      color="#fff"
+                    />
+                    <Text style={styles.photoOverlayTitle}>{uploadingPhoto ? "Uploading…" : "Photo captured"}</Text>
+                  </View>
+                  {!uploadingPhoto && (
+                    <Text style={styles.photoOverlayMeta}>
+                      {location
+                        ? `${location.placeLabel ? `${location.placeLabel} · ` : ""}${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
+                        : "GPS not yet captured"}
+                    </Text>
+                  )}
+                </View>
               </>
             ) : (
               <>
                 <Ionicons name="camera" size={26} color={colors.textMuted} />
-                <Text style={styles.photoCaption}>{uploadingPhoto ? "Uploading…" : "Tap to take a geotagged photo"}</Text>
+                <Text style={styles.photoCaption}>Tap to take a geotagged photo</Text>
               </>
             )}
           </TouchableOpacity>
@@ -361,7 +376,7 @@ const styles = StyleSheet.create({
   mapPlaceholderText: { fontSize: 10, color: colors.primaryDark, fontWeight: "600", textAlign: "center", paddingHorizontal: 6 },
 
   photoBox: {
-    height: 120,
+    height: 180,
     borderRadius: radius.sm,
     borderWidth: 1.5,
     borderColor: colors.border,
@@ -369,11 +384,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
+    overflow: "hidden",
+    position: "relative",
   },
   photoBoxFilled: { backgroundColor: colors.primarySoft, borderColor: colors.primary, borderStyle: "solid" },
   photoCaption: { fontSize: 11.5, color: colors.textMuted },
-  photoCaptionFilled: { fontSize: 11.5, color: colors.primaryDark, fontWeight: "700" },
-  photoMeta: { fontSize: 9.5, color: colors.primaryDark },
+  photoPreview: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  photoOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(15,35,20,0.6)",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  photoOverlayRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  photoOverlayTitle: { color: "#fff", fontWeight: "700", fontSize: 12 },
+  photoOverlayMeta: { color: "rgba(255,255,255,0.85)", fontSize: 9.5, marginTop: 2 },
 
   fieldLabel: { fontSize: 10.5, fontWeight: "700", color: colors.textMuted, marginTop: 8, marginBottom: 4 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
