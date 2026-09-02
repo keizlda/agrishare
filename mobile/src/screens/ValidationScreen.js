@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { ShieldCheck } from "lucide-react-native";
+import { FlatList, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ShieldCheck, X } from "lucide-react-native";
 import ScreenHeader from "../components/ScreenHeader";
 import StatTile from "../components/StatTile";
 import Pill from "../components/Pill";
@@ -15,6 +15,7 @@ import { getSignedPhotoUrl, listMyCropValidations } from "../lib/api/cropValidat
 export default function ValidationScreen({ navigation }) {
   const [items, setItems] = useState([]);
   const [thumbs, setThumbs] = useState({});
+  const [viewerUri, setViewerUri] = useState(null);
 
   useEffect(() => {
     listMyCropValidations()
@@ -58,7 +59,11 @@ export default function ValidationScreen({ navigation }) {
           </>
         }
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={thumbs[item.id] ? 0.7 : 1}
+            onPress={() => thumbs[item.id] && setViewerUri(thumbs[item.id])}
+          >
             {thumbs[item.id] ? (
               <Image source={{ uri: thumbs[item.id] }} style={styles.thumb} />
             ) : (
@@ -78,10 +83,22 @@ export default function ValidationScreen({ navigation }) {
                 </Text>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={<EmptyState icon={ShieldCheck} message="You haven't submitted any crop validations yet." />}
       />
+
+      {/* The photo already has the geotag stamp (place/coords/date/accuracy)
+          burned into it from the submission flow, so a plain full-size
+          viewer is enough detail without duplicating that as separate UI. */}
+      <Modal visible={!!viewerUri} transparent animationType="fade" onRequestClose={() => setViewerUri(null)}>
+        <TouchableOpacity style={styles.viewerBackdrop} activeOpacity={1} onPress={() => setViewerUri(null)}>
+          <TouchableOpacity style={styles.viewerCloseBtn} onPress={() => setViewerUri(null)}>
+            <X size={22} color="#fff" />
+          </TouchableOpacity>
+          {viewerUri && <Image source={{ uri: viewerUri }} style={styles.viewerImage} resizeMode="contain" />}
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -122,4 +139,19 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cardDate: { fontSize: 12.5, fontWeight: "700", color: colors.text },
   cardRemarks: { fontSize: 11, color: colors.textMuted, marginTop: 4 },
+
+  viewerBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
+  viewerCloseBtn: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 1,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewerImage: { width: "100%", height: "80%" },
 });
