@@ -1,20 +1,20 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Bell, Sprout } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, sizes } from "../theme";
+import { colors, shadows, sizes } from "../theme";
 
-// White bg + bottom hairline, matching web's Topbar exactly (theme.css:60-66)
-// — AGRISHARE wordmark in the same green, same weight/letter-spacing, same
-// Sprout logo icon (Topbar.jsx:84).
+// No boxed bar — colors.bg (#f4f7f4) and colors.card (#fff) are too close
+// in tone for a white header background to read as a distinct surface on a
+// small, full-bleed phone screen (it just looked like a washed-out gap, no
+// matter how the padding was tuned). Floats directly on the page/banner
+// background instead, same green wordmark, same Sprout logo icon
+// (web's Topbar.jsx:84) — just without the bar that wasn't reading anyway.
 //
-// Owns the top safe-area inset itself (screens should NOT also pad for it)
-// so its white background extends up behind the status bar/notch instead of
-// leaving a gap in the screen's paler background above it — that gap and
-// the header used to read as one washed-out block instead of a crisp header.
+// Owns the top safe-area inset itself (screens should NOT also pad for it).
 export default function ScreenHeader({ title, showLogo, onBellPress }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.row, { paddingTop: insets.top + 6 }]}>
+    <View style={[styles.row, { paddingTop: insets.top + 10 }]}>
       {showLogo ? (
         <View style={styles.logoRow}>
           <Sprout size={18} color={colors.primary} />
@@ -41,13 +41,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    // paddingTop is set inline above (insets.top + 6); this is just the
-    // bottom half — enough to clear the 44px bell tap target from the
-    // hairline without extra bulk.
-    paddingBottom: 6,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    // paddingTop is set inline above (insets.top + 10).
+    paddingBottom: 10,
   },
   logoRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   logo: { fontSize: 16, fontWeight: "800", color: colors.primaryDarker },
@@ -56,10 +51,10 @@ const styles = StyleSheet.create({
     width: sizes.minTouchTarget,
     height: sizes.minTouchTarget,
     borderRadius: sizes.minTouchTarget / 2,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
+    ...shadows.card,
   },
   dot: {
     position: "absolute",

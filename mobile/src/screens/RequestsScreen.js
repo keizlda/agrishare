@@ -3,7 +3,7 @@ import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } 
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Pill from "../components/Pill";
-import { colors, radius } from "../theme";
+import { colors, radius, shadows, sizes } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listCommodities } from "../lib/api/commodities";
 import { createRequest, listMyRequests } from "../lib/api/requests";
@@ -153,19 +153,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingBottom: 10,
   },
   backBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: colors.border,
+    width: sizes.minTouchTarget,
+    height: sizes.minTouchTarget,
+    borderRadius: sizes.minTouchTarget / 2,
+    backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
+    ...shadows.card,
   },
   headerTitle: { fontSize: 14.5, fontWeight: "700", color: colors.text },
   content: { padding: 16, paddingBottom: 32 },
