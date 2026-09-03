@@ -40,7 +40,8 @@
         {
           "cameraPermission": "AgriShare uses your camera to take a proof-of-planting photo for crop validation."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
