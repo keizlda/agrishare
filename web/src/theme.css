@@ -1043,12 +1043,24 @@ table.agri-table tbody tr.selected {
    the AgriShare mobile app: no-box floating header, bottom tab bar with a
    tint-pill active state, full-screen sheets instead of small dropdowns.
    ========================================================================== */
+/* Same banner asset as desktop's .agri-app (theme.css:55-58), but
+   positioned right instead of center: the source image is a wide 1704x923
+   landscape whose illustration (barn, windmill, leaf sprigs, hills) sits
+   along the right/bottom edges with a plain near-white middle. On a wide
+   desktop viewport, cover+center already reveals those edges. On a narrow
+   phone, cover crops to roughly the middle 25% of the image's width — at
+   center that's exactly the plain part, which is what read as "just plain
+   green". Anchoring right shows the actual illustrated content instead;
+   desktop's own rule is untouched.
+   .agri-mshell itself never scrolls (only its -content child does), so
+   background-attachment:fixed is safe here and doesn't hit the usual
+   mobile Safari fixed-background scrolling bug. */
 .agri-mshell {
   display: flex;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  background: var(--agri-bg);
+  background: url("./assets/dashboard-banner.png") right center / cover no-repeat fixed;
   overflow: hidden;
 }
 
