@@ -17,7 +17,12 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,6 +41,12 @@
           "cameraPermission": "AgriShare uses your camera to take a proof-of-planting photo for crop validation."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "fba51fdb-82d5-4326-8509-f9297ad1d8a4"
+      }
+    },
+    "owner": "kryz23"
   }
 }

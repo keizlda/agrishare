@@ -165,7 +165,11 @@ textarea:focus-visible,
 }
 
 /* ---------- Topbar: mobile nav ---------- */
-.agri-nav-toggle {
+/* Scoped under .agri-topbar-row (specificity 0,2,0) so this reliably beats
+   .agri-icon-btn's own `display: inline-flex` (0,1,0) regardless of which
+   rule comes first in the file — same class of bug as the print report
+   column-width issue from earlier in this project. */
+.agri-topbar-row .agri-nav-toggle {
   display: none;
 }
 
@@ -180,7 +184,7 @@ textarea:focus-visible,
   .agri-topbar-row {
     gap: 12px;
   }
-  .agri-nav-toggle {
+  .agri-topbar-row .agri-nav-toggle {
     display: flex;
   }
   .agri-topnav {
@@ -1030,3 +1034,217 @@ table.agri-table tbody tr.selected {
 
 .agri-toast.success svg { color: var(--agri-primary); }
 .agri-toast.error svg { color: #ff8383; }
+
+/* ==========================================================================
+   Mobile web shell (MobileShell.jsx) — only ever rendered below the 860px
+   breakpoint, via AppLayout's isMobile branch. Every class here is prefixed
+   agri-mshell- specifically so nothing can collide with the desktop rules
+   above, even though this stylesheet loads for both. Visual language mirrors
+   the AgriShare mobile app: no-box floating header, bottom tab bar with a
+   tint-pill active state, full-screen sheets instead of small dropdowns.
+   ========================================================================== */
+.agri-mshell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--agri-bg);
+  overflow: hidden;
+}
+
+.agri-mshell-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 10px;
+}
+
+.agri-mshell-logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--agri-primary-darker);
+  text-decoration: none;
+}
+.agri-mshell-logo em {
+  font-style: normal;
+  color: var(--agri-primary);
+}
+
+.agri-mshell-bell {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--agri-card);
+  color: var(--agri-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--agri-shadow);
+}
+
+.agri-mshell-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--agri-red);
+  border: 1.5px solid var(--agri-card);
+}
+
+.agri-mshell-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.agri-mshell-tabbar {
+  flex-shrink: 0;
+  display: flex;
+  background: var(--agri-card);
+  border-top: 1px solid var(--agri-border);
+  padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 6px);
+}
+
+.agri-mshell-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--agri-text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.agri-mshell-tab.active {
+  color: var(--agri-primary);
+}
+
+.agri-mshell-tab-icon {
+  width: 40px;
+  height: 26px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.agri-mshell-tab-icon.active {
+  background: var(--agri-primary-light);
+}
+
+.agri-mshell-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--agri-card);
+  display: flex;
+  flex-direction: column;
+  animation: agri-fade-in 0.15s ease;
+}
+
+.agri-mshell-sheet-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px;
+  border-bottom: 1px solid var(--agri-border);
+}
+
+.agri-mshell-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--agri-border);
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--agri-text);
+}
+
+.agri-mshell-sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.agri-mshell-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--agri-border);
+}
+
+.agri-mshell-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--agri-primary-light);
+  color: var(--agri-primary-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.agri-mshell-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.agri-mshell-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--agri-border);
+  color: var(--agri-text);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.agri-mshell-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--agri-red);
+  font-weight: 700;
+  font-size: 0.88rem;
+  padding: 18px 0 8px;
+}
+
+.agri-mshell-markread {
+  font-size: 0.78rem;
+  margin-bottom: 10px;
+}
+
+.agri-mshell-notif {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--agri-border);
+}
+.agri-mshell-notif:first-child {
+  border-top: none;
+}
