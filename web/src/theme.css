@@ -1060,12 +1060,14 @@ table.agri-table tbody tr.selected {
   padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 10px;
 }
 
+/* Same size/weight/color as desktop's .agri-logo (theme.css:76-82) — this
+   is the same wordmark, not a mobile-app-styled reinterpretation of it. */
 .agri-mshell-logo {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 1.05rem;
-  font-weight: 800;
+  gap: 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
   color: var(--agri-primary-darker);
   text-decoration: none;
 }
@@ -1074,18 +1076,20 @@ table.agri-table tbody tr.selected {
   color: var(--agri-primary);
 }
 
+/* Same treatment as desktop's .agri-icon-btn (theme.css:509-519) — a
+   bordered white square-ish button, not the app's shadowed floating
+   circle. Just sized up slightly and rounded full for a thumb target. */
 .agri-mshell-bell {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  border: none;
-  background: var(--agri-card);
-  color: var(--agri-text);
+  border: 1px solid var(--agri-border);
+  background: #fff;
+  color: #45524a;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--agri-shadow);
 }
 
 .agri-mshell-dot {
@@ -1128,8 +1132,10 @@ table.agri-table tbody tr.selected {
   font-weight: 600;
   text-decoration: none;
 }
+/* Desktop's .agri-topnav-link.active (theme.css:118-121) uses
+   primary-dark for active text, not the brighter primary — match it. */
 .agri-mshell-tab.active {
-  color: var(--agri-primary);
+  color: var(--agri-primary-dark);
 }
 
 .agri-mshell-tab-icon {
@@ -1207,6 +1213,8 @@ table.agri-table tbody tr.selected {
   flex-direction: column;
 }
 
+/* font-size matches desktop's avatar-dropdown menu items (Topbar.jsx:164,
+   0.85rem) — the desktop equivalent of this exact list. */
 .agri-mshell-list-item {
   display: flex;
   align-items: center;
@@ -1215,7 +1223,7 @@ table.agri-table tbody tr.selected {
   border-bottom: 1px solid var(--agri-border);
   color: var(--agri-text);
   text-decoration: none;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 

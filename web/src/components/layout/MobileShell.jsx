@@ -67,11 +67,11 @@ export default function MobileShell() {
     <div className="agri-mshell">
       <header className="agri-mshell-header">
         <Link to="/" className="agri-mshell-logo">
-          <Sprout size={20} color="var(--agri-primary)" />
+          <Sprout size={22} color="var(--agri-primary)" />
           <span>AGRI<em>SHARE</em></span>
         </Link>
         <button className="agri-mshell-bell" onClick={() => setPanel("notif")} aria-label="Notifications">
-          <Bell size={18} />
+          <Bell size={17} />
           {unreadCount > 0 && <span className="agri-mshell-dot" />}
         </button>
       </header>
