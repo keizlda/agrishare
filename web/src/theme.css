@@ -1,4 +1,8 @@
 :root {
+  /* Reinforces index.html's color-scheme meta tag — this app has no dark
+     theme, every color below is a light-mode value. */
+  color-scheme: light;
+
   --agri-primary: #2f9e44;
   --agri-primary-dark: #1e7233;
   --agri-primary-darker: #14532d;

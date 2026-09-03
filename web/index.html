@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The app is light-only (no dark theme built) — without this, some
+         mobile browsers (Brave's forced dark mode, etc.) heuristically
+         invert the page's colors, since they have no signal that it's
+         intentionally light. -->
+    <meta name="color-scheme" content="light" />
     <title>AgriShare</title>
   </head>
   <body>
