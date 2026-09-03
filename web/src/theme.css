@@ -664,10 +664,19 @@ table.agri-table tbody tr.selected {
     justify-content: center;
     padding: 0 24px;
   }
+  /* Absolute + bottom-anchored (the desktop rule) assumes the card never
+     grows tall enough to reach it — true on desktop, false on a short
+     mobile viewport where the centered card can extend past that point
+     and paint over the seal (same z-index, card comes later in the DOM).
+     Taking it out of absolute positioning puts it in normal document flow
+     instead, right where it already sits in the JSX — between the nav and
+     the card — so there's no bottom coordinate for the card to collide
+     with, regardless of how tall the card gets. */
   .agri-login-seal {
-    max-width: 200px;
-    left: 24px;
-    bottom: 24px;
+    position: static;
+    max-width: none;
+    width: fit-content;
+    margin: 0 auto 20px;
   }
 }
 
