@@ -5,6 +5,7 @@ import {
   Calendar,
   ChevronDown,
   LogOut,
+  Menu,
   User as UserIcon,
   Users,
   ShieldCheck,
@@ -14,6 +15,7 @@ import {
   Star,
   Settings,
   Sprout,
+  X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { listRecentActivity } from "../../lib/api/activity.js";
@@ -80,6 +82,15 @@ export default function Topbar() {
   return (
     <header className="agri-topbar" ref={ref}>
       <div className="agri-topbar-row">
+        <button
+          className="agri-icon-btn agri-nav-toggle"
+          onClick={() => setOpenMenu(openMenu === "mobile-nav" ? null : "mobile-nav")}
+          aria-label={openMenu === "mobile-nav" ? "Close menu" : "Open menu"}
+          aria-expanded={openMenu === "mobile-nav"}
+        >
+          {openMenu === "mobile-nav" ? <X size={18} /> : <Menu size={18} />}
+        </button>
+
         <Link to="/" className="agri-logo">
           <Sprout size={22} color="var(--agri-primary)" />
           <span>AGRI<em>SHARE</em></span>
@@ -97,6 +108,22 @@ export default function Topbar() {
             </NavLink>
           ))}
         </nav>
+
+        {openMenu === "mobile-nav" && (
+          <nav className="agri-mobile-nav">
+            {items.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={() => setOpenMenu(null)}
+                className={({ isActive }) => `agri-mobile-nav-link${isActive ? " active" : ""}`}
+              >
+                <Icon size={17} />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
 
         <div className="agri-topbar-right">
           <div className="agri-date-pill" title="Today's date">
@@ -152,7 +179,7 @@ export default function Topbar() {
               <div className="agri-avatar">
                 <UserIcon size={18} />
               </div>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>{user?.name ?? "Admin"}</span>
+              <span className="agri-avatar-name" style={{ fontSize: "0.85rem", fontWeight: 600 }}>{user?.name ?? "Admin"}</span>
               <ChevronDown size={15} color="#899489" />
             </button>
             {openMenu === "avatar" && (

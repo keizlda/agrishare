@@ -164,9 +164,72 @@ textarea:focus-visible,
   font-size: 0.85rem;
 }
 
+/* ---------- Topbar: mobile nav ---------- */
+.agri-nav-toggle {
+  display: none;
+}
+
+.agri-mobile-nav {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .agri-topbar {
+    padding: 12px 16px;
+  }
+  .agri-topbar-row {
+    gap: 12px;
+  }
+  .agri-nav-toggle {
+    display: flex;
+  }
+  .agri-topnav {
+    display: none;
+  }
+  .agri-date-pill,
+  .agri-avatar-name {
+    display: none;
+  }
+  .agri-mobile-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--agri-card);
+    border-bottom: 1px solid var(--agri-border);
+    padding: 8px;
+    box-shadow: 0 12px 24px rgba(20, 40, 25, 0.08);
+    z-index: 15;
+  }
+  .agri-mobile-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    border-radius: 10px;
+    color: #5b6961;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .agri-mobile-nav-link.active {
+    background: var(--agri-primary-light);
+    color: var(--agri-primary-dark);
+  }
+}
+
 /* ---------- Main content ---------- */
 .agri-content {
   padding: 24px;
+}
+
+@media (max-width: 640px) {
+  .agri-content {
+    padding: 14px;
+  }
 }
 
 /* ---------- Cards ---------- */

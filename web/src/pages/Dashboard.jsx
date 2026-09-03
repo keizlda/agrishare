@@ -60,7 +60,7 @@ export default function Dashboard() {
         <StatCard icon={Truck} label="Total Distributions" value={distributions.length} sub="This month" color="purple" />
       </OverviewDrawer>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 16 }}>
         {/* Distribution overview chart */}
         <div className="agri-card" style={{ padding: 18 }}>
           <div className="agri-panel-header">
@@ -117,7 +117,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
         {/* Recent distributions */}
         <div className="agri-card" style={{ padding: 18 }}>
           <div className="agri-panel-header">
@@ -176,7 +176,7 @@ export default function Dashboard() {
           <div className="agri-panel-header">
             <div style={{ fontWeight: 700 }}>Quick Actions</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
             {isMAO ? (
               <>
                 <QuickAction icon={ShieldCheck} label="Validate Farmers" onClick={() => navigate("/validation")} />

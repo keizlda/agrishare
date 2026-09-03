@@ -79,7 +79,7 @@ export default function Reports() {
         <StatCard icon={FileText} label="Reports Generated" value={reports.length} sub="This month" color="orange" />
       </OverviewDrawer>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 16 }}>
         <div className="agri-card" style={{ padding: 18 }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Distribution by Commodity</div>
           <ResponsiveContainer width="100%" height={200}>
