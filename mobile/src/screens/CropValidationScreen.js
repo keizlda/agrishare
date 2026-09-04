@@ -55,6 +55,16 @@ function compassLabel(deg) {
   return COMPASS_POINTS[Math.round(deg / 45) % 8];
 }
 
+// reverseGeocodeAsync and getHeadingAsync each depend on a platform backend
+// (a geocoder service, a magnetometer callback) that can stall indefinitely
+// instead of rejecting — e.g. no geocoder backend, or a compass that never
+// fires an initial reading. Neither is required for a valid geotag (see the
+// call sites below), so a hang here must not be allowed to leave the farmer
+// stuck on "Locating…" forever with no error and no way forward.
+function withTimeout(promise, ms) {
+  return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error("timed out")), ms))]);
+}
+
 // The keyless output=embed URL only renders when it's actually loaded inside
 // an <iframe> — Google's page checks window.top !== window.self and refuses
 // otherwise. A WebView's top-level document IS window.top, so loading the
@@ -121,7 +131,7 @@ export default function CropValidationScreen({ navigation }) {
 
       let placeLabel = null;
       try {
-        const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
+        const [address] = await withTimeout(Location.reverseGeocodeAsync({ latitude, longitude }), 8000);
         if (address) {
           const locality = address.city || address.district || address.subregion;
           const region = address.region || address.country;
@@ -133,7 +143,7 @@ export default function CropValidationScreen({ navigation }) {
 
       let bearing = null;
       try {
-        const heading = await Location.getHeadingAsync();
+        const heading = await withTimeout(Location.getHeadingAsync(), 5000);
         const deg = heading.trueHeading >= 0 ? heading.trueHeading : heading.magHeading;
         if (deg != null && deg >= 0) bearing = deg;
       } catch {
