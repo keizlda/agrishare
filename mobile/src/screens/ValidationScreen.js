@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { FlatList, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { ShieldCheck, X } from "lucide-react-native";
 import ScreenHeader from "../components/ScreenHeader";
 import StatTile from "../components/StatTile";
@@ -17,19 +18,25 @@ export default function ValidationScreen({ navigation }) {
   const [thumbs, setThumbs] = useState({});
   const [viewerUri, setViewerUri] = useState(null);
 
-  useEffect(() => {
-    listMyCropValidations()
-      .then((rows) => {
-        setItems(rows);
-        rows.forEach((r) => {
-          if (!r.photoPath) return;
-          getSignedPhotoUrl(r.photoPath)
-            .then((url) => setThumbs((prev) => ({ ...prev, [r.id]: url })))
-            .catch(() => {});
-        });
-      })
-      .catch(() => {});
-  }, []);
+  // Refetches on every focus, not just first mount: this screen sits under
+  // the CropValidation modal in the stack and never unmounts, so a plain
+  // mount-only effect would leave a farmer looking at stale (pre-submission)
+  // stats and history right after they submit and navigate back.
+  useFocusEffect(
+    useCallback(() => {
+      listMyCropValidations()
+        .then((rows) => {
+          setItems(rows);
+          rows.forEach((r) => {
+            if (!r.photoPath) return;
+            getSignedPhotoUrl(r.photoPath)
+              .then((url) => setThumbs((prev) => ({ ...prev, [r.id]: url })))
+              .catch(() => {});
+          });
+        })
+        .catch(() => {});
+    }, [])
+  );
 
   const pending = items.filter((i) => i.status === "Pending").length;
   const validated = items.filter((i) => i.status === "Validated").length;
