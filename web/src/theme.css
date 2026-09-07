@@ -557,6 +557,59 @@ table.agri-table tbody tr.selected {
   letter-spacing: 0.03em;
 }
 
+/* ---------- Segmented tab bar (Requests: FA/Admin review stages) ---------- */
+.agri-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--agri-bg);
+  border: 1px solid var(--agri-border);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 16px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.agri-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  background: transparent;
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: var(--agri-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.agri-tab:hover {
+  color: var(--agri-text);
+}
+
+.agri-tab.active {
+  background: var(--agri-card);
+  color: var(--agri-primary-dark);
+  box-shadow: var(--agri-shadow);
+}
+
+.agri-tab .agri-tab-count {
+  background: var(--agri-border);
+  color: var(--agri-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.agri-tab.active .agri-tab-count {
+  background: var(--agri-primary-light);
+  color: var(--agri-primary-dark);
+}
+
 /* ---------- Login page ---------- */
 .agri-login-page {
   position: relative;

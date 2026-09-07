@@ -1,50 +1,92 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, Filter, Search, Send, ShieldAlert, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, History, Inbox, Search, Send, ShieldAlert, XCircle } from "lucide-react";
 import StatCard from "../components/ui/StatCard.jsx";
 import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
 import Pill from "../components/ui/Pill.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
-import { computeRequestStats } from "../data/mockData.js";
-import { listRequests, updateRequestStatus } from "../lib/api/requests.js";
+import { listRequests, listRequestsForAdminReview, faReviewRequest, adminReviewRequest } from "../lib/api/requests.js";
+
+// status is the raw four-value lifecycle (Pending/Forwarded/Approved/
+// Rejected) — Pill's color lookup keys off that. The label shown to the
+// user is friendlier and, for Rejected specifically, distinguishes which
+// stage actually rejected it (FA directly vs. Admin overruling an
+// FA-approved request) using rejectedBy from the API layer.
+function reviewLabel(r) {
+  if (r.status === "Forwarded") return "FA Approved";
+  if (r.status === "Rejected") return r.rejectedBy === "admin" ? "Rejected by Admin" : "FA Rejected";
+  return r.status;
+}
 
 export default function Requests() {
   const { user } = useAuth();
   const isMAO = user?.role !== "FA President";
+  return isMAO ? <AdminRequestsView /> : <FARequestsView currentUserId={user?.id} />;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// FA President — Level 1. Full farmer detail; acts on Pending requests.
+// ═══════════════════════════════════════════════════════════════════════
+const FA_TABS = [
+  { key: "pending", label: "Pending Review" },
+  { key: "mine", label: "My Decisions" },
+  { key: "awaiting", label: "Awaiting Admin" },
+  { key: "final", label: "Final Status" },
+];
+
+function faTabRows(requests, key, currentUserId) {
+  switch (key) {
+    case "pending":
+      return requests.filter((r) => r.status === "Pending");
+    case "mine":
+      return requests.filter((r) => r.reviewedByFa === currentUserId);
+    case "awaiting":
+      return requests.filter((r) => r.status === "Forwarded");
+    case "final":
+      // Reached a final ADMIN decision specifically — excludes requests FA
+      // rejected directly, which are final too but never reached Admin
+      // (those show up under "My Decisions" instead).
+      return requests.filter((r) => (r.status === "Approved" || r.status === "Rejected") && r.adminDecisionAt);
+    default:
+      return requests;
+  }
+}
+
+function FARequestsView({ currentUserId }) {
   const { data: requests, setData: setRequests, loading, error: loadError } = useSupabaseList(listRequests);
+  const [tab, setTab] = useState("pending");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
   const [remarks, setRemarks] = useState("");
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    if (!selectedId && requests.length > 0) setSelectedId(requests[0].id);
-  }, [requests, selectedId]);
-
-  const stats = computeRequestStats(requests);
+  const tabbed = useMemo(() => faTabRows(requests, tab, currentUserId), [requests, tab, currentUserId]);
 
   const filtered = useMemo(() => {
-    return requests.filter((r) => {
-      const matchesSearch = !search || r.farmerName.toLowerCase().includes(search.toLowerCase()) || r.commodity.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === "All" || r.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [requests, search, statusFilter]);
+    if (!search) return tabbed;
+    const q = search.toLowerCase();
+    return tabbed.filter((r) => r.farmerName.toLowerCase().includes(q) || r.commodity.toLowerCase().includes(q));
+  }, [tabbed, search]);
+
+  useEffect(() => {
+    if (!filtered.some((r) => r.id === selectedId)) setSelectedId(filtered[0]?.id ?? null);
+  }, [filtered, selectedId]);
 
   const selected = requests.find((r) => r.id === selectedId) ?? null;
+  const canAct = selected?.status === "Pending";
 
-  async function updateRequest(id, patch) {
+  async function act(decision) {
+    if (!selected) return;
     setActionError("");
     setSaving(true);
     try {
-      const updated = await updateRequestStatus(id, patch);
-      setRequests((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      const updated = await faReviewRequest(selected.id, { decision, notes: remarks || undefined });
+      setRequests((prev) => prev.map((r) => (r.id === selected.id ? updated : r)));
       setRemarks("");
-      setToast({ tone: "success", message: `Request ${patch.status.toLowerCase()}.` });
+      setToast({ tone: "success", message: decision === "approve" ? "Approved and forwarded to Admin." : "Request rejected." });
     } catch (err) {
       setActionError(err.message);
       setToast({ tone: "error", message: err.message });
@@ -53,40 +95,23 @@ export default function Requests() {
     }
   }
 
-  function handleForward() {
-    if (!selected) return;
-    updateRequest(selected.id, { status: "Forwarded", faRemarks: remarks || selected.faRemarks });
-  }
-
-  function handleFAReject() {
-    if (!selected) return;
-    updateRequest(selected.id, { status: "Rejected", faRemarks: remarks || selected.faRemarks });
-  }
-
-  function handleApprove() {
-    if (!selected) return;
-    updateRequest(selected.id, { status: "Approved", maoRemarks: remarks || selected.maoRemarks });
-  }
-
-  function handleMAOReject() {
-    if (!selected) return;
-    updateRequest(selected.id, { status: "Rejected", maoRemarks: remarks || selected.maoRemarks });
-  }
-
-  // FA President acts on Pending requests (forward or reject at intake);
-  // MAO Admin acts once a request has been Forwarded. Anything Approved or
-  // Rejected is final and read-only for both roles.
-  const canFAAct = !isMAO && selected?.status === "Pending";
-  const canMAOAct = isMAO && selected?.status === "Forwarded";
-
   return (
     <div>
       <OverviewDrawer>
-        <StatCard icon={Clock} label="Pending" value={stats.pending} sub="Awaiting FA review" color="orange" />
-        <StatCard icon={Send} label="Forwarded" value={stats.forwarded} sub="Awaiting MAO decision" color="purple" />
-        <StatCard icon={CheckCircle2} label="Approved" value={stats.approved} sub="All time" color="green" />
-        <StatCard icon={XCircle} label="Rejected" value={stats.rejected} sub="All time" color="red" />
+        <StatCard icon={Clock} label="Pending Review" value={faTabRows(requests, "pending", currentUserId).length} sub="Needs your decision" color="orange" />
+        <StatCard icon={Send} label="Awaiting Admin" value={faTabRows(requests, "awaiting", currentUserId).length} sub="You approved, Admin deciding" color="purple" />
+        <StatCard icon={CheckCircle2} label="Approved" value={requests.filter((r) => r.status === "Approved").length} sub="All time" color="green" />
+        <StatCard icon={XCircle} label="Rejected" value={requests.filter((r) => r.status === "Rejected").length} sub="All time" color="red" />
       </OverviewDrawer>
+
+      <div className="agri-tabs">
+        {FA_TABS.map((t) => (
+          <button key={t.key} type="button" className={`agri-tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>
+            {t.label}
+            <span className="agri-tab-count">{faTabRows(requests, t.key, currentUserId).length}</span>
+          </button>
+        ))}
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: selected ? "1.6fr 1fr" : "1fr", gap: 16 }}>
         <div className="agri-card" style={{ padding: 16 }}>
@@ -95,27 +120,9 @@ export default function Requests() {
               {loadError || actionError}
             </div>
           )}
-          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-            <div style={{ position: "relative", flex: 1 }}>
-              <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "#8b978f" }} />
-              <input className="form-control" placeholder="Search farmer or commodity" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
-            <select className="form-select" style={{ width: 160 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="All">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Forwarded">Forwarded</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-            <button
-              type="button"
-              className="agri-icon-btn"
-              title="Reset filters"
-              aria-label="Reset filters"
-              onClick={() => { setSearch(""); setStatusFilter("All"); }}
-            >
-              <Filter size={16} />
-            </button>
+          <div style={{ position: "relative", marginBottom: 14 }}>
+            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "#8b978f" }} />
+            <input className="form-control" placeholder="Search farmer or commodity" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
 
           <div className="agri-table-wrap">
@@ -131,14 +138,14 @@ export default function Requests() {
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
                     <td>{r.requestDate}</td>
-                    <td><Pill status={r.status} /></td>
+                    <td><Pill status={r.status}>{reviewLabel(r)}</Pill></td>
                   </tr>
                 ))}
                 {loading && (
                   <tr><td colSpan={6} className="agri-muted text-center py-4">Loading requests…</td></tr>
                 )}
                 {!loading && filtered.length === 0 && (
-                  <tr><td colSpan={6} className="agri-muted text-center py-4">No requests match your search/filter.</td></tr>
+                  <tr><td colSpan={6} className="agri-muted text-center py-4">Nothing in this tab.</td></tr>
                 )}
               </tbody>
             </table>
@@ -149,7 +156,7 @@ export default function Requests() {
           <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
-              <Pill status={selected.status} />
+              <Pill status={selected.status}>{reviewLabel(selected)}</Pill>
             </div>
 
             <div className="agri-detail-row"><div><div className="agri-detail-label">Farmer</div>{selected.farmerName}</div></div>
@@ -161,44 +168,204 @@ export default function Requests() {
             <div className="agri-detail-row"><div><div className="agri-detail-label">Reason</div>{selected.reason}</div></div>
 
             {selected.faRemarks && (
-              <div className="agri-detail-row"><div><div className="agri-detail-label">FA President Remarks</div>{selected.faRemarks}</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Your Remarks</div>{selected.faRemarks}</div></div>
             )}
             {selected.maoRemarks && (
-              <div className="agri-detail-row"><div><div className="agri-detail-label">MAO Remarks</div>{selected.maoRemarks}</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Admin's Remarks</div>{selected.maoRemarks}</div></div>
+            )}
+            {selected.adminDecisionAt && (
+              <div className="agri-detail-row">
+                <div>
+                  <div className="agri-detail-label">Admin Decision</div>
+                  {selected.status} on {selected.adminDecisionAt.slice(0, 10)}
+                </div>
+              </div>
             )}
 
-            {(canFAAct || canMAOAct) && (
+            {canAct && (
               <div style={{ marginTop: 16 }}>
-                <label className="agri-form-label">Remarks</label>
-                <textarea className="form-control mb-3" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Add remarks before making a decision" />
-
-                {canFAAct && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn btn-outline-danger flex-fill" onClick={handleFAReject} disabled={saving}>Reject</button>
-                    <button className="btn btn-agri-primary flex-fill d-flex align-items-center justify-content-center gap-2" onClick={handleForward} disabled={saving}>
-                      <Send size={14} /> Forward to MAO
-                    </button>
-                  </div>
-                )}
-                {canMAOAct && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn btn-outline-danger flex-fill" onClick={handleMAOReject} disabled={saving}>Reject</button>
-                    <button className="btn btn-agri-primary flex-fill d-flex align-items-center justify-content-center gap-2" onClick={handleApprove} disabled={saving}>
-                      <CheckCircle2 size={14} /> Approve
-                    </button>
-                  </div>
-                )}
+                <label className="agri-form-label">Notes (optional)</label>
+                <textarea className="form-control mb-3" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Add a note before deciding" />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-outline-danger flex-fill" onClick={() => act("reject")} disabled={saving}>Reject</button>
+                  <button className="btn btn-agri-primary flex-fill d-flex align-items-center justify-content-center gap-2" onClick={() => act("approve")} disabled={saving}>
+                    <Send size={14} /> Approve &amp; Forward
+                  </button>
+                </div>
               </div>
             )}
 
-            {!isMAO && selected.status !== "Pending" && (
+            {!canAct && (
               <div className="agri-pill gray" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 14, padding: "8px 12px" }}>
-                <ShieldAlert size={13} /> This request has already been reviewed.
+                <ShieldAlert size={13} />
+                {selected.status === "Forwarded" ? "Forwarded to Admin — awaiting final decision." : "This request has already been decided."}
               </div>
             )}
-            {isMAO && selected.status === "Pending" && (
+          </div>
+        )}
+      </div>
+
+      {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MAO Admin — Level 2. Only ever sees requests the FA President already
+// approved, and never sees who the farmer is — reviews the FA President's
+// judgment on its own merits. Sourced from requests_for_admin_review,
+// a view with no farmer column at all (see the migration).
+// ═══════════════════════════════════════════════════════════════════════
+const ADMIN_TABS = [
+  { key: "awaiting", label: "Awaiting Admin Review" },
+  { key: "history", label: "Decision History" },
+];
+
+function adminTabRows(requests, key) {
+  return key === "awaiting"
+    ? requests.filter((r) => r.status === "Forwarded")
+    : requests.filter((r) => r.status === "Approved" || r.status === "Rejected");
+}
+
+function AdminRequestsView() {
+  const { data: requests, setData: setRequests, loading, error: loadError } = useSupabaseList(listRequestsForAdminReview);
+  const [tab, setTab] = useState("awaiting");
+  const [selectedId, setSelectedId] = useState(null);
+  const [remarks, setRemarks] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const tabbed = useMemo(() => adminTabRows(requests, tab), [requests, tab]);
+
+  useEffect(() => {
+    if (!tabbed.some((r) => r.id === selectedId)) setSelectedId(tabbed[0]?.id ?? null);
+  }, [tabbed, selectedId]);
+
+  const selected = requests.find((r) => r.id === selectedId) ?? null;
+  const canAct = selected?.status === "Forwarded";
+
+  async function act(decision) {
+    if (!selected) return;
+    setActionError("");
+    setSaving(true);
+    try {
+      // adminReviewRequest returns the full base-table row shape (it
+      // updates public.requests directly); this view only renders a
+      // handful of those fields, so patch just those rather than
+      // replacing the row with a shape this list doesn't expect.
+      const updated = await adminReviewRequest(selected.id, { decision, notes: remarks || undefined });
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === selected.id
+            ? { ...r, status: updated.status, maoRemarks: updated.maoRemarks, adminDecisionAt: updated.adminDecisionAt }
+            : r
+        )
+      );
+      setRemarks("");
+      setToast({ tone: "success", message: `Request ${decision === "approve" ? "approved" : "rejected"}.` });
+    } catch (err) {
+      setActionError(err.message);
+      setToast({ tone: "error", message: err.message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const awaitingCount = adminTabRows(requests, "awaiting").length;
+  const approvedCount = requests.filter((r) => r.status === "Approved").length;
+  const rejectedCount = requests.filter((r) => r.status === "Rejected").length;
+
+  return (
+    <div>
+      <OverviewDrawer>
+        <StatCard icon={Inbox} label="Awaiting Review" value={awaitingCount} sub="FA-approved requests" color="purple" />
+        <StatCard icon={CheckCircle2} label="Approved" value={approvedCount} sub="All time" color="green" />
+        <StatCard icon={XCircle} label="Rejected" value={rejectedCount} sub="All time" color="red" />
+      </OverviewDrawer>
+
+      <div className="agri-tabs">
+        {ADMIN_TABS.map((t) => (
+          <button key={t.key} type="button" className={`agri-tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>
+            {t.key === "history" ? <History size={13} /> : <Inbox size={13} />}
+            {t.label}
+            <span className="agri-tab-count">{adminTabRows(requests, t.key).length}</span>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: selected ? "1.6fr 1fr" : "1fr", gap: 16 }}>
+        <div className="agri-card" style={{ padding: 16 }}>
+          {(loadError || actionError) && (
+            <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
+              {loadError || actionError}
+            </div>
+          )}
+          <div className="agri-table-wrap">
+            <table className="agri-table">
+              <thead>
+                <tr><th>Request ID</th><th>FA President</th><th>Commodity</th><th>Quantity</th><th>FA Decision Date</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {tabbed.map((r) => (
+                  <tr key={r.id} className={r.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(r.id)}>
+                    <td>{r.id}</td>
+                    <td>{r.faPresidentName}</td>
+                    <td>{r.commodity}</td>
+                    <td>{r.quantity.toLocaleString()} {r.unit}</td>
+                    <td>{r.faDecisionAt?.slice(0, 10) ?? "—"}</td>
+                    <td><Pill status={r.status}>{reviewLabel(r)}</Pill></td>
+                  </tr>
+                ))}
+                {loading && (
+                  <tr><td colSpan={6} className="agri-muted text-center py-4">Loading requests…</td></tr>
+                )}
+                {!loading && tabbed.length === 0 && (
+                  <tr><td colSpan={6} className="agri-muted text-center py-4">Nothing here yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {selected && (
+          <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
+            <div className="agri-panel-header">
+              <div style={{ fontWeight: 700 }}>Request Details</div>
+              <Pill status={selected.status}>{reviewLabel(selected)}</Pill>
+            </div>
+
+            <div className="agri-detail-row"><div><div className="agri-detail-label">FA President</div>{selected.faPresidentName}</div></div>
+            <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity</div>{selected.commodity}</div></div>
+            <div className="agri-detail-row"><div><div className="agri-detail-label">Quantity</div>{selected.quantity.toLocaleString()} {selected.unit}</div></div>
+            <div className="agri-detail-row">
+              <div>
+                <div className="agri-detail-label">FA Decision</div>
+                Approved on {selected.faDecisionAt?.slice(0, 10) ?? "—"}
+              </div>
+            </div>
+            {selected.faRemarks && (
+              <div className="agri-detail-row"><div><div className="agri-detail-label">FA President's Remarks</div>{selected.faRemarks}</div></div>
+            )}
+            {selected.maoRemarks && (
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Your Remarks</div>{selected.maoRemarks}</div></div>
+            )}
+
+            {canAct && (
+              <div style={{ marginTop: 16 }}>
+                <label className="agri-form-label">Notes (optional)</label>
+                <textarea className="form-control mb-3" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Add a reason for your decision" />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-outline-danger flex-fill" onClick={() => act("reject")} disabled={saving}>Reject</button>
+                  <button className="btn btn-agri-primary flex-fill d-flex align-items-center justify-content-center gap-2" onClick={() => act("approve")} disabled={saving}>
+                    <CheckCircle2 size={14} /> Approve
+                  </button>
+                </div>
+              </div>
+            )}
+            {!canAct && (
               <div className="agri-pill gray" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 14, padding: "8px 12px" }}>
-                <ShieldAlert size={13} /> Awaiting FA President review before MAO action.
+                <ShieldAlert size={13} /> This request has already been decided.
               </div>
             )}
           </div>
