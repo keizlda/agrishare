@@ -222,13 +222,18 @@ export default function CropValidationScreen({ navigation }) {
   // travels with the image itself instead of living only in form fields.
   //
   // onLoadEnd fires as soon as the JS side knows the bitmap decoded, but
-  // the native view doesn't necessarily have that frame painted yet —
-  // react-native-view-shot snapshots whatever's currently on screen, so
-  // calling it in the same tick can capture a still-blank (black) frame.
-  // Two animation-frame ticks reliably land after the paint on both
-  // platforms without a fixed, possibly-too-short/too-long delay.
+  // the native view doesn't necessarily have that frame fully painted yet
+  // — react-native-view-shot snapshots whatever's currently on screen, so
+  // calling it too early can capture a still-partially-blank (dark) frame.
+  // Two animation-frame ticks (~33ms) was enough for the tiny synthetic
+  // image an emulator's fake camera produces, but not for a real camera
+  // photo — a much larger JPEG that measurably takes longer to decode and
+  // paint, confirmed live on a real device (a visibly underexposed, only
+  // partially-painted photo, not the emulator's fully solid black). A
+  // fixed real-time delay, not frame count, is what actually needs to
+  // outlast that decode.
   async function handleStampReady() {
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await new Promise((resolve) => setTimeout(resolve, 400));
     try {
       const uri = await captureRef(stampRef, { format: "jpg", quality: 0.85, result: "tmpfile" });
       setStampJob(null);
