@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Alert, Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Image, Linking, Modal, PixelRatio, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
@@ -235,11 +235,21 @@ export default function CropValidationScreen({ navigation }) {
   async function handleStampReady() {
     await new Promise((resolve) => setTimeout(resolve, 400));
     try {
+      // captureRef's width/height options are physical pixels, but
+      // onLayout reports logical/CSS pixels — without scaling by the
+      // device's pixel ratio, the output comes out shrunk to the logical
+      // size (confirmed live: colors fixed, but the photo got noticeably
+      // smaller/blurrier than before this option was added).
       const uri = await captureRef(stampRef, {
         format: "jpg",
         quality: 0.85,
         result: "tmpfile",
-        ...(photoBoxSize ? { width: photoBoxSize.width, height: photoBoxSize.height } : {}),
+        ...(photoBoxSize
+          ? {
+              width: Math.round(photoBoxSize.width * PixelRatio.get()),
+              height: Math.round(photoBoxSize.height * PixelRatio.get()),
+            }
+          : {}),
       });
       setStampJob(null);
       setPhotoUri(uri);
