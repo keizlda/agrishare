@@ -4,7 +4,6 @@ import {
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -51,74 +50,67 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}
       >
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.logoRow}>
-            <Sprout size={20} color="#fff" />
-            <Text style={styles.logo}>AGRISHARE</Text>
+        <View style={styles.logoRow}>
+          <Sprout size={20} color="#fff" />
+          <Text style={styles.logo}>AGRISHARE</Text>
+        </View>
+
+        <View style={styles.sealRow}>
+          <View style={styles.sealBadge}>
+            <Image source={daSeal} style={styles.sealImg} />
+          </View>
+          <View>
+            <Text style={styles.sealTitle}>Department of Agriculture</Text>
+            <Text style={styles.sealSubtitle}>Municipality of Labangan</Text>
+          </View>
+        </View>
+
+        <View style={styles.spacer} />
+
+        <View style={styles.card}>
+          <View style={styles.iconCircle}>
+            <User size={26} color="#fff" />
+          </View>
+          <Text style={styles.title}>Welcome Back!</Text>
+          <Text style={styles.subtitle}>Login to your AgriShare account</Text>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <View style={styles.inputWrap}>
+            <Mail size={16} color={colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your RSBSA number"
+              placeholderTextColor="#9aa89f"
+              value={rsbsaNo}
+              onChangeText={setRsbsaNo}
+              autoCapitalize="none"
+            />
           </View>
 
-          <View style={styles.sealRow}>
-            <View style={styles.sealBadge}>
-              <Image source={daSeal} style={styles.sealImg} />
-            </View>
-            <View>
-              <Text style={styles.sealTitle}>Department of Agriculture</Text>
-              <Text style={styles.sealSubtitle}>Municipality of Labangan</Text>
-            </View>
-          </View>
-
-          <View style={styles.spacer} />
-
-          <View style={styles.card}>
-            <View style={styles.iconCircle}>
-              <User size={26} color="#fff" />
-            </View>
-            <Text style={styles.title}>Welcome Back!</Text>
-            <Text style={styles.subtitle}>Login to your AgriShare account</Text>
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <View style={styles.inputWrap}>
-              <Mail size={16} color={colors.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your RSBSA number"
-                placeholderTextColor="#9aa89f"
-                value={rsbsaNo}
-                onChangeText={setRsbsaNo}
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputWrap}>
-              <Lock size={16} color={colors.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, { paddingRight: 34 }]}
-                placeholder="Enter your password"
-                placeholderTextColor="#9aa89f"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword((s) => !s)}>
-                {showPassword ? <EyeOff size={16} color={colors.textMuted} /> : <Eye size={16} color={colors.textMuted} />}
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity style={[styles.loginBtn, submitting && { opacity: 0.6 }]} onPress={handleLogin} disabled={submitting}>
-              <Text style={styles.loginBtnText}>{submitting ? "Signing in…" : "Login"}</Text>
+          <View style={styles.inputWrap}>
+            <Lock size={16} color={colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              style={[styles.input, { paddingRight: 34 }]}
+              placeholder="Enter your password"
+              placeholderTextColor="#9aa89f"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword((s) => !s)}>
+              {showPassword ? <EyeOff size={16} color={colors.textMuted} /> : <Eye size={16} color={colors.textMuted} />}
             </TouchableOpacity>
-
-            <Text style={styles.footnote}>
-              For registered farmers of Barangay Langapud. Contact your FA President if you need help logging in.
-            </Text>
           </View>
-        </ScrollView>
+
+          <TouchableOpacity style={[styles.loginBtn, submitting && { opacity: 0.6 }]} onPress={handleLogin} disabled={submitting}>
+            <Text style={styles.loginBtnText}>{submitting ? "Signing in…" : "Login"}</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.footnote}>
+            For registered farmers of Barangay Langapud. Contact your FA President if you need help logging in.
+          </Text>
+        </View>
       </KeyboardAvoidingView>
     </ImageBackground>
   );
@@ -128,12 +120,6 @@ const styles = StyleSheet.create({
   bg: { flex: 1 },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,35,20,0.25)" },
   flex: { flex: 1 },
-  // flexGrow (not just flex) so the content still stretches to fill the
-  // screen when it's shorter than the viewport — that's what lets spacer's
-  // flex:1 keep pushing the card to the bottom when the keyboard is
-  // closed, while still allowing the ScrollView to scroll once the
-  // keyboard is open and there's genuinely not enough room.
-  scrollContent: { flexGrow: 1 },
   logoRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 56, paddingHorizontal: 20 },
   logo: { color: "#fff", fontSize: 18, fontWeight: "800", letterSpacing: 0.5 },
   sealRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 18, paddingHorizontal: 20 },
