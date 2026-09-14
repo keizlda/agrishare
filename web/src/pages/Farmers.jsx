@@ -36,14 +36,11 @@ const EMPTY_FORM = {
   barangay: "Langapud",
   municipality: "Labangan",
   province: "Zamboanga del Sur",
-  householdHead: "No",
-  householdMembers: "",
   commodity: "Rice",
   farmSize: "",
   farmLocation: "",
   ownershipType: "Owner",
   pcicInsured: "Not Applicable",
-  livestockDetails: "",
   orgAffiliation: "",
   status: "Active",
 };
@@ -61,14 +58,11 @@ function farmerToForm(f) {
     barangay: f.barangay ?? "Langapud",
     municipality: f.municipality ?? "Labangan",
     province: f.province ?? "Zamboanga del Sur",
-    householdHead: f.householdHead ?? "No",
-    householdMembers: f.householdMembers ?? "",
     commodity: f.commodity || "Rice",
     farmSize: f.farmSize ?? "",
     farmLocation: f.farmLocation ?? "",
     ownershipType: f.ownershipType || "Owner",
     pcicInsured: f.pcicInsured || "Not Applicable",
-    livestockDetails: f.livestockDetails ?? "",
     orgAffiliation: f.orgAffiliation ?? "",
     status: f.status || "Active",
   };
@@ -102,10 +96,6 @@ function validateFarmerForm(form) {
     errors.contactNo = "Contact number is required.";
   } else if (!/^09\d{9}$/.test(cleanedContact)) {
     errors.contactNo = "Enter an 11-digit number starting with 09 (e.g. 09XX XXX XXXX).";
-  }
-
-  if (form.householdMembers !== "" && Number(form.householdMembers) < 1) {
-    errors.householdMembers = "Must be at least 1.";
   }
 
   if (!(Number(form.farmSize) > 0)) {
@@ -462,17 +452,6 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
               </Field>
             </Section>
 
-            <Section title="Household">
-              <Field label="Household Head" col={6}>
-                <select className="form-select" value={form.householdHead} onChange={(e) => update("householdHead", e.target.value)}>
-                  <option>No</option><option>Yes</option>
-                </select>
-              </Field>
-              <Field label="No. of Household Members" col={6} error={errors.householdMembers}>
-                <input type="number" min="1" className="form-control" value={form.householdMembers} onChange={(e) => update("householdMembers", e.target.value)} />
-              </Field>
-            </Section>
-
             <Section title="Farm Information">
               <Field label="Commodity / Crop Type" col={6}>
                 <select className="form-select" value={form.commodity} onChange={(e) => update("commodity", e.target.value)}>
@@ -494,9 +473,6 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
                 <select className="form-select" value={form.pcicInsured} onChange={(e) => update("pcicInsured", e.target.value)}>
                   {PCIC_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                 </select>
-              </Field>
-              <Field label="Livestock Details" col={12}>
-                <textarea className="form-control" rows={2} placeholder="e.g. 2 carabao, 5 goats" value={form.livestockDetails} onChange={(e) => update("livestockDetails", e.target.value)} />
               </Field>
             </Section>
 
