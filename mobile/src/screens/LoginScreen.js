@@ -52,6 +52,7 @@ export default function LoginScreen() {
         style={styles.flex}
       >
         <ScrollView
+          style={styles.flex}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
