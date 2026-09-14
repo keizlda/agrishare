@@ -48,6 +48,12 @@
         "projectId": "fba51fdb-82d5-4326-8509-f9297ad1d8a4"
       }
     },
-    "owner": "kryz23"
+    "owner": "kryz23",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/fba51fdb-82d5-4326-8509-f9297ad1d8a4"
+    }
   }
 }

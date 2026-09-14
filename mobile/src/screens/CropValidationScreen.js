@@ -220,7 +220,15 @@ export default function CropValidationScreen({ navigation }) {
   // around it lay out synchronously but the bitmap decode doesn't. Flattens
   // that same view into a single JPEG and uploads *that*, so the geotag
   // travels with the image itself instead of living only in form fields.
+  //
+  // onLoadEnd fires as soon as the JS side knows the bitmap decoded, but
+  // the native view doesn't necessarily have that frame painted yet —
+  // react-native-view-shot snapshots whatever's currently on screen, so
+  // calling it in the same tick can capture a still-blank (black) frame.
+  // Two animation-frame ticks reliably land after the paint on both
+  // platforms without a fixed, possibly-too-short/too-long delay.
   async function handleStampReady() {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
       const uri = await captureRef(stampRef, { format: "jpg", quality: 0.85, result: "tmpfile" });
       setStampJob(null);
