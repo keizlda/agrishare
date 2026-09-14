@@ -96,6 +96,7 @@ export default function CropValidationScreen({ navigation }) {
   const [location, setLocation] = useState(null);
   const [locatingGps, setLocatingGps] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [photoBoxSize, setPhotoBoxSize] = useState(null);
   const stampRef = useRef(null);
 
   const checklist = [
@@ -221,21 +222,25 @@ export default function CropValidationScreen({ navigation }) {
   // that same view into a single JPEG and uploads *that*, so the geotag
   // travels with the image itself instead of living only in form fields.
   //
-  // onLoadEnd fires as soon as the JS side knows the bitmap decoded, but
-  // the native view doesn't necessarily have that frame fully painted yet
-  // — react-native-view-shot snapshots whatever's currently on screen, so
-  // calling it too early can capture a still-partially-blank (dark) frame.
-  // Two animation-frame ticks (~33ms) was enough for the tiny synthetic
-  // image an emulator's fake camera produces, but not for a real camera
-  // photo — a much larger JPEG that measurably takes longer to decode and
-  // paint, confirmed live on a real device (a visibly underexposed, only
-  // partially-painted photo, not the emulator's fully solid black). A
-  // fixed real-time delay, not frame count, is what actually needs to
-  // outlast that decode.
+  // Confirmed live on a real device: the on-screen preview shows the real
+  // photo correctly, then visibly "blinks" to a dark result the instant
+  // this capture replaces it — so the Image layer itself isn't rendering
+  // in the snapshot, while sibling text/color layers (the stamp box) do.
+  // That's react-native-view-shot's own documented failure mode for a
+  // ref'd view sized only by StyleSheet.absoluteFillObject (anchors, no
+  // concrete width/height of its own) — the fix is giving captureRef
+  // explicit pixel dimensions instead of letting it infer them, via the
+  // photo box's own measured onLayout size. The delay stays too, since
+  // it's a real, separate mitigation for slow decode on a large photo.
   async function handleStampReady() {
     await new Promise((resolve) => setTimeout(resolve, 400));
     try {
-      const uri = await captureRef(stampRef, { format: "jpg", quality: 0.85, result: "tmpfile" });
+      const uri = await captureRef(stampRef, {
+        format: "jpg",
+        quality: 0.85,
+        result: "tmpfile",
+        ...(photoBoxSize ? { width: photoBoxSize.width, height: photoBoxSize.height } : {}),
+      });
       setStampJob(null);
       setPhotoUri(uri);
       const path = await uploadCropPhoto(farmer.farmerId, uri);
@@ -392,12 +397,19 @@ export default function CropValidationScreen({ navigation }) {
             style={[styles.photoBox, (!!photoUri || !!stampJob) && styles.photoBoxFilled]}
             onPress={photoUri ? () => setPhotoViewerOpen(true) : handleCapturePhoto}
             disabled={!!stampJob}
+            onLayout={(e) => setPhotoBoxSize(e.nativeEvent.layout)}
           >
             {stampJob && location ? (
               // Live, on-screen: the farmer watches the stamp render onto
               // their actual photo. This exact view is what captureRef
               // flattens, so what they see here is what gets uploaded.
-              <View ref={stampRef} collapsable={false} style={StyleSheet.absoluteFillObject}>
+              // Explicit pixel dimensions (measured above), not
+              // absoluteFillObject's bare anchors — see handleStampReady.
+              <View
+                ref={stampRef}
+                collapsable={false}
+                style={photoBoxSize ? { width: photoBoxSize.width, height: photoBoxSize.height } : StyleSheet.absoluteFillObject}
+              >
                 <Image
                   source={{ uri: stampJob.uri }}
                   style={StyleSheet.absoluteFillObject}
