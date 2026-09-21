@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { Filter, Plus, Printer, X } from "lucide-react";
-import Pill from "../components/ui/Pill.jsx";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Filter, Plus, Printer, X } from "lucide-react";
+import Pill, { STATUS_COLOR } from "../components/ui/Pill.jsx";
+import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import { distributionTotalQty } from "../data/mockData.js";
@@ -8,8 +9,26 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
-import { createDistribution, listDistributions } from "../lib/api/distributions.js";
+import { createDistribution, listDistributions, updateDistributionStatus } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
+
+// Scheduled -> Ongoing or Cancelled; Ongoing -> Completed or Cancelled;
+// Completed/Cancelled are final (empty list = read-only badge, no menu).
+const STATUS_TRANSITIONS = {
+  Scheduled: ["Ongoing", "Cancelled"],
+  Ongoing: ["Completed", "Cancelled"],
+  Completed: [],
+  Cancelled: [],
+};
+const FINAL_STATUSES = new Set(["Completed", "Cancelled"]);
+const STATUS_DOT_COLOR = {
+  green: "var(--agri-primary-dark)",
+  red: "var(--agri-red)",
+  orange: "var(--agri-orange)",
+  blue: "var(--agri-blue)",
+  purple: "var(--agri-purple)",
+  gray: "#667066",
+};
 
 const OTHER_PROGRAM = "Other (specify)";
 const EMPTY_FORM = {
@@ -148,7 +167,15 @@ export default function Distributions() {
           <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Distribution Details</div>
-              <Pill status={selected.status} />
+              <DistributionStatusControl
+                distribution={selected}
+                canEdit={isMAO}
+                onSaved={(updated) => {
+                  setDistributions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+                  setToast({ tone: "success", message: `Status updated to ${updated.status}.` });
+                }}
+                onError={(message) => setToast({ tone: "error", message })}
+              />
             </div>
             <div className="agri-muted" style={{ fontSize: "0.8rem", marginBottom: 10 }}>
               {selected.id} · {selected.date}
@@ -200,6 +227,98 @@ export default function Distributions() {
       )}
 
       {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
+    </div>
+  );
+}
+
+// Read-only Pill for everyone else, or once a distribution has reached a
+// final status. Admins on a non-final status get a pill-styled trigger that
+// opens a menu of just the allowed next statuses; Completed/Cancelled go
+// through a confirmation dialog first since they can't be undone.
+function DistributionStatusControl({ distribution, canEdit, onSaved, onError }) {
+  const [open, setOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const wrapRef = useRef(null);
+
+  const nextOptions = STATUS_TRANSITIONS[distribution.status] ?? [];
+
+  useEscapeToClose(open, () => setOpen(false));
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  if (!canEdit || nextOptions.length === 0) {
+    return <Pill status={distribution.status} />;
+  }
+
+  async function applyStatus(newStatus) {
+    setSaving(true);
+    try {
+      const updated = await updateDistributionStatus(distribution.id, newStatus);
+      onSaved(updated);
+    } catch (err) {
+      onError(err.message || "Failed to update status.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleSelect(newStatus) {
+    setOpen(false);
+    if (FINAL_STATUSES.has(newStatus)) {
+      setPendingStatus(newStatus);
+    } else {
+      applyStatus(newStatus);
+    }
+  }
+
+  const color = STATUS_COLOR[distribution.status] ?? "gray";
+
+  return (
+    <div className="agri-status-menu-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={`agri-pill ${color} agri-status-trigger d-flex align-items-center`}
+        onClick={() => setOpen((v) => !v)}
+        disabled={saving}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        {distribution.status}
+        <ChevronDown size={12} style={{ marginLeft: 2 }} />
+      </button>
+
+      {open && (
+        <div className="agri-status-menu" role="menu">
+          {nextOptions.map((s) => (
+            <button key={s} type="button" className="agri-status-menu-item" role="menuitem" onClick={() => handleSelect(s)}>
+              <span className="agri-status-dot" style={{ background: STATUS_DOT_COLOR[STATUS_COLOR[s] ?? "gray"] }} />
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {pendingStatus && (
+        <ConfirmDialog
+          title={`Mark distribution #${distribution.id} as ${pendingStatus}?`}
+          message="This can't be undone."
+          confirmLabel={pendingStatus}
+          onConfirm={() => {
+            const s = pendingStatus;
+            setPendingStatus(null);
+            applyStatus(s);
+          }}
+          onCancel={() => setPendingStatus(null)}
+        />
+      )}
     </div>
   );
 }

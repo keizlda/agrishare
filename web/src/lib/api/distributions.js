@@ -69,3 +69,23 @@ export async function createDistribution({ program, venue, beneficiaries, commod
 
   return mapDistribution({ ...event, distribution_event_items: [item] });
 }
+
+// RLS ("events: MAO writes") already restricts this to mao_admin — FA
+// President rows never match, so .maybeSingle() coming back empty means
+// either the row vanished or the caller isn't allowed to touch it.
+export async function updateDistributionStatus(eventId, status) {
+  const { data: auth } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from("distribution_events")
+    .update({
+      status: labelToDbStatus(status),
+      status_updated_by: auth?.user?.id ?? null,
+      status_updated_at: new Date().toISOString(),
+    })
+    .eq("event_id", eventId)
+    .select(SELECT)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Couldn't update this distribution's status — refresh and try again.");
+  return mapDistribution(data);
+}
