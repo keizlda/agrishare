@@ -24,6 +24,29 @@ const FARMER_COMMODITY_OPTIONS = commodityCategories.filter((c) => c !== "Farm T
 const OWNERSHIP_OPTIONS = ["Owner", "Tenant", "Lessee", "Farmworker"];
 const PCIC_OPTIONS = ["Yes", "No", "Not Applicable"];
 
+// RSBSA number grouping — digit counts per hyphen-separated group, e.g.
+// 2024-01-002-000123. Single source of truth for both the live-typing
+// formatter and the submit-time pattern check, so the grouping only ever
+// needs to change in one place.
+const RSBSA_GROUPS = [4, 2, 3, 6];
+const RSBSA_MAX_DIGITS = RSBSA_GROUPS.reduce((sum, n) => sum + n, 0);
+const RSBSA_PATTERN = new RegExp(`^${RSBSA_GROUPS.map((n) => `\\d{${n}}`).join("-")}$`);
+
+// Strips non-digits, caps at RSBSA_MAX_DIGITS, re-joins into RSBSA_GROUPS —
+// a hyphen only appears once the user has actually typed into the next
+// group, so there's never a trailing "-".
+function formatRsbsaNo(raw) {
+  const digits = raw.replace(/\D/g, "").slice(0, RSBSA_MAX_DIGITS);
+  const parts = [];
+  let i = 0;
+  for (const size of RSBSA_GROUPS) {
+    if (i >= digits.length) break;
+    parts.push(digits.slice(i, i + size));
+    i += size;
+  }
+  return parts.join("-");
+}
+
 const EMPTY_FORM = {
   rsbsaNo: "",
   firstName: "",
@@ -85,7 +108,12 @@ function findDuplicateFarmer(farmers, form, excludeId) {
 
 function validateFarmerForm(form) {
   const errors = {};
-  if (!form.rsbsaNo.trim()) errors.rsbsaNo = "RSBSA number is required.";
+  const trimmedRsbsa = form.rsbsaNo.trim();
+  if (!trimmedRsbsa) {
+    errors.rsbsaNo = "RSBSA number is required.";
+  } else if (!RSBSA_PATTERN.test(trimmedRsbsa)) {
+    errors.rsbsaNo = "Enter the complete RSBSA number (format: 2024-01-002-000123).";
+  }
   if (!form.firstName.trim()) errors.firstName = "First name is required.";
   if (!form.lastName.trim()) errors.lastName = "Last name is required.";
   if (!form.sex) errors.sex = "Sex is required.";
@@ -413,7 +441,14 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
           <form id="farmer-form" onSubmit={handleSubmit}>
             <Section title="Identification">
               <Field label="RSBSA Number" col={12} required error={errors.rsbsaNo}>
-                <input className="form-control" placeholder="2024-01-002-000XXX" value={form.rsbsaNo} onChange={(e) => update("rsbsaNo", e.target.value)} />
+                <input
+                  className="form-control"
+                  placeholder="2024-01-002-000XXX"
+                  value={form.rsbsaNo}
+                  onChange={(e) => update("rsbsaNo", formatRsbsaNo(e.target.value))}
+                  inputMode="numeric"
+                  maxLength={18}
+                />
               </Field>
               <Field label="First Name" col={4} required error={errors.firstName}>
                 <input className="form-control" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} />
