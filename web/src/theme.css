@@ -511,6 +511,24 @@ textarea:focus-visible,
   }
 }
 
+/* ---------- Reports: centered Generate Report card ---------- */
+.agri-report-card {
+  max-width: 48rem; /* ~max-w-3xl */
+  margin: 0 auto 28px; /* 28px ≈ 1.75rem, matching the vertical rhythm other pages use between stacked sections */
+}
+
+.agri-report-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-gap: 24px;
+}
+
+@media (min-width: 768px) {
+  .agri-report-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* ---------- Tables ---------- */
 .agri-table-wrap {
   overflow-x: auto;
