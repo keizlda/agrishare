@@ -29,15 +29,20 @@ function mapDistribution(row) {
 }
 
 export async function listDistributions() {
-  const { data, error } = await supabase.from("distribution_events").select(SELECT).order("event_date", { ascending: false });
+  const { data, error } = await supabase
+    .from("distribution_events")
+    .select(SELECT)
+    .eq("is_deleted", false)
+    .order("event_date", { ascending: false });
   if (error) throw error;
   return data.map(mapDistribution);
 }
 
 // Single-row fetch for the standalone print view, which loads in its own
-// tab (no app state to reuse) and only needs the one distribution.
+// tab (no app state to reuse) and only needs the one distribution. Also
+// excludes soft-deleted rows so a deleted distribution can't still be printed.
 export async function getDistribution(eventId) {
-  const { data, error } = await supabase.from("distribution_events").select(SELECT).eq("event_id", eventId).single();
+  const { data, error } = await supabase.from("distribution_events").select(SELECT).eq("event_id", eventId).eq("is_deleted", false).single();
   if (error) throw error;
   return mapDistribution(data);
 }
@@ -88,4 +93,24 @@ export async function updateDistributionStatus(eventId, status) {
   if (error) throw error;
   if (!data) throw new Error("Couldn't update this distribution's status — refresh and try again.");
   return mapDistribution(data);
+}
+
+// Soft delete — sets is_deleted/deleted_at/deleted_by instead of removing
+// the row, so distribution_event_items (and any claims against them) are
+// preserved. RLS restricts this to mao_admin the same way it does status.
+export async function deleteDistribution(eventId) {
+  const { data: auth } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from("distribution_events")
+    .update({
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+      deleted_by: auth?.user?.id ?? null,
+    })
+    .eq("event_id", eventId)
+    .select("event_id")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Couldn't delete this distribution — refresh and try again.");
+  return eventId;
 }

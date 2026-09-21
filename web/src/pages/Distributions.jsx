@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Filter, Plus, Printer, X } from "lucide-react";
+import { ChevronDown, Plus, Printer, Trash2, X } from "lucide-react";
 import Pill, { STATUS_COLOR } from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
@@ -9,7 +9,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
-import { createDistribution, listDistributions, updateDistributionStatus } from "../lib/api/distributions.js";
+import { createDistribution, deleteDistribution, listDistributions, updateDistributionStatus } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 
 // Scheduled -> Ongoing or Cancelled; Ongoing -> Completed or Cancelled;
@@ -81,16 +81,23 @@ export default function Distributions() {
 
   const selected = distributions.find((d) => d.id === selectedId) ?? null;
 
-  function resetFilters() {
-    setStatusFilter("All");
-    setProgramFilter("All");
-  }
-
   function handleSaved(newDist) {
     setDistributions((prev) => [newDist, ...prev]);
     setSelectedId(newDist.id);
     setShowModal(false);
     setToast({ tone: "success", message: "Distribution recorded." });
+  }
+
+  function handleDeleted(deletedId) {
+    setDistributions((prev) => {
+      const next = prev.filter((d) => d.id !== deletedId);
+      if (selectedId === deletedId) {
+        const stillVisible = filtered.filter((d) => d.id !== deletedId);
+        setSelectedId(stillVisible[0]?.id ?? next[0]?.id ?? null);
+      }
+      return next;
+    });
+    setToast({ tone: "success", message: "Distribution deleted." });
   }
 
   return (
@@ -120,16 +127,6 @@ export default function Distributions() {
               <option value="All">All Programs</option>
               {programOptions.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
-
-            <button
-              type="button"
-              className="agri-icon-btn ms-auto"
-              title="Reset filters"
-              aria-label="Reset filters"
-              onClick={resetFilters}
-            >
-              <Filter size={16} />
-            </button>
           </div>
 
           <div className="agri-table-wrap">
@@ -213,6 +210,10 @@ export default function Distributions() {
             >
               <Printer size={15} /> Print Distribution Report
             </button>
+
+            {isMAO && (
+              <DeleteDistributionButton distribution={selected} onDeleted={handleDeleted} onError={(message) => setToast({ tone: "error", message })} />
+            )}
           </div>
         )}
       </div>
@@ -320,6 +321,56 @@ function DistributionStatusControl({ distribution, canEdit, onSaved, onError }) 
         />
       )}
     </div>
+  );
+}
+
+// Completed distributions are part of the permanent record and can't be
+// deleted — the button stays visible (so admins know it exists) but its
+// action is disabled, with a tooltip explaining why.
+const UNDELETABLE_STATUS = "Completed";
+
+function DeleteDistributionButton({ distribution, onDeleted, onError }) {
+  const [pendingDelete, setPendingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const canDelete = distribution.status !== UNDELETABLE_STATUS;
+
+  async function handleConfirm() {
+    setPendingDelete(false);
+    setDeleting(true);
+    try {
+      await deleteDistribution(distribution.id);
+      onDeleted(distribution.id);
+    } catch (err) {
+      onError(err.message || "Failed to delete distribution.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2"
+        style={{ marginTop: 8 }}
+        disabled={!canDelete || deleting}
+        title={canDelete ? undefined : "Completed distributions can't be deleted."}
+        onClick={() => setPendingDelete(true)}
+      >
+        <Trash2 size={15} /> {deleting ? "Deleting…" : "Delete Distribution"}
+      </button>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete distribution #${distribution.id} (${distribution.program})?`}
+          message="It will be removed from all lists."
+          confirmLabel="Delete"
+          onConfirm={handleConfirm}
+          onCancel={() => setPendingDelete(false)}
+        />
+      )}
+    </>
   );
 }
 
