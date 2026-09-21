@@ -13,8 +13,6 @@ import {
   YAxis,
 } from "recharts";
 import { Users, UserCheck, UserX, Truck, ShieldCheck, FilePlus, UserPlus, ClipboardList, Eye } from "lucide-react";
-import StatCard from "../components/ui/StatCard.jsx";
-import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   computeDistributionByCommodity,
@@ -53,13 +51,6 @@ export default function Dashboard() {
 
   return (
     <div>
-      <OverviewDrawer>
-        <StatCard icon={Users} label="Total Farmers" value={stats.total.toLocaleString()} sub="All registered farmers" color="green" />
-        <StatCard icon={UserCheck} label="Active Farmers" value={stats.active.toLocaleString()} sub="Currently active" color="blue" />
-        <StatCard icon={UserX} label="Inactive Farmers" value={stats.inactive.toLocaleString()} sub="Inactive accounts" color="red" />
-        <StatCard icon={Truck} label="Total Distributions" value={distributions.length} sub="This month" color="purple" />
-      </OverviewDrawer>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 16 }}>
         {/* Distribution overview chart */}
         <div className="agri-card" style={{ padding: 18 }}>
@@ -86,33 +77,44 @@ export default function Dashboard() {
           <div className="agri-panel-header">
             <div style={{ fontWeight: 700 }}>Validation Status</div>
           </div>
-          <div style={{ position: "relative" }}>
-            <ResponsiveContainer width="100%" height={170}>
-              <PieChart>
-                <Pie
-                  data={[{ name: "Validated", value: stats.validated }, { name: "Not Validated", value: stats.total - stats.validated }]}
-                  dataKey="value"
-                  innerRadius={48}
-                  outerRadius={70}
-                  paddingAngle={2}
-                >
-                  {PIE_COLORS.map((color) => (
-                    <Cell key={color} fill={color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--agri-border)", fontSize: 13 }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none", marginTop: -14 }}>
-              <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--agri-primary-dark)" }}>
-                {Math.round((stats.validated / (stats.total || 1)) * 100)}%
+          <div className="agri-validation-body">
+            <div className="agri-validation-donut">
+              <div style={{ position: "relative" }}>
+                <ResponsiveContainer width="100%" height={170}>
+                  <PieChart>
+                    <Pie
+                      data={[{ name: "Validated", value: stats.validated }, { name: "Not Validated", value: stats.total - stats.validated }]}
+                      dataKey="value"
+                      innerRadius={48}
+                      outerRadius={70}
+                      paddingAngle={2}
+                    >
+                      {PIE_COLORS.map((color) => (
+                        <Cell key={color} fill={color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid var(--agri-border)", fontSize: 13 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none", marginTop: -14 }}>
+                  <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--agri-primary-dark)" }}>
+                    {Math.round((stats.validated / (stats.total || 1)) * 100)}%
+                  </div>
+                  <div className="agri-muted" style={{ fontSize: "0.68rem" }}>Validated</div>
+                </div>
               </div>
-              <div className="agri-muted" style={{ fontSize: "0.68rem" }}>Validated</div>
+              <div style={{ display: "flex", justifyContent: "center", gap: 18, fontSize: "0.8rem" }}>
+                <div><span style={{ color: PIE_COLORS[0] }}>●</span> Validated ({stats.validated})</div>
+                <div><span style={{ color: PIE_COLORS[1] }}>●</span> Not Validated ({stats.total - stats.validated})</div>
+              </div>
             </div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: 18, fontSize: "0.8rem" }}>
-            <div><span style={{ color: PIE_COLORS[0] }}>●</span> Validated ({stats.validated})</div>
-            <div><span style={{ color: PIE_COLORS[1] }}>●</span> Not Validated ({stats.total - stats.validated})</div>
+
+            <div className="agri-validation-stats">
+              <MiniStat icon={Users} color="green" label="Total Farmers" value={stats.total.toLocaleString()} sub="All registered" />
+              <MiniStat icon={UserCheck} color="blue" label="Active Farmers" value={stats.active.toLocaleString()} sub="Currently active" />
+              <MiniStat icon={UserX} color="red" label="Inactive Farmers" value={stats.inactive.toLocaleString()} sub="Inactive accounts" />
+              <MiniStat icon={Truck} color="purple" label="Total Distributions" value={distributions.length} sub="This month" />
+            </div>
           </div>
         </div>
       </div>
@@ -192,6 +194,33 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Same palette as StatCard (components/ui/StatCard.jsx) — kept local since
+// this card's icon squares are sized/laid out for a 2x2 grid item, not
+// StatCard's own horizontal list-row shape (which also carries a trailing
+// trend icon this design doesn't call for).
+const MINI_STAT_COLORS = {
+  green: { bg: "var(--agri-primary-light)", fg: "var(--agri-primary-dark)" },
+  blue: { bg: "var(--agri-blue-bg)", fg: "var(--agri-blue)" },
+  red: { bg: "var(--agri-red-bg)", fg: "var(--agri-red)" },
+  purple: { bg: "var(--agri-purple-bg)", fg: "var(--agri-purple)" },
+};
+
+function MiniStat({ icon: Icon, label, value, sub, color = "green" }) {
+  const c = MINI_STAT_COLORS[color] ?? MINI_STAT_COLORS.green;
+  return (
+    <div className="agri-mini-stat">
+      <div className="agri-mini-stat-icon" style={{ background: c.bg, color: c.fg }}>
+        <Icon size={18} />
+      </div>
+      <div>
+        <div className="agri-mini-stat-label">{label}</div>
+        <div className="agri-mini-stat-value">{value}</div>
+        <div className="agri-mini-stat-sub">{sub}</div>
       </div>
     </div>
   );
