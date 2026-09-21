@@ -4,17 +4,12 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
-  Clock,
   Filter,
   Image as ImageIcon,
   Search,
-  ShieldCheck,
-  Users,
   X,
   XCircle,
 } from "lucide-react";
-import StatCard from "../components/ui/StatCard.jsx";
-import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
 import Pill from "../components/ui/Pill.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import Toast from "../components/ui/Toast.jsx";
@@ -148,12 +143,6 @@ export default function Validation() {
 
   return (
     <div>
-      <OverviewDrawer>
-        <StatCard icon={ShieldCheck} label="Validated" value={counts.Validated} sub="Proof submissions" color="green" />
-        <StatCard icon={Clock} label="Pending Validation" value={counts.Pending} sub="Awaiting review" color="orange" />
-        <StatCard icon={Users} label="Rejected" value={counts.Rejected} sub="Proof submissions" color="red" />
-      </OverviewDrawer>
-
       <div className="agri-card" style={{ padding: 0, overflow: "hidden" }}>
         {loadError && (
           <div className="agri-pill red" style={{ display: "block", margin: 16, padding: "8px 12px" }}>

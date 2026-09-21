@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Filter, Package, Plus, Printer, Truck, Users, X } from "lucide-react";
-import StatCard from "../components/ui/StatCard.jsx";
-import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
+import { Filter, Plus, Printer, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import Toast from "../components/ui/Toast.jsx";
@@ -64,11 +62,6 @@ export default function Distributions() {
 
   const selected = distributions.find((d) => d.id === selectedId) ?? null;
 
-  const totalBeneficiaries = distributions.reduce((sum, d) => sum + d.beneficiaries, 0);
-  const totalQuantity = distributions.reduce((sum, d) => sum + distributionTotalQty(d), 0);
-  const thisMonthKey = new Date().toISOString().slice(0, 7);
-  const thisMonth = distributions.filter((d) => d.date.startsWith(thisMonthKey)).length;
-
   function resetFilters() {
     setStatusFilter("All");
     setProgramFilter("All");
@@ -83,13 +76,6 @@ export default function Distributions() {
 
   return (
     <div>
-      <OverviewDrawer>
-        <StatCard icon={Truck} label="Total Distributions" value={distributions.length} sub="All time distributions" color="green" />
-        <StatCard icon={Users} label="Total Beneficiaries" value={totalBeneficiaries.toLocaleString()} sub="Farmers who received" color="blue" />
-        <StatCard icon={Package} label="Total Quantity" value={totalQuantity.toLocaleString()} sub="All commodities (kg)" color="purple" />
-        <StatCard icon={Calendar} label="This Month" value={thisMonth} sub="Distributions this month" color="orange" />
-      </OverviewDrawer>
-
       <div style={{ display: "grid", gridTemplateColumns: selected ? "1.6fr 1fr" : "1fr", gap: 16 }}>
         <div className="agri-card" style={{ padding: 16 }}>
           {loadError && (

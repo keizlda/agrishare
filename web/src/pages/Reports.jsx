@@ -1,32 +1,19 @@
-import { useEffect, useState } from "react";
-import { Download, Eye, FileBarChart2, FileText, Package, Users } from "lucide-react";
-import StatCard from "../components/ui/StatCard.jsx";
-import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
+import { useState } from "react";
+import { Download, Eye } from "lucide-react";
 import { usePersistedState } from "../hooks/usePersistedState.js";
-import { barangays, distributionTotalQty, reportTypes } from "../data/mockData.js";
-import { listDistributions } from "../lib/api/distributions.js";
-import { listFarmers } from "../lib/api/farmers.js";
+import { barangays, reportTypes } from "../data/mockData.js";
 
 // Generated-report history is a session convenience log (what got downloaded,
 // when) rather than domain data from the paper's ERD, so it stays local —
 // there's no tbl_Reports to persist it to server-side.
 export default function Reports() {
   const [reports, setReports] = usePersistedState("agrishare_reports", []);
-  const [distributions, setDistributions] = useState([]);
-  const [farmers, setFarmers] = useState([]);
-
-  useEffect(() => {
-    listDistributions().then(setDistributions).catch(() => {});
-    listFarmers().then(setFarmers).catch(() => {});
-  }, []);
 
   const [reportType, setReportType] = useState(reportTypes[0]);
   const [dateFrom, setDateFrom] = useState("2024-05-01");
   const [dateTo, setDateTo] = useState("2024-05-31");
   const [commodity, setCommodity] = useState("All Commodities");
   const [barangay, setBarangay] = useState("All Barangays");
-
-  const totalQuantity = distributions.reduce((sum, d) => sum + distributionTotalQty(d), 0);
 
   function printUrl({ type, dateFrom, dateTo, commodity, barangay }, autoPrint) {
     const params = new URLSearchParams({ type, dateFrom, dateTo, commodity, barangay });
@@ -63,13 +50,6 @@ export default function Reports() {
 
   return (
     <div>
-      <OverviewDrawer>
-        <StatCard icon={Users} label="Total Farmers" value={farmers.length} sub="All registered farmers" color="green" />
-        <StatCard icon={FileBarChart2} label="Total Distributions" value={distributions.length} sub="All time distributions" color="blue" />
-        <StatCard icon={Package} label="Total Quantity" value={totalQuantity.toLocaleString()} sub="All commodities (kg)" color="purple" />
-        <StatCard icon={FileText} label="Reports Generated" value={reports.length} sub="This month" color="orange" />
-      </OverviewDrawer>
-
       <div className="agri-card agri-report-card" style={{ padding: 18 }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>Generate Report</div>
         <form onSubmit={handleGenerate}>

@@ -199,10 +199,6 @@ export default function Dashboard() {
   );
 }
 
-// Same palette as StatCard (components/ui/StatCard.jsx) — kept local since
-// this card's icon squares are sized/laid out for a 2x2 grid item, not
-// StatCard's own horizontal list-row shape (which also carries a trailing
-// trend icon this design doesn't call for).
 const MINI_STAT_COLORS = {
   green: { bg: "var(--agri-primary-light)", fg: "var(--agri-primary-dark)" },
   blue: { bg: "var(--agri-blue-bg)", fg: "var(--agri-blue)" },

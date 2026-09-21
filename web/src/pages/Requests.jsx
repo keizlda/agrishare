@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock, History, Inbox, Search, Send, ShieldAlert, XCircle } from "lucide-react";
-import StatCard from "../components/ui/StatCard.jsx";
-import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
+import { CheckCircle2, History, Inbox, Search, Send, ShieldAlert } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -97,13 +95,6 @@ function FARequestsView({ currentUserId }) {
 
   return (
     <div>
-      <OverviewDrawer>
-        <StatCard icon={Clock} label="Pending Review" value={faTabRows(requests, "pending", currentUserId).length} sub="Needs your decision" color="orange" />
-        <StatCard icon={Send} label="Awaiting Admin" value={faTabRows(requests, "awaiting", currentUserId).length} sub="You approved, Admin deciding" color="purple" />
-        <StatCard icon={CheckCircle2} label="Approved" value={requests.filter((r) => r.status === "Approved").length} sub="All time" color="green" />
-        <StatCard icon={XCircle} label="Rejected" value={requests.filter((r) => r.status === "Rejected").length} sub="All time" color="red" />
-      </OverviewDrawer>
-
       <div className="agri-tabs">
         {FA_TABS.map((t) => (
           <button key={t.key} type="button" className={`agri-tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>
@@ -272,18 +263,8 @@ function AdminRequestsView() {
     }
   }
 
-  const awaitingCount = adminTabRows(requests, "awaiting").length;
-  const approvedCount = requests.filter((r) => r.status === "Approved").length;
-  const rejectedCount = requests.filter((r) => r.status === "Rejected").length;
-
   return (
     <div>
-      <OverviewDrawer>
-        <StatCard icon={Inbox} label="Awaiting Review" value={awaitingCount} sub="FA-approved requests" color="purple" />
-        <StatCard icon={CheckCircle2} label="Approved" value={approvedCount} sub="All time" color="green" />
-        <StatCard icon={XCircle} label="Rejected" value={rejectedCount} sub="All time" color="red" />
-      </OverviewDrawer>
-
       <div className="agri-tabs">
         {ADMIN_TABS.map((t) => (
           <button key={t.key} type="button" className={`agri-tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>

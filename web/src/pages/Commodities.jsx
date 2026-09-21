@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Filter, Package, Pencil, Plus, Search, TrendingUp, Users, X } from "lucide-react";
-import StatCard from "../components/ui/StatCard.jsx";
-import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
+import { Filter, Pencil, Plus, Search, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import Toast from "../components/ui/Toast.jsx";
@@ -11,14 +9,12 @@ import { usePagination } from "../hooks/usePagination.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { createCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
-import { listFarmers } from "../lib/api/farmers.js";
 
 const PAGE_SIZE = 5;
 
 export default function Commodities() {
   const { data: commodities, setData: setCommodities, loading, error: loadError } = useSupabaseList(listCommodities);
   const [distributions, setDistributions] = useState([]);
-  const [farmers, setFarmers] = useState([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -29,7 +25,6 @@ export default function Commodities() {
 
   useEffect(() => {
     listDistributions().then(setDistributions).catch(() => {});
-    listFarmers().then(setFarmers).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -48,7 +43,7 @@ export default function Commodities() {
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
 
   const selected = commodities.find((c) => c.id === selectedId) ?? null;
-  const { totals, mostDistributedName, mostDistributedQty, totalQuantity } = computeCommodityStats(commodities, distributions);
+  const { totals } = computeCommodityStats(commodities, distributions);
   const selectedDistributedQty = selected ? (totals[selected.name] ?? 0) : 0;
 
   function resetFilters() {
@@ -72,13 +67,6 @@ export default function Commodities() {
 
   return (
     <div>
-      <OverviewDrawer>
-        <StatCard icon={Package} label="Total Commodities" value={commodities.length} sub="Active commodities" color="green" />
-        <StatCard icon={TrendingUp} label="Most Distributed" value={mostDistributedName.split(" ")[0]} sub={`${mostDistributedQty.toLocaleString()} kg this month`} color="blue" />
-        <StatCard icon={Package} label="Total Quantity" value={totalQuantity.toLocaleString()} sub="Distributed to date (kg)" color="purple" />
-        <StatCard icon={Users} label="Farmers Using" value={farmers.length} sub="Farmers benefited" color="orange" />
-      </OverviewDrawer>
-
       <div style={{ display: "grid", gridTemplateColumns: selected ? "1.6fr 1fr" : "1fr", gap: 16 }}>
         <div className="agri-card" style={{ padding: 16 }}>
           {(loadError || actionError) && (

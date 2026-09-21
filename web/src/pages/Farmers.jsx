@@ -1,18 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Filter, Pencil, Plus, Power, Search, Trash2, X } from "lucide-react";
-import StatCard from "../components/ui/StatCard.jsx";
-import OverviewDrawer from "../components/ui/OverviewDrawer.jsx";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
-import { Users, ShieldCheck, ShieldX } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
-import { commodityCategories, computeFarmerStats } from "../data/mockData.js";
+import { commodityCategories } from "../data/mockData.js";
 import { createFarmer, deleteFarmer, listFarmers, setFarmerStatus, updateFarmer } from "../lib/api/farmers.js";
 
 const PAGE_SIZE = 5;
@@ -159,8 +156,6 @@ export default function Farmers() {
   const [actionError, setActionError] = useState("");
   const [toast, setToast] = useState(null);
 
-  const stats = computeFarmerStats(farmers);
-
   const filtered = useMemo(() => {
     return farmers.filter((f) => {
       const fullName = `${f.firstName} ${f.lastName}`.toLowerCase();
@@ -206,12 +201,6 @@ export default function Farmers() {
 
   return (
     <div>
-      <OverviewDrawer>
-        <StatCard icon={Users} label="Total Farmers" value={stats.total} sub="All registered farmers" color="green" />
-        <StatCard icon={ShieldCheck} label="Validated" value={stats.validated} sub={`${Math.round((stats.validated / (stats.total || 1)) * 100)}% of total`} color="blue" />
-        <StatCard icon={ShieldX} label="Not Validated" value={stats.total - stats.validated} sub={`${Math.round(((stats.total - stats.validated) / (stats.total || 1)) * 100)}% of total`} color="orange" />
-      </OverviewDrawer>
-
       <div className="agri-card" style={{ padding: 16 }}>
         {(loadError || actionError) && (
           <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
