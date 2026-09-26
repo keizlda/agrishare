@@ -6,7 +6,7 @@ import { useIsMobile } from "../../hooks/useIsMobile.js";
 
 // Mirrors Topbar.jsx's NAV_ITEMS roles — kept as a separate map here since
 // the guard needs to run before Topbar even mounts (direct URL entry).
-const MAO_ONLY_ROUTES = ["/validation", "/reports", "/commodities", "/settings"];
+const MAO_ONLY_ROUTES = ["/validation", "/reports", "/commodities", "/announcements", "/settings"];
 
 export default function AppLayout() {
   const { isAuthenticated, initializing, user } = useAuth();

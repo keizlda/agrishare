@@ -5,6 +5,7 @@ import {
   FileBarChart2,
   Home,
   Inbox,
+  Megaphone,
   LogOut,
   Package,
   ShieldCheck,
@@ -35,6 +36,7 @@ const MORE_ITEMS = [
   { to: "/requests", label: "Requests", icon: Inbox, roles: ["MAO Admin", "FA President"] },
   { to: "/reports", label: "Reports", icon: FileBarChart2, roles: ["MAO Admin"] },
   { to: "/commodities", label: "Commodities", icon: Star, roles: ["MAO Admin"] },
+  { to: "/announcements", label: "Announcements", icon: Megaphone, roles: ["MAO Admin"] },
   { to: "/settings", label: "Settings", icon: Settings, roles: ["MAO Admin"] },
 ];
 

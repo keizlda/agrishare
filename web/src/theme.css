@@ -1651,3 +1651,73 @@ table.agri-table tbody tr.selected {
   border-top: 1px solid var(--agri-border);
   background: #fff;
 }
+
+/* ---------- Empty state (lists / tables) ---------- */
+.agri-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  padding: 48px 20px;
+}
+.agri-empty-state-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--agri-primary-light);
+  color: var(--agri-primary-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.agri-empty-state-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--agri-text);
+}
+.agri-empty-state-hint {
+  font-size: 0.82rem;
+  color: var(--agri-text-muted);
+  max-width: 320px;
+}
+
+/* ---------- Announcement modal: image upload / preview ---------- */
+.agri-ann-upload {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border: 1.5px dashed var(--agri-border);
+  border-radius: 12px;
+  background: var(--agri-bg);
+  color: var(--agri-primary-dark);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.agri-ann-upload:hover:not(:disabled) {
+  background: var(--agri-primary-soft);
+  border-color: var(--agri-primary);
+}
+.agri-ann-image-preview {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--agri-border);
+  background: var(--agri-bg);
+}
+.agri-ann-image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+}
+.agri-ann-image-preview .agri-icon-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}

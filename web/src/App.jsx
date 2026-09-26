@@ -9,6 +9,7 @@ import Requests from "./pages/Requests.jsx";
 import Reports from "./pages/Reports.jsx";
 import Commodities from "./pages/Commodities.jsx";
 import Settings from "./pages/Settings.jsx";
+import Announcements from "./pages/Announcements.jsx";
 import PrintDistribution from "./pages/PrintDistribution.jsx";
 import PrintReport from "./pages/PrintReport.jsx";
 
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/requests" element={<Requests />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/commodities" element={<Commodities />} />
+        <Route path="/announcements" element={<Announcements />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
 

@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Users, UserCheck, UserX, Truck, ShieldCheck, FilePlus, UserPlus, ClipboardList, Eye } from "lucide-react";
+import { Users, UserCheck, UserX, Truck, ShieldCheck, FilePlus, UserPlus, ClipboardList, Eye, Megaphone } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   computeDistributionByCommodity,
@@ -23,6 +23,8 @@ import {
 import { listFarmers } from "../lib/api/farmers.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
+import Toast from "../components/ui/Toast.jsx";
+import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx";
 
 const PIE_COLORS = ["#2f9e44", "#e5484d"];
 
@@ -32,6 +34,8 @@ export default function Dashboard() {
   const [farmers, setFarmers] = useState([]);
   const [distributions, setDistributions] = useState([]);
   const [commodities, setCommodities] = useState([]);
+  const [showAnnouncement, setShowAnnouncement] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     listFarmers().then(setFarmers).catch(() => {});
@@ -177,6 +181,11 @@ export default function Dashboard() {
         <div className="agri-card" style={{ padding: 18 }}>
           <div className="agri-panel-header">
             <div style={{ fontWeight: 700 }}>Quick Actions</div>
+            {isMAO && (
+              <button className="btn btn-link p-0" style={{ fontSize: "0.78rem" }} onClick={() => navigate("/announcements")}>
+                View announcements
+              </button>
+            )}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
             {isMAO ? (
@@ -185,6 +194,7 @@ export default function Dashboard() {
                 <QuickAction icon={FilePlus} label="Generate Report" onClick={() => navigate("/reports")} />
                 <QuickAction icon={UserPlus} label="Add Farmer" onClick={() => navigate("/farmers")} />
                 <QuickAction icon={ClipboardList} label="Record Distribution" onClick={() => navigate("/distributions")} />
+                <QuickAction icon={Megaphone} label="Post Announcement" onClick={() => setShowAnnouncement(true)} />
               </>
             ) : (
               <>
@@ -195,6 +205,17 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {showAnnouncement && (
+        <AnnouncementModal
+          onClose={() => setShowAnnouncement(false)}
+          onSaved={(saved, { published }) => {
+            setShowAnnouncement(false);
+            setToast({ tone: "success", message: published ? "Announcement published." : "Draft saved." });
+          }}
+        />
+      )}
+      {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
     </div>
   );
 }

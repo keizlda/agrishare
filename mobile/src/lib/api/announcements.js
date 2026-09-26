@@ -1,50 +1,72 @@
 import { supabase } from "../supabaseClient";
 
-const SELECT = "notification_id, title, message, created_at, notification_reads!left(read_at, archived)";
+const CATEGORY_LABELS = {
+  general: "General",
+  distribution_schedule: "Distribution Schedule",
+  validation_reminder: "Validation Reminder",
+  urgent: "Urgent",
+};
 
-// notification_reads!left filtered by profile_id scopes the embedded array to
-// just this farmer's own read/archived row (0 or 1 entries), without
-// dropping notifications that farmer hasn't touched yet (a plain inner join
-// would hide every unread notification).
-function mapAnnouncement(row, profileId) {
-  const myRead = (row.notification_reads ?? []).find(() => true);
-  const created = new Date(row.created_at);
+// RLS already limits rows to published, unexpired posts aimed at this farmer
+// (audience + validation status), and the embedded announcement_reads only
+// ever contains this farmer's own receipt — so a non-empty array = read.
+const SELECT =
+  "announcement_id, title, body, category, image_url, is_pinned, published_at, created_at, expires_at, announcement_reads ( read_at )";
+
+function mapAnnouncement(row) {
+  const posted = new Date(row.published_at ?? row.created_at);
   return {
-    id: row.notification_id,
+    id: row.announcement_id,
     title: row.title,
-    body: row.message,
-    date: created.toISOString().slice(0, 10),
-    time: created.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
-    isNew: !myRead,
-    read: !!myRead,
-    archived: myRead?.archived ?? false,
-    _profileId: profileId,
+    body: row.body,
+    category: CATEGORY_LABELS[row.category] ?? "General",
+    imagePath: row.image_url,
+    isPinned: row.is_pinned,
+    postedAt: posted.toISOString(),
+    date: posted.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    expiresAt: row.expires_at,
+    read: (row.announcement_reads ?? []).length > 0,
   };
 }
 
-export async function listAnnouncements(profileId) {
+// Pinned first, then newest.
+export async function listAnnouncements() {
   const { data, error } = await supabase
-    .from("notifications")
+    .from("announcements")
     .select(SELECT)
-    .eq("notification_reads.profile_id", profileId)
-    .order("created_at", { ascending: false });
+    .order("is_pinned", { ascending: false })
+    .order("published_at", { ascending: false });
   if (error) throw error;
-  return data.map((row) => mapAnnouncement(row, profileId));
+  const now = Date.now();
+  return data.map(mapAnnouncement).filter((a) => !a.expiresAt || new Date(a.expiresAt).getTime() > now);
 }
 
-export async function markAnnouncementRead(notificationId, profileId) {
+// Idempotent: the (announcement_id, farmer_id) primary key + ignoreDuplicates
+// means re-opening a post never errors or moves its original read time.
+export async function markAnnouncementRead(announcementId, farmerId) {
   const { error } = await supabase
-    .from("notification_reads")
-    .upsert({ notification_id: notificationId, profile_id: profileId, read_at: new Date().toISOString() }, { onConflict: "notification_id,profile_id", ignoreDuplicates: false });
+    .from("announcement_reads")
+    .upsert({ announcement_id: announcementId, farmer_id: farmerId }, { onConflict: "announcement_id,farmer_id", ignoreDuplicates: true });
   if (error) throw error;
 }
 
-export async function setAnnouncementArchived(notificationId, profileId, archived) {
-  const { error } = await supabase
-    .from("notification_reads")
-    .upsert(
-      { notification_id: notificationId, profile_id: profileId, read_at: new Date().toISOString(), archived },
-      { onConflict: "notification_id,profile_id", ignoreDuplicates: false },
-    );
+export async function getAnnouncementImageUrl(path, expiresInSeconds = 3600) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from("announcement-images").createSignedUrl(path, expiresInSeconds);
   if (error) throw error;
+  return data.signedUrl;
+}
+
+// Fires `onChange` whenever a post is added, edited, pinned/unpinned,
+// unpublished or deleted. Realtime applies the table's SELECT policies per
+// subscriber, so a farmer is only notified about posts they can read; the
+// caller just refetches. Returns an unsubscribe function.
+export function subscribeToAnnouncements(onChange) {
+  const channel = supabase
+    .channel(`announcements-${Math.random().toString(36).slice(2)}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, onChange)
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
