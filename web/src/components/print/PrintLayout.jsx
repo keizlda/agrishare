@@ -1,12 +1,15 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Printer } from "lucide-react";
-import maoSeal from "../../assets/mao-seal.png";
+import maoSeal from "../../assets/mao-seal-print.png";
 import "./print.css";
 
-// Shared shell for every printable route: centered institutional header
-// (seal above the text) repeating on every printed page via the
-// <table><thead> trick (the standard cross-browser way to do this without a
-// PDF library), a title block, then whatever the page passes as children.
+const SEAL_LOAD_TIMEOUT_MS = 3000;
+
+// Shared shell for every printable route: seal on the left with the
+// institutional header text and the report title beside it, a divider, then
+// whatever the page passes as children. The header sits in the <table><thead>
+// so it repeats on every printed page (the standard cross-browser way to do
+// that without a PDF library).
 //
 // The printed footer ("Generated via AgriShare · <time>" left, "Page X of Y"
 // right) lives in @page margin boxes, the only place CSS can render live page
@@ -15,6 +18,26 @@ import "./print.css";
 // stand-in and is hidden when printing.
 export default function PrintLayout({ title, subtitle, children }) {
   const generatedAt = useMemo(() => new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }), []);
+
+  // Both the toolbar button and the pages' auto-print call window.print()
+  // directly (the latter on a fixed timer, not tied to the image). While this
+  // layout is mounted, printing waits for the seal to be decoded so it can't
+  // come out blank; a timeout keeps a broken image from blocking print forever.
+  useEffect(() => {
+    const originalPrint = window.print;
+    const sealReady = new Promise((resolve) => {
+      const img = new Image();
+      img.src = maoSeal;
+      img.decode().then(resolve, resolve);
+      setTimeout(resolve, SEAL_LOAD_TIMEOUT_MS);
+    });
+    window.print = () => {
+      sealReady.then(() => originalPrint.call(window));
+    };
+    return () => {
+      window.print = originalPrint;
+    };
+  }, []);
 
   return (
     <div className="pr-page">
@@ -37,11 +60,15 @@ export default function PrintLayout({ title, subtitle, children }) {
           <tr>
             <td>
               <div className="pr-header">
-                <img src={maoSeal} alt="Municipal Agriculture Office seal" className="pr-logo" />
-                <div className="pr-header-line">Republic of the Philippines</div>
-                <div className="pr-header-line">Municipality of Labangan, Zamboanga del Sur</div>
-                <div className="pr-header-office">MUNICIPAL AGRICULTURE OFFICE</div>
-                <div className="pr-header-line">Barangay Langapud</div>
+                <img src={maoSeal} alt="Department of Agriculture seal" className="pr-seal" />
+                <div className="pr-header-text">
+                  <div className="pr-header-line">Republic of the Philippines</div>
+                  <div className="pr-header-line">Municipality of Labangan, Zamboanga del Sur</div>
+                  <div className="pr-header-office">MUNICIPAL AGRICULTURE OFFICE</div>
+                  <div className="pr-header-line">Barangay Langapud</div>
+                  <div className="pr-title">{title}</div>
+                  {subtitle && <div className="pr-subtitle">{subtitle}</div>}
+                </div>
               </div>
               <hr className="pr-rule" />
             </td>
@@ -50,11 +77,6 @@ export default function PrintLayout({ title, subtitle, children }) {
         <tbody>
           <tr>
             <td>
-              <div className="pr-title-block">
-                <div className="pr-title">{title}</div>
-                {subtitle && <div className="pr-subtitle">{subtitle}</div>}
-              </div>
-
               {children}
 
               <div className="pr-footer">
