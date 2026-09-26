@@ -119,12 +119,11 @@ function FARequestsView({ currentUserId }) {
           <div className="agri-table-wrap">
             <table className="agri-table">
               <thead>
-                <tr><th>Request ID</th><th>Farmer</th><th>Commodity</th><th>Quantity</th><th>Date Requested</th><th>Status</th></tr>
+                <tr><th>Farmer</th><th>Commodity</th><th>Quantity</th><th>Date Requested</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {filtered.map((r) => (
                   <tr key={r.id} className={r.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(r.id)}>
-                    <td>{r.id}</td>
                     <td>{r.farmerName}</td>
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
@@ -133,10 +132,10 @@ function FARequestsView({ currentUserId }) {
                   </tr>
                 ))}
                 {loading && (
-                  <tr><td colSpan={6} className="agri-muted text-center py-4">Loading requests…</td></tr>
+                  <tr><td colSpan={5} className="agri-muted text-center py-4">Loading requests…</td></tr>
                 )}
                 {!loading && filtered.length === 0 && (
-                  <tr><td colSpan={6} className="agri-muted text-center py-4">Nothing in this tab.</td></tr>
+                  <tr><td colSpan={5} className="agri-muted text-center py-4">Nothing in this tab.</td></tr>
                 )}
               </tbody>
             </table>
@@ -285,12 +284,11 @@ function AdminRequestsView() {
           <div className="agri-table-wrap">
             <table className="agri-table">
               <thead>
-                <tr><th>Request ID</th><th>FA President</th><th>Commodity</th><th>Quantity</th><th>FA Decision Date</th><th>Status</th></tr>
+                <tr><th>FA President</th><th>Commodity</th><th>Quantity</th><th>FA Decision Date</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {tabbed.map((r) => (
                   <tr key={r.id} className={r.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(r.id)}>
-                    <td>{r.id}</td>
                     <td>{r.faPresidentName}</td>
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
@@ -299,10 +297,10 @@ function AdminRequestsView() {
                   </tr>
                 ))}
                 {loading && (
-                  <tr><td colSpan={6} className="agri-muted text-center py-4">Loading requests…</td></tr>
+                  <tr><td colSpan={5} className="agri-muted text-center py-4">Loading requests…</td></tr>
                 )}
                 {!loading && tabbed.length === 0 && (
-                  <tr><td colSpan={6} className="agri-muted text-center py-4">Nothing here yet.</td></tr>
+                  <tr><td colSpan={5} className="agri-muted text-center py-4">Nothing here yet.</td></tr>
                 )}
               </tbody>
             </table>

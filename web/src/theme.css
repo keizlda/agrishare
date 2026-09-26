@@ -1754,11 +1754,6 @@ table.agri-table thead th {
   .agri-split.has-detail {
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   }
-  /* Distributions' table needs ~820px; give the list the extra share so it
-     doesn't get a horizontal scrollbar at common laptop widths. */
-  .agri-split.has-detail.list-wide {
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  }
 
   .agri-app-fill {
     height: 100vh;

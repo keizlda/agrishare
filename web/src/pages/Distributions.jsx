@@ -106,7 +106,7 @@ export default function Distributions() {
 
   return (
     <div className="agri-fill-root">
-      <div className={`agri-split${selected ? " has-detail list-wide" : ""}`}>
+      <div className={`agri-split${selected ? " has-detail" : ""}`}>
         <div className="agri-card agri-fill-card" style={{ padding: 16 }}>
           {loadError && (
             <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
@@ -136,12 +136,11 @@ export default function Distributions() {
           <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table">
               <thead>
-                <tr><th>Distribution ID</th><th>Date</th><th>Crop Type</th><th>Program</th><th>Beneficiaries</th><th>Quantity</th><th>Status</th></tr>
+                <tr><th>Date</th><th>Crop Type</th><th>Program</th><th>Beneficiaries</th><th>Quantity</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {pageItems.map((d) => (
                   <tr key={d.id} className={d.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(d.id)}>
-                    <td>{d.id}</td>
                     <td>{d.date}</td>
                     <td>{d.cropType}</td>
                     <td className="agri-cell-truncate" title={d.program || undefined}>
@@ -153,7 +152,7 @@ export default function Distributions() {
                   </tr>
                 ))}
                 {loading && (
-                  <tr><td colSpan={7} className="agri-muted text-center py-4">Loading distributions…</td></tr>
+                  <tr><td colSpan={6} className="agri-muted text-center py-4">Loading distributions…</td></tr>
                 )}
               </tbody>
             </table>
@@ -187,7 +186,7 @@ export default function Distributions() {
               />
             </div>
             <div className="agri-muted" style={{ fontSize: "0.8rem", marginBottom: 10 }}>
-              {selected.id} · {selected.date}
+              {selected.date}
             </div>
 
             <div className="agri-detail-body">
@@ -326,7 +325,7 @@ function DistributionStatusControl({ distribution, canEdit, onSaved, onError }) 
 
       {pendingStatus && (
         <ConfirmDialog
-          title={`Mark distribution #${distribution.id} as ${pendingStatus}?`}
+          title={`Mark ${distribution.program} (${distribution.date}) as ${pendingStatus}?`}
           message="This can't be undone."
           confirmLabel={pendingStatus}
           onConfirm={() => {
@@ -380,7 +379,7 @@ function DeleteDistributionButton({ distribution, onDeleted, onError }) {
 
       {pendingDelete && (
         <ConfirmDialog
-          title={`Delete distribution #${distribution.id} (${distribution.program})?`}
+          title={`Delete ${distribution.program} (${distribution.date})?`}
           message="It will be removed from all lists."
           confirmLabel="Delete"
           onConfirm={handleConfirm}
