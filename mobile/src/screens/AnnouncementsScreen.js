@@ -1,23 +1,66 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import ScreenHeader from "../components/ScreenHeader";
 import ReminderBanner from "../components/ReminderBanner";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listAnnouncements, markAnnouncementRead, setAnnouncementArchived } from "../lib/api/announcements";
+import { deleteNotification, listMyNotifications, markAllNotificationsRead, markNotificationRead } from "../lib/api/userNotifications";
 
-const TABS = ["All Announcements", "Unread", "Archived"];
+const UPDATES_TAB = "My Updates";
+const TABS = [UPDATES_TAB, "All Announcements", "Unread", "Archived"];
+
+// type -> Ionicons name + color, matching the web bell (validated=green check,
+// rejected=red x, request=inbox).
+const UPDATE_ICONS = {
+  validated: { name: "checkmark-circle", color: colors.primaryDark, bg: colors.primaryLight },
+  rejected: { name: "close-circle", color: colors.red, bg: colors.redBg },
+  request: { name: "file-tray-outline", color: colors.purple, bg: colors.purpleBg },
+  distribution: { name: "cube-outline", color: colors.orange, bg: colors.orangeBg },
+  system: { name: "notifications-outline", color: colors.gray, bg: colors.grayBg },
+};
 const ICONS = ["megaphone-outline", "school-outline", "water-outline", "leaf-outline", "bug-outline", "leaf-outline"];
 
 export default function AnnouncementsScreen({ navigation }) {
   const { farmer } = useAuth();
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState(TABS[0]);
+  const [updates, setUpdates] = useState([]);
 
   useEffect(() => {
     if (farmer?.profileId) listAnnouncements(farmer.profileId).then(setItems).catch(() => {});
   }, [farmer?.profileId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      listMyNotifications().then(setUpdates).catch(() => {});
+    }, [])
+  );
+
+  const unreadUpdates = updates.filter((u) => !u.isRead).length;
+
+  async function openUpdate(u) {
+    if (!u.isRead) {
+      setUpdates((prev) => prev.map((x) => (x.id === u.id ? { ...x, isRead: true } : x)));
+      markNotificationRead(u.id).catch(() => {});
+    }
+    if (u.type === "validated" || u.type === "rejected") navigation.navigate("MainTabs", { screen: "Validation" });
+    else if (u.type === "request") navigation.navigate("Requests");
+  }
+
+  function removeUpdate(id) {
+    const snapshot = updates;
+    setUpdates((prev) => prev.filter((x) => x.id !== id));
+    deleteNotification(id).catch(() => setUpdates(snapshot));
+  }
+
+  function markAllUpdatesRead() {
+    const snapshot = updates;
+    setUpdates((prev) => prev.map((x) => ({ ...x, isRead: true })));
+    markAllNotificationsRead().catch(() => setUpdates(snapshot));
+  }
 
   const filtered = useMemo(() => {
     if (tab === "Archived") return items.filter((a) => a.archived);
@@ -46,11 +89,49 @@ export default function AnnouncementsScreen({ navigation }) {
       <View style={styles.tabsRow}>
         {TABS.map((t) => (
           <TouchableOpacity key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && styles.tabActive]}>
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t}</Text>
+            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
+              {t === UPDATES_TAB && unreadUpdates > 0 ? `${t} (${unreadUpdates > 9 ? "9+" : unreadUpdates})` : t}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
+      {tab === UPDATES_TAB ? (
+        <FlatList
+          data={updates}
+          keyExtractor={(u) => String(u.id)}
+          contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            unreadUpdates > 0 ? (
+              <TouchableOpacity onPress={markAllUpdatesRead} style={styles.markAllBtn}>
+                <Text style={styles.markAllText}>Mark all as read</Text>
+              </TouchableOpacity>
+            ) : null
+          }
+          renderItem={({ item: u }) => {
+            const icon = UPDATE_ICONS[u.type] ?? UPDATE_ICONS.system;
+            return (
+              <TouchableOpacity activeOpacity={0.7} onPress={() => openUpdate(u)} style={[styles.card, !u.isRead && styles.cardUnread]}>
+                <View style={[styles.iconWrap, { backgroundColor: icon.bg }]}>
+                  <Ionicons name={icon.name} size={18} color={icon.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.date}>{new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</Text>
+                    {!u.isRead && <View style={styles.unreadDot} />}
+                  </View>
+                  <Text style={[styles.title, !u.isRead && { fontWeight: "800" }]}>{u.title}</Text>
+                  <Text style={styles.body} numberOfLines={3}>{u.message}</Text>
+                </View>
+                <TouchableOpacity onPress={() => removeUpdate(u.id)} style={styles.archiveBtn} accessibilityLabel="Delete update">
+                  <Ionicons name="trash-outline" size={15} color={colors.textMuted} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          }}
+          ListEmptyComponent={<Text style={styles.empty}>You're all caught up.</Text>}
+        />
+      ) : (
       <FlatList
         data={filtered}
         keyExtractor={(a) => a.id}
@@ -86,6 +167,7 @@ export default function AnnouncementsScreen({ navigation }) {
           </>
         }
       />
+      )}
     </View>
   );
 }
@@ -108,6 +190,9 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  cardUnread: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
+  markAllBtn: { alignSelf: "flex-end", marginBottom: 8 },
+  markAllText: { fontSize: 12, fontWeight: "700", color: colors.primaryDark },
   iconWrap: {
     width: 34,
     height: 34,

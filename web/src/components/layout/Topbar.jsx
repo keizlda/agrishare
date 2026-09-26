@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
-  Bell,
   Calendar,
   ChevronDown,
   LogOut,
@@ -18,9 +17,9 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { listRecentActivity } from "../../lib/api/activity.js";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import ProfileModal from "../ui/ProfileModal.jsx";
+import NotificationBell from "./NotificationBell.jsx";
 
 // `roles` gates visibility per the Use Case Diagram: MAO Admin gets every
 // module; FA President is limited to viewing farmers/distributions (no
@@ -49,8 +48,6 @@ export default function Topbar() {
   const isMAO = role === "MAO Admin";
   const items = NAV_ITEMS.filter((item) => item.roles.includes(role));
   const [openMenu, setOpenMenu] = useState(null); // "bell" | "avatar" | null
-  const [notifications, setNotifications] = useState([]);
-  const [readIds, setReadIds] = useState(() => new Set());
   const [showProfile, setShowProfile] = useState(false);
   const ref = useRef(null);
 
@@ -63,16 +60,6 @@ export default function Topbar() {
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
-
-  useEffect(() => {
-    listRecentActivity().then(setNotifications).catch(() => {});
-  }, []);
-
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
-
-  function markAllRead() {
-    setReadIds(new Set(notifications.map((n) => n.id)));
-  }
 
   function handleLogout() {
     logout();
@@ -131,44 +118,11 @@ export default function Topbar() {
             {today}
           </div>
 
-          <div style={{ position: "relative" }}>
-            <button
-              className="agri-icon-btn agri-bell"
-              onClick={() => setOpenMenu(openMenu === "bell" ? null : "bell")}
-              aria-label="Notifications"
-              title="Notifications"
-            >
-              <Bell size={17} />
-              {unreadCount > 0 && <span className="dot" />}
-            </button>
-            {openMenu === "bell" && (
-              <div
-                className="agri-card"
-                style={{ position: "absolute", right: 0, top: 44, width: 280, padding: 10, zIndex: 20 }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 6px 8px" }}>
-                  <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>Notifications</div>
-                  {unreadCount > 0 && (
-                    <button type="button" className="btn btn-link p-0" style={{ fontSize: "0.72rem" }} onClick={markAllRead}>
-                      Mark all as read
-                    </button>
-                  )}
-                </div>
-                {notifications.length === 0 && (
-                  <div className="agri-muted" style={{ fontSize: "0.8rem", padding: "8px 6px" }}>No recent activity.</div>
-                )}
-                {notifications.map((n) => (
-                  <div key={n.id} style={{ display: "flex", alignItems: "flex-start", gap: 6, padding: "8px 6px", borderTop: "1px solid var(--agri-border)" }}>
-                    {!readIds.has(n.id) && <span className="agri-submission-dot" style={{ position: "static", marginTop: 5, flexShrink: 0 }} />}
-                    <div>
-                      <div style={{ fontSize: "0.83rem", fontWeight: readIds.has(n.id) ? 400 : 700 }}>{n.title}</div>
-                      <div className="agri-muted" style={{ fontSize: "0.72rem" }}>{n.time}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <NotificationBell
+            open={openMenu === "bell"}
+            onToggle={() => setOpenMenu(openMenu === "bell" ? null : "bell")}
+            onClose={() => setOpenMenu(null)}
+          />
 
           <div style={{ position: "relative" }}>
             <button

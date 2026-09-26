@@ -55,7 +55,6 @@ function BeneficiaryList({ farmers, barangay, commodity }) {
 
   return (
     <div className="pr-section">
-      <div className="pr-section-label">Beneficiary List</div>
       <table className="pr-items-table">
         <thead>
           <tr>
@@ -88,7 +87,6 @@ function DistributionSummary({ distributions, barangay }) {
 
   return (
     <div className="pr-section">
-      <div className="pr-section-label">Distribution Summary</div>
       <table className="pr-items-table">
         <thead>
           <tr>
@@ -125,7 +123,6 @@ function LiquidationReport({ commodities, distributions }) {
 
   return (
     <div className="pr-section">
-      <div className="pr-section-label">Liquidation Report</div>
       <table className="pr-items-table">
         <thead>
           <tr>

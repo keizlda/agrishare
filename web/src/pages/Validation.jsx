@@ -11,6 +11,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
+import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -289,7 +290,9 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [rejectError, setRejectError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(null); // null | "rejected" | "validated"
+  const [confirmReject, setConfirmReject] = useState(false);
+  const remarksRef = useRef(null);
 
   useEscapeToClose(lightboxOpen, () => setLightboxOpen(false));
 
@@ -298,6 +301,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
   useEffect(() => {
     setRemarks("");
     setRejectError("");
+    setConfirmReject(false);
     setPhotoUrl(null);
     getSignedPhotoUrl(submission.photoPath).then(setPhotoUrl).catch(() => {});
   }, [submission.id, submission.photoPath]);
@@ -307,21 +311,32 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
       ? haversineKm(submission.latitude, submission.longitude, LANGAPUD_REF.lat, LANGAPUD_REF.lng)
       : null;
 
-  async function submitReview(status) {
-    if (status === "rejected" && !remarks.trim()) {
-      setRejectError("A remark is required when rejecting a submission.");
+  // Remarks are required to reject (the farmer reads them), so the confirm
+  // dialog only opens once there's a reason to preview.
+  function requestReject() {
+    if (!remarks.trim()) {
+      setRejectError("Please provide a reason for rejection so the farmer knows what to fix");
+      remarksRef.current?.focus();
       return;
     }
     setRejectError("");
-    setSaving(true);
+    setConfirmReject(true);
+  }
+
+  async function submitReview(status) {
+    setConfirmReject(false);
+    setSaving(status);
     try {
       await onReview(status, remarks.trim());
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   }
 
+  const canReview = submission.status === "Pending" && isReviewer;
+
   return (
+    <div className="agri-detail-panel">
     <div className="agri-detail-scroll">
       <button type="button" className="agri-back-btn" onClick={onBack}>
         <ArrowLeft size={15} /> Back to list
@@ -399,29 +414,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
         )}
       </Section>
 
-      {submission.status === "Pending" ? (
-        isReviewer && (
-          <Section title="Review Actions" last>
-            <label className="agri-form-label">Remarks</label>
-            <textarea
-              className="form-control mb-2"
-              rows={3}
-              placeholder="Add a note about this submission (optional)"
-              value={remarks}
-              onChange={(e) => { setRemarks(e.target.value); setRejectError(""); }}
-            />
-            {rejectError && <div style={{ color: "var(--agri-red)", fontSize: "0.78rem", marginBottom: 8 }}>{rejectError}</div>}
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-outline-danger flex-fill" disabled={saving} onClick={() => submitReview("rejected")}>
-                Reject
-              </button>
-              <button className="btn btn-agri-primary flex-fill" disabled={saving} onClick={() => submitReview("validated")}>
-                Validate
-              </button>
-            </div>
-          </Section>
-        )
-      ) : (
+      {submission.status !== "Pending" && (
         <Section title="Review Summary" last>
           <div className="agri-review-summary">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -436,8 +429,18 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
               Reviewed by {submission.reviewedBy ?? "—"}
               {submission.reviewedAt ? ` on ${new Date(submission.reviewedAt).toLocaleString()}` : ""}
             </div>
-            {submission.remarks && (
-              <div style={{ fontSize: "0.85rem", marginTop: 8 }}>{submission.remarks}</div>
+            {submission.remarks && submission.status === "Rejected" && (
+              <div className="agri-rejection-callout">
+                <div className="agri-rejection-callout-title">Reason for rejection</div>
+                <div style={{ fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>{submission.remarks}</div>
+                <div className="agri-muted" style={{ fontSize: "0.72rem", marginTop: 6 }}>Shown to the farmer in their app.</div>
+              </div>
+            )}
+            {submission.remarks && submission.status === "Validated" && (
+              <div style={{ fontSize: "0.85rem", marginTop: 8, whiteSpace: "pre-wrap" }}>
+                <span className="agri-kv-label" style={{ display: "block" }}>Remarks</span>
+                {submission.remarks}
+              </div>
             )}
 
             {submission.status === "Validated" && (
@@ -453,6 +456,55 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
             )}
           </div>
         </Section>
+      )}
+    </div>
+
+      {canReview && (
+        <div className="agri-detail-footer">
+          <div className="agri-detail-section-title">Review Actions</div>
+          <label className="agri-form-label" htmlFor="review-remarks">Remarks</label>
+          <textarea
+            id="review-remarks"
+            ref={remarksRef}
+            className={`form-control mb-2${rejectError ? " agri-textarea-invalid" : ""}`}
+            rows={2}
+            placeholder="Required to reject — the farmer will see this. Optional to validate."
+            value={remarks}
+            disabled={!!saving}
+            aria-invalid={!!rejectError}
+            aria-describedby={rejectError ? "review-remarks-error" : undefined}
+            onChange={(e) => { setRemarks(e.target.value); setRejectError(""); }}
+          />
+          {rejectError && (
+            <div id="review-remarks-error" role="alert" style={{ color: "var(--agri-red)", fontSize: "0.78rem", marginBottom: 8 }}>
+              {rejectError}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn btn-outline-danger flex-fill" disabled={!!saving} onClick={requestReject}>
+              {saving === "rejected" ? "Rejecting…" : "Reject"}
+            </button>
+            <button type="button" className="btn btn-agri-primary flex-fill" disabled={!!saving} onClick={() => submitReview("validated")}>
+              {saving === "validated" ? "Validating…" : "Validate"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {confirmReject && (
+        <ConfirmDialog
+          title="Reject this submission?"
+          message={`${f?.fullName ?? "The farmer"} will be notified and can resubmit.`}
+          confirmLabel="Reject"
+          busy={!!saving}
+          onConfirm={() => submitReview("rejected")}
+          onCancel={() => setConfirmReject(false)}
+        >
+          <div className="agri-reject-preview">
+            <div className="agri-reject-preview-label">Reason the farmer will see</div>
+            {remarks.trim()}
+          </div>
+        </ConfirmDialog>
       )}
 
       {lightboxOpen && photoUrl && (

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { FlatList, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { ShieldCheck, X } from "lucide-react-native";
+import { RefreshCw, ShieldCheck, X, XCircle } from "lucide-react-native";
 import ScreenHeader from "../components/ScreenHeader";
 import StatTile from "../components/StatTile";
 import Pill from "../components/Pill";
@@ -66,31 +66,55 @@ export default function ValidationScreen({ navigation }) {
           </>
         }
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={thumbs[item.id] ? 0.7 : 1}
-            onPress={() => thumbs[item.id] && setViewerUri(thumbs[item.id])}
-          >
-            {thumbs[item.id] ? (
-              <Image source={{ uri: thumbs[item.id] }} style={styles.thumb} />
-            ) : (
-              <View style={[styles.thumb, styles.thumbPlaceholder]}>
-                <ShieldCheck size={16} color={colors.primaryDark} />
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.cardTop}
+              activeOpacity={thumbs[item.id] ? 0.7 : 1}
+              onPress={() => thumbs[item.id] && setViewerUri(thumbs[item.id])}
+            >
+              {thumbs[item.id] ? (
+                <Image source={{ uri: thumbs[item.id] }} style={styles.thumb} />
+              ) : (
+                <View style={[styles.thumb, styles.thumbPlaceholder]}>
+                  <ShieldCheck size={16} color={colors.primaryDark} />
+                </View>
+              )}
+              <View style={styles.cardBody}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardDate}>{item.submittedAt ? item.submittedAt.slice(0, 10) : "—"}</Text>
+                  <Pill status={item.status} />
+                </View>
+                {item.status === "Pending" && !!item.remarks && (
+                  <Text style={styles.cardRemarks} numberOfLines={2}>Your note: {item.remarks}</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            {/* While pending, `remarks` is the farmer's own note; once
+                reviewed it holds the reviewer's remark (see api/cropValidation). */}
+            {item.status === "Rejected" && (
+              <View style={styles.rejectionCallout}>
+                <View style={styles.calloutTitleRow}>
+                  <XCircle size={13} color={colors.red} />
+                  <Text style={styles.rejectionTitle}>Reason for rejection</Text>
+                </View>
+                <Text style={styles.calloutBody}>{item.remarks || "No reason was provided."}</Text>
+                {!!item.reviewedAt && <Text style={styles.calloutDate}>Reviewed {item.reviewedAt.slice(0, 10)}</Text>}
+                <TouchableOpacity style={styles.resubmitBtn} onPress={() => navigation.navigate("CropValidation")}>
+                  <RefreshCw size={13} color="#fff" />
+                  <Text style={styles.resubmitText}>Resubmit</Text>
+                </TouchableOpacity>
               </View>
             )}
-            <View style={styles.cardBody}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardDate}>{item.submittedAt ? item.submittedAt.slice(0, 10) : "—"}</Text>
-                <Pill status={item.status} />
+
+            {item.status === "Validated" && !!item.remarks && (
+              <View style={styles.noteCallout}>
+                <Text style={styles.noteTitle}>Note from the Agriculture Office</Text>
+                <Text style={styles.calloutBody}>{item.remarks}</Text>
+                {!!item.reviewedAt && <Text style={styles.calloutDate}>Reviewed {item.reviewedAt.slice(0, 10)}</Text>}
               </View>
-              {!!item.remarks && (
-                <Text style={styles.cardRemarks} numberOfLines={2}>
-                  {item.status === "Rejected" ? "Reason: " : ""}
-                  {item.remarks}
-                </Text>
-              )}
-            </View>
-          </TouchableOpacity>
+            )}
+          </View>
         )}
         ListEmptyComponent={<EmptyState icon={ShieldCheck} message="You haven't submitted any crop validations yet." />}
       />
@@ -130,8 +154,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 13.5, fontWeight: "700", color: colors.text, marginBottom: spacing.sm, marginTop: spacing.xs },
 
   card: {
-    flexDirection: "row",
-    gap: spacing.md,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
@@ -140,6 +162,42 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     ...shadows.card,
   },
+  cardTop: { flexDirection: "row", gap: spacing.md },
+
+  rejectionCallout: {
+    marginTop: spacing.md,
+    backgroundColor: colors.redBg,
+    borderWidth: 1,
+    borderColor: "#f3c6c6",
+    borderRadius: radius.sm,
+    padding: spacing.md,
+  },
+  calloutTitleRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
+  rejectionTitle: { fontSize: 11, fontWeight: "800", color: colors.red, textTransform: "uppercase", letterSpacing: 0.4 },
+  calloutBody: { fontSize: 12.5, color: colors.text, lineHeight: 18 },
+  calloutDate: { fontSize: 10.5, color: colors.textMuted, marginTop: 6 },
+  resubmitBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    marginTop: spacing.md,
+    backgroundColor: colors.red,
+    borderRadius: radius.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  resubmitText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+  noteCallout: {
+    marginTop: spacing.md,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+  },
+  noteTitle: { fontSize: 11, fontWeight: "800", color: colors.textSecondary, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4 },
   thumb: { width: 52, height: 52, borderRadius: radius.sm },
   thumbPlaceholder: { backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
   cardBody: { flex: 1, justifyContent: "center" },

@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
-  Bell,
   ChevronRight,
   FileBarChart2,
   Home,
@@ -18,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { listRecentActivity } from "../../lib/api/activity.js";
+import NotificationBell from "./NotificationBell.jsx";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 
 // Mirrors the mobile app's MainTabs (Home/Farmers/Distributions always
@@ -46,16 +45,8 @@ export default function MobileShell() {
   const moreItems = MORE_ITEMS.filter((item) => item.roles.includes(role));
 
   const [panel, setPanel] = useState(null); // "more" | "notif" | null
-  const [notifications, setNotifications] = useState([]);
-  const [readIds, setReadIds] = useState(() => new Set());
 
   useEscapeToClose(panel !== null, () => setPanel(null));
-
-  useEffect(() => {
-    listRecentActivity().then(setNotifications).catch(() => {});
-  }, []);
-
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
 
   function handleLogout() {
     setPanel(null);
@@ -70,10 +61,12 @@ export default function MobileShell() {
           <Sprout size={22} color="var(--agri-primary)" />
           <span>AGRI<em>SHARE</em></span>
         </Link>
-        <button className="agri-mshell-bell" onClick={() => setPanel("notif")} aria-label="Notifications">
-          <Bell size={17} />
-          {unreadCount > 0 && <span className="agri-mshell-dot" />}
-        </button>
+        <NotificationBell
+          variant="sheet"
+          open={panel === "notif"}
+          onToggle={() => setPanel(panel === "notif" ? null : "notif")}
+          onClose={() => setPanel(null)}
+        />
       </header>
 
       <main className="agri-mshell-content">
@@ -138,33 +131,6 @@ export default function MobileShell() {
         </div>
       )}
 
-      {panel === "notif" && (
-        <div className="agri-mshell-sheet">
-          <div className="agri-mshell-sheet-header">
-            <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>Notifications</div>
-            <button className="agri-mshell-close" onClick={() => setPanel(null)} aria-label="Close">
-              <X size={18} />
-            </button>
-          </div>
-          <div className="agri-mshell-sheet-body">
-            {unreadCount > 0 && (
-              <button className="btn btn-link p-0 agri-mshell-markread" onClick={() => setReadIds(new Set(notifications.map((n) => n.id)))}>
-                Mark all as read
-              </button>
-            )}
-            {notifications.length === 0 && <div className="agri-muted" style={{ fontSize: "0.85rem" }}>No recent activity.</div>}
-            {notifications.map((n) => (
-              <div key={n.id} className="agri-mshell-notif">
-                {!readIds.has(n.id) && <span className="agri-submission-dot" style={{ position: "static", marginTop: 5, flexShrink: 0 }} />}
-                <div>
-                  <div style={{ fontSize: "0.85rem", fontWeight: readIds.has(n.id) ? 400 : 700 }}>{n.title}</div>
-                  <div className="agri-muted" style={{ fontSize: "0.75rem" }}>{n.time}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
