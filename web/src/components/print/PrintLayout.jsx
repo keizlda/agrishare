@@ -5,11 +5,12 @@ import "./print.css";
 
 const SEAL_LOAD_TIMEOUT_MS = 3000;
 
-// Shared shell for every printable route: seal on the left with the
-// institutional header text and the report title beside it, a divider, then
-// whatever the page passes as children. The header sits in the <table><thead>
-// so it repeats on every printed page (the standard cross-browser way to do
-// that without a PDF library).
+// Shared shell for every printable route: seal on the left with the four
+// institutional lines beside it, the green divider, then the centered report
+// title + subtitle, then whatever the page passes as children. Only the
+// header + divider sit in the <table><thead>, so they repeat on every printed
+// page (the standard cross-browser way to do that without a PDF library)
+// while the title appears once, on the first page.
 //
 // The printed footer ("Generated via AgriShare · <time>" left, "Page X of Y"
 // right) lives in @page margin boxes, the only place CSS can render live page
@@ -66,8 +67,6 @@ export default function PrintLayout({ title, subtitle, children }) {
                   <div className="pr-header-line">Municipality of Labangan, Zamboanga del Sur</div>
                   <div className="pr-header-office">MUNICIPAL AGRICULTURE OFFICE</div>
                   <div className="pr-header-line">Barangay Langapud</div>
-                  <div className="pr-title">{title}</div>
-                  {subtitle && <div className="pr-subtitle">{subtitle}</div>}
                 </div>
               </div>
               <hr className="pr-rule" />
@@ -77,6 +76,11 @@ export default function PrintLayout({ title, subtitle, children }) {
         <tbody>
           <tr>
             <td>
+              <div className="pr-title-block">
+                <div className="pr-title">{title}</div>
+                {subtitle && <div className="pr-subtitle">{subtitle}</div>}
+              </div>
+
               {children}
 
               <div className="pr-footer">

@@ -43,7 +43,7 @@
 }
 
 .pr-header {
-  --pr-seal-size: 80px; /* roughly the height of the text block beside it */
+  --pr-seal-size: 66px; /* = height of the four header lines beside it */
 }
 
 .pr-seal {
@@ -84,9 +84,15 @@
   height: 1.5px;
   background: #2f9e44;
   border: none;
-  margin: 14px 0 24px;
+  margin: 14px 0 26px;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+/* Report title + subtitle: centered, below the divider. */
+.pr-title-block {
+  text-align: center;
+  margin: 0 0 26px;
 }
 
 .pr-title {
@@ -95,7 +101,7 @@
   letter-spacing: 0.06em;
   color: #14251a;
   text-transform: uppercase;
-  margin: 6px 0 1px;
+  margin: 0 0 4px;
   line-height: 1.25;
 }
 
