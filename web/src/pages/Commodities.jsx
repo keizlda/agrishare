@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Filter, Package, Pencil, Plus, Search, X } from "lucide-react";
+import { Filter, Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Toast from "../components/ui/Toast.jsx";
+import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import { commodityCategories, computeCommodityStats } from "../data/mockData.js";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
-import { createCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
+import { countCommodityDistributions, createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
 
 export default function Commodities() {
@@ -22,6 +23,7 @@ export default function Commodities() {
   const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", commodity }
   const [actionError, setActionError] = useState("");
   const [toast, setToast] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   useEffect(() => {
     listDistributions().then(setDistributions).catch(() => {});
@@ -48,6 +50,36 @@ export default function Commodities() {
   const selected = commodities.find((c) => c.id === selectedId) ?? null;
   const { totals } = computeCommodityStats(commodities, distributions);
   const selectedDistributedQty = selected ? (totals[selected.name] ?? 0) : 0;
+
+  // Not-deleted distributions using it block the delete up front; the DB's
+  // ON DELETE RESTRICT is the backstop if anything slips past this check.
+  async function handleDelete(commodity) {
+    setPendingDelete(null);
+    setActionError("");
+    try {
+      const used = await countCommodityDistributions(commodity.id);
+      if (used > 0) {
+        setToast({
+          tone: "error",
+          message: `This commodity is used in ${used} distribution${used === 1 ? "" : "s"} and can't be deleted. Set it to Inactive instead.`,
+        });
+        return;
+      }
+      await deleteCommodity(commodity.id);
+
+      // Selection moves to the next row in the current filtered order (or the
+      // previous one if it was last); pagination clamps itself if the page empties.
+      if (selectedId === commodity.id) {
+        const idx = filtered.findIndex((c) => c.id === commodity.id);
+        const neighbour = filtered[idx + 1] ?? filtered[idx - 1] ?? null;
+        setSelectedId(neighbour ? neighbour.id : null);
+      }
+      setCommodities((prev) => prev.filter((c) => c.id !== commodity.id));
+      setToast({ tone: "success", message: "Commodity deleted." });
+    } catch (err) {
+      setToast({ tone: "error", message: err.message || "Couldn't delete the commodity." });
+    }
+  }
 
   function resetFilters() {
     setSearch("");
@@ -101,16 +133,16 @@ export default function Commodities() {
 
           <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table">
-              <thead><tr><th>Commodity ID</th><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th><th>Actions</th></tr></thead>
               <tbody>
                 {pageItems.map((c) => (
                   <tr key={c.id} className={c.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(c.id)}>
-                    <td>{c.id}</td>
                     <td>{c.name}</td>
                     <td>{c.category}</td>
                     <td><Pill status={c.status} /></td>
                     <td>{c.dateAdded}</td>
                     <td>
+                      <div style={{ display: "flex", gap: 6 }}>
                       <button
                         type="button"
                         className="agri-icon-btn"
@@ -120,11 +152,21 @@ export default function Commodities() {
                       >
                         <Pencil size={14} />
                       </button>
+                      <button
+                        type="button"
+                        className="agri-icon-btn"
+                        title="Delete"
+                        aria-label={`Delete ${c.name}`}
+                        onClick={(e) => { e.stopPropagation(); setPendingDelete(c); }}
+                      >
+                        <Trash2 size={14} color="var(--agri-red)" />
+                      </button>
+                    </div>
                     </td>
                   </tr>
                 ))}
                 {loading && (
-                  <tr><td colSpan={6} className="agri-muted text-center py-4">Loading commodities…</td></tr>
+                  <tr><td colSpan={5} className="agri-muted text-center py-4">Loading commodities…</td></tr>
                 )}
               </tbody>
             </table>
@@ -147,7 +189,6 @@ export default function Commodities() {
             </div>
             <div className="agri-detail-body">
             <div className="agri-detail-row"><div><div className="agri-detail-label">Name</div>{selected.name}</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity ID</div>{selected.id}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Category</div>{selected.category}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{selectedDistributedQty.toLocaleString()} kg</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{selected.dateAdded}</div></div>
@@ -186,6 +227,16 @@ export default function Commodities() {
             }
             setModal(null);
           }}
+        />
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete ${pendingDelete.name}?`}
+          message="This can't be undone."
+          confirmLabel="Delete"
+          onConfirm={() => handleDelete(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
         />
       )}
 
