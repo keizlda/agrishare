@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ChevronDown, Package, Plus, Printer, Trash2, Truck, Users, X } from "lucide-react";
+import { ChevronDown, Plus, Printer, Trash2, Truck, X } from "lucide-react";
 import Pill, { STATUS_COLOR } from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
-import MiniStat from "../components/ui/MiniStat.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import { distributionTotalQty } from "../data/mockData.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -83,19 +82,6 @@ export default function Distributions() {
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
-
-  // Summary strip follows the Status / Program filters. "Pending" = not yet
-  // finished (Scheduled + Ongoing); Cancelled counts toward neither.
-  const summary = useMemo(
-    () => ({
-      total: filtered.length,
-      quantity: filtered.reduce((sum, d) => sum + distributionTotalQty(d), 0),
-      beneficiaries: filtered.reduce((sum, d) => sum + (Number(d.beneficiaries) || 0), 0),
-      completed: filtered.filter((d) => d.status === "Completed").length,
-      pending: filtered.filter((d) => d.status === "Scheduled" || d.status === "Ongoing").length,
-    }),
-    [filtered],
-  );
 
   const selected = distributions.find((d) => d.id === selectedId) ?? null;
 
@@ -178,13 +164,6 @@ export default function Distributions() {
                 hint={statusFilter !== "All" || programFilter !== "All" ? "No distributions match these filters. Try a different status or program." : "Record a distribution to see it listed here."}
               />
             )}
-          </div>
-
-          <div className="agri-summary-strip">
-            <MiniStat icon={Truck} color="green" label="Distributions" value={summary.total.toLocaleString()} sub={statusFilter === "All" && programFilter === "All" ? "All records" : "Matching filters"} />
-            <MiniStat icon={Package} color="blue" label="Total Quantity" value={`${summary.quantity.toLocaleString()} kg`} sub="Distributed" />
-            <MiniStat icon={Users} color="purple" label="Beneficiaries" value={summary.beneficiaries.toLocaleString()} sub="Farmers reached" />
-            <MiniStat icon={CheckCircle2} color="green" label="Completed / Pending" value={`${summary.completed} / ${summary.pending}`} sub="Finished vs. in progress" />
           </div>
 
           <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 10 }}>
