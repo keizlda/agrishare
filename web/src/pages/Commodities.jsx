@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { Filter, Pencil, Plus, Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Filter, Package, Pencil, Plus, Search, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
+import EmptyState from "../components/ui/EmptyState.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import { commodityCategories, computeCommodityStats } from "../data/mockData.js";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
+import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { createCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
-
-const PAGE_SIZE = 5;
 
 export default function Commodities() {
   const { data: commodities, setData: setCommodities, loading, error: loadError } = useSupabaseList(listCommodities);
@@ -40,7 +40,10 @@ export default function Commodities() {
     });
   }, [commodities, search, categoryFilter, statusFilter]);
 
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
+  // Rows per page = however many fit in the full-height table area (min 5).
+  const tableRef = useRef(null);
+  const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
 
   const selected = commodities.find((c) => c.id === selectedId) ?? null;
   const { totals } = computeCommodityStats(commodities, distributions);
@@ -66,9 +69,9 @@ export default function Commodities() {
   }
 
   return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: selected ? "1.6fr 1fr" : "1fr", gap: 16 }}>
-        <div className="agri-card" style={{ padding: 16 }}>
+    <div className="agri-fill-root">
+      <div className={`agri-split${selected ? " has-detail" : ""}`}>
+        <div className="agri-card agri-fill-card" style={{ padding: 16 }}>
           {(loadError || actionError) && (
             <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
               {loadError || actionError}
@@ -96,7 +99,7 @@ export default function Commodities() {
             </button>
           </div>
 
-          <div className="agri-table-wrap">
+          <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table">
               <thead><tr><th>Commodity ID</th><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th><th>Actions</th></tr></thead>
               <tbody>
@@ -123,21 +126,26 @@ export default function Commodities() {
                 {loading && (
                   <tr><td colSpan={6} className="agri-muted text-center py-4">Loading commodities…</td></tr>
                 )}
-                {!loading && filtered.length === 0 && (
-                  <tr><td colSpan={6} className="agri-muted text-center py-4">No commodities match your search/filter.</td></tr>
-                )}
               </tbody>
             </table>
+            {!loading && filtered.length === 0 && (
+              <EmptyState
+                icon={Package}
+                title="No commodities found"
+                hint={search || categoryFilter !== "All" || statusFilter !== "All" ? "Try a different search or clear the filters." : "Add a commodity to make it available for distribution."}
+              />
+            )}
           </div>
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </div>
 
         {selected && (
-          <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
+          <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Commodity Details</div>
               <Pill status={selected.status} />
             </div>
+            <div className="agri-detail-body">
             <div className="agri-detail-row"><div><div className="agri-detail-label">Name</div>{selected.name}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity ID</div>{selected.id}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Category</div>{selected.category}</div></div>
@@ -149,13 +157,16 @@ export default function Commodities() {
               <option>Active</option>
               <option>Inactive</option>
             </select>
+            </div>
 
-            <button
-              className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
-              onClick={() => setModal({ mode: "edit", commodity: selected })}
-            >
-              <Pencil size={15} /> Edit Commodity
-            </button>
+            <div className="agri-detail-actions">
+              <button
+                className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
+                onClick={() => setModal({ mode: "edit", commodity: selected })}
+              >
+                <Pencil size={15} /> Edit Commodity
+              </button>
+            </div>
           </div>
         )}
       </div>

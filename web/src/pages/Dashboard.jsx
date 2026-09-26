@@ -24,6 +24,7 @@ import { listFarmers } from "../lib/api/farmers.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import Toast from "../components/ui/Toast.jsx";
+import MiniStat from "../components/ui/MiniStat.jsx";
 import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx";
 
 const PIE_COLORS = ["#2f9e44", "#e5484d"];
@@ -216,29 +217,6 @@ export default function Dashboard() {
         />
       )}
       {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
-    </div>
-  );
-}
-
-const MINI_STAT_COLORS = {
-  green: { bg: "var(--agri-primary-light)", fg: "var(--agri-primary-dark)" },
-  blue: { bg: "var(--agri-blue-bg)", fg: "var(--agri-blue)" },
-  red: { bg: "var(--agri-red-bg)", fg: "var(--agri-red)" },
-  purple: { bg: "var(--agri-purple-bg)", fg: "var(--agri-purple)" },
-};
-
-function MiniStat({ icon: Icon, label, value, sub, color = "green" }) {
-  const c = MINI_STAT_COLORS[color] ?? MINI_STAT_COLORS.green;
-  return (
-    <div className="agri-mini-stat">
-      <div className="agri-mini-stat-icon" style={{ background: c.bg, color: c.fg }}>
-        <Icon size={18} />
-      </div>
-      <div>
-        <div className="agri-mini-stat-label">{label}</div>
-        <div className="agri-mini-stat-value">{value}</div>
-        <div className="agri-mini-stat-sub">{sub}</div>
-      </div>
     </div>
   );
 }

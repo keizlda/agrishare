@@ -8,6 +8,10 @@ import { useIsMobile } from "../../hooks/useIsMobile.js";
 // the guard needs to run before Topbar even mounts (direct URL entry).
 const MAO_ONLY_ROUTES = ["/validation", "/reports", "/commodities", "/announcements", "/settings"];
 
+// Pages that fill the viewport height below the navbar (desktop only — the
+// CSS is scoped to >=1024px). Everything else keeps normal page scrolling.
+const FILL_ROUTES = ["/farmers", "/validation", "/commodities", "/distributions", "/announcements"];
+
 export default function AppLayout() {
   const { isAuthenticated, initializing, user } = useAuth();
   const location = useLocation();
@@ -37,7 +41,7 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="agri-app">
+    <div className={`agri-app${FILL_ROUTES.includes(location.pathname) ? " agri-app-fill" : ""}`}>
       <Topbar />
       <div className="agri-content">
         <Outlet />

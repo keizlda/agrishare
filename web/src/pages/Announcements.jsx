@@ -102,8 +102,8 @@ export default function Announcements() {
   }
 
   return (
-    <div>
-      <div className="agri-card" style={{ padding: 16 }}>
+    <div className="agri-fill-root">
+      <div className="agri-card agri-fill-card" style={{ padding: 16 }}>
         {loadError && (
           <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>{loadError}</div>
         )}

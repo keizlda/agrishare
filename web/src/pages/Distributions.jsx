@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Plus, Printer, Trash2, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, Package, Plus, Printer, Trash2, Truck, Users, X } from "lucide-react";
 import Pill, { STATUS_COLOR } from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
+import EmptyState from "../components/ui/EmptyState.jsx";
+import MiniStat from "../components/ui/MiniStat.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import { distributionTotalQty } from "../data/mockData.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
+import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { createDistribution, deleteDistribution, listDistributions, updateDistributionStatus } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
@@ -41,7 +44,6 @@ const EMPTY_FORM = {
   fundingSource: "",
   acknowledgementStatus: "Pending",
 };
-const PAGE_SIZE = 5;
 
 export default function Distributions() {
   const { user } = useAuth();
@@ -77,7 +79,23 @@ export default function Distributions() {
     [distributions, statusFilter, programFilter],
   );
 
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
+  // Rows per page = however many fit in the full-height table area (min 5).
+  const tableRef = useRef(null);
+  const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
+
+  // Summary strip follows the Status / Program filters. "Pending" = not yet
+  // finished (Scheduled + Ongoing); Cancelled counts toward neither.
+  const summary = useMemo(
+    () => ({
+      total: filtered.length,
+      quantity: filtered.reduce((sum, d) => sum + distributionTotalQty(d), 0),
+      beneficiaries: filtered.reduce((sum, d) => sum + (Number(d.beneficiaries) || 0), 0),
+      completed: filtered.filter((d) => d.status === "Completed").length,
+      pending: filtered.filter((d) => d.status === "Scheduled" || d.status === "Ongoing").length,
+    }),
+    [filtered],
+  );
 
   const selected = distributions.find((d) => d.id === selectedId) ?? null;
 
@@ -101,9 +119,9 @@ export default function Distributions() {
   }
 
   return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: selected ? "1.6fr 1fr" : "1fr", gap: 16 }}>
-        <div className="agri-card" style={{ padding: 16 }}>
+    <div className="agri-fill-root">
+      <div className={`agri-split${selected ? " has-detail list-wide" : ""}`}>
+        <div className="agri-card agri-fill-card" style={{ padding: 16 }}>
           {loadError && (
             <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
               {loadError}
@@ -129,7 +147,7 @@ export default function Distributions() {
             </select>
           </div>
 
-          <div className="agri-table-wrap">
+          <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table">
               <thead>
                 <tr><th>Distribution ID</th><th>Date</th><th>Crop Type</th><th>Program</th><th>Beneficiaries</th><th>Quantity</th><th>Status</th></tr>
@@ -151,17 +169,32 @@ export default function Distributions() {
                 {loading && (
                   <tr><td colSpan={7} className="agri-muted text-center py-4">Loading distributions…</td></tr>
                 )}
-                {!loading && filtered.length === 0 && (
-                  <tr><td colSpan={7} className="agri-muted text-center py-4">No distributions match this filter.</td></tr>
-                )}
               </tbody>
             </table>
+            {!loading && filtered.length === 0 && (
+              <EmptyState
+                icon={Truck}
+                title="No distributions found"
+                hint={statusFilter !== "All" || programFilter !== "All" ? "No distributions match these filters. Try a different status or program." : "Record a distribution to see it listed here."}
+              />
+            )}
+          </div>
+
+          <div className="agri-summary-strip">
+            <MiniStat icon={Truck} color="green" label="Distributions" value={summary.total.toLocaleString()} sub={statusFilter === "All" && programFilter === "All" ? "All records" : "Matching filters"} />
+            <MiniStat icon={Package} color="blue" label="Total Quantity" value={`${summary.quantity.toLocaleString()} kg`} sub="Distributed" />
+            <MiniStat icon={Users} color="purple" label="Beneficiaries" value={summary.beneficiaries.toLocaleString()} sub="Farmers reached" />
+            <MiniStat icon={CheckCircle2} color="green" label="Completed / Pending" value={`${summary.completed} / ${summary.pending}`} sub="Finished vs. in progress" />
+          </div>
+
+          <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 10 }}>
+            Showing {pageItems.length} of {filtered.length} distributions
           </div>
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </div>
 
         {selected && (
-          <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
+          <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Distribution Details</div>
               <DistributionStatusControl
@@ -178,6 +211,7 @@ export default function Distributions() {
               {selected.id} · {selected.date}
             </div>
 
+            <div className="agri-detail-body">
             <div className="agri-detail-row"><div><div className="agri-detail-label">Program</div>{selected.program}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Barangay</div>{selected.barangay}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Venue</div>{selected.venue}</div></div>
@@ -189,7 +223,7 @@ export default function Distributions() {
             )}
 
             <div style={{ fontWeight: 700, fontSize: "0.8rem", marginTop: 16, marginBottom: 8 }}>Items Distributed</div>
-            <div className="agri-table-wrap" style={{ marginBottom: 14 }}>
+            <div className="agri-table-wrap">
               <table className="agri-table">
                 <thead><tr><th>Item</th><th>Quantity</th><th>Unit</th></tr></thead>
                 <tbody>
@@ -204,16 +238,20 @@ export default function Distributions() {
               </table>
             </div>
 
-            <button
-              className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
-              onClick={() => window.open(`/print/distributions/${selected.id}?autoPrint=1`, "_blank", "noopener,noreferrer")}
-            >
-              <Printer size={15} /> Print Distribution Report
-            </button>
+            </div>
 
-            {isMAO && (
-              <DeleteDistributionButton distribution={selected} onDeleted={handleDeleted} onError={(message) => setToast({ tone: "error", message })} />
-            )}
+            <div className="agri-detail-actions">
+              <button
+                className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
+                onClick={() => window.open(`/print/distributions/${selected.id}?autoPrint=1`, "_blank", "noopener,noreferrer")}
+              >
+                <Printer size={15} /> Print Distribution Report
+              </button>
+
+              {isMAO && (
+                <DeleteDistributionButton distribution={selected} onDeleted={handleDeleted} onError={(message) => setToast({ tone: "error", message })} />
+              )}
+            </div>
           </div>
         )}
       </div>

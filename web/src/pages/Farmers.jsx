@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Filter, Pencil, Plus, Power, Search, Trash2, X } from "lucide-react";
+import { Filter, Pencil, Plus, Power, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
+import EmptyState from "../components/ui/EmptyState.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
+import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { commodityCategories } from "../data/mockData.js";
 import { createFarmer, deleteFarmer, listFarmers, setFarmerStatus, updateFarmer } from "../lib/api/farmers.js";
-
-const PAGE_SIZE = 5;
 
 // Farmers page only offers actual crop commodities in its dropdowns — Farm
 // Tools/Livestock are program categories (still valid on the Commodities
@@ -172,7 +172,10 @@ export default function Farmers() {
     setStatusFilter("All");
   }
 
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
+  // Rows per page = however many fit in the full-height table area (min 5).
+  const tableRef = useRef(null);
+  const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
 
   async function handleDelete(id) {
     setActionError("");
@@ -200,8 +203,8 @@ export default function Farmers() {
   }
 
   return (
-    <div>
-      <div className="agri-card" style={{ padding: 16 }}>
+    <div className="agri-fill-root">
+      <div className="agri-card agri-fill-card" style={{ padding: 16 }}>
         {(loadError || actionError) && (
           <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
             {loadError || actionError}
@@ -241,7 +244,7 @@ export default function Farmers() {
           )}
         </div>
 
-        <div className="agri-table-wrap">
+        <div className="agri-table-wrap" ref={tableRef}>
           <table className="agri-table">
             <thead>
               <tr>
@@ -300,11 +303,15 @@ export default function Farmers() {
               {loading && (
                 <tr><td colSpan={11} className="agri-muted text-center py-4">Loading farmers…</td></tr>
               )}
-              {!loading && filtered.length === 0 && (
-                <tr><td colSpan={11} className="agri-muted text-center py-4">No farmer records match your search/filter.</td></tr>
-              )}
             </tbody>
           </table>
+          {!loading && filtered.length === 0 && (
+            <EmptyState
+              icon={Users}
+              title="No farmers found"
+              hint={search || commodityFilter !== "All" || statusFilter !== "All" ? "Try a different search or clear the filters." : "Add a farmer to start building the beneficiary list."}
+            />
+          )}
         </div>
         <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 10 }}>
           Showing {pageItems.length} of {filtered.length} farmers

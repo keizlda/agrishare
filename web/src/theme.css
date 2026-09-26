@@ -1721,3 +1721,119 @@ table.agri-table tbody tr.selected {
   top: 8px;
   right: 8px;
 }
+
+/* ==========================================================================
+   Full-height page layouts (Farmers, Validation, Commodities, Distributions,
+   Announcements). AppLayout adds .agri-app-fill on those routes; everything
+   below is desktop-only (>=1024px) and built on flex/grid so it follows the
+   real navbar height instead of a hardcoded pixel offset. Below 1024px the
+   page scrolls normally and detail panels stack under the table.
+   ========================================================================== */
+
+/* Two-column list + detail pages. Stacked by default. */
+.agri-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* Sticky table header (harmless when the table isn't in a scroll container). */
+table.agri-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--agri-card);
+  box-shadow: inset 0 -1px 0 var(--agri-border);
+}
+
+/* Distributions summary strip. */
+.agri-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--agri-border);
+}
+
+.agri-detail-actions {
+  margin-top: 14px;
+}
+
+@media (min-width: 1024px) {
+  .agri-split.has-detail {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+  /* Distributions' table needs ~820px; give the list the extra share so it
+     doesn't get a horizontal scrollbar at common laptop widths. */
+  .agri-split.has-detail.list-wide {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+
+  .agri-app-fill {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .agri-app-fill .agri-topbar {
+    flex-shrink: 0;
+  }
+  .agri-app-fill .agri-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .agri-app-fill .agri-fill-root {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .agri-app-fill .agri-split {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  /* Cards stretch to the available height (both columns equal, bottoms
+     aligned); header stays put, the table area takes the rest and scrolls. */
+  .agri-app-fill .agri-fill-card {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .agri-app-fill .agri-fill-root > .agri-fill-card {
+    flex: 1;
+  }
+  .agri-app-fill .agri-fill-card > * {
+    flex-shrink: 0;
+  }
+  .agri-app-fill .agri-fill-card > .agri-table-wrap {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* Right-hand detail panel: details scroll, actions stay pinned. */
+  .agri-app-fill .agri-fill-card > .agri-detail-body {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .agri-app-fill .agri-detail-actions {
+    border-top: 1px solid var(--agri-border);
+    padding-top: 14px;
+  }
+
+  /* Validation: the two-pane inbox owns its own scroll areas, so it just
+     fills the card (no min/max height, so no double scrollbars). */
+  .agri-app-fill .agri-inbox {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    height: auto;
+  }
+}

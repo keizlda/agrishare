@@ -143,8 +143,8 @@ export default function Validation() {
   }
 
   return (
-    <div>
-      <div className="agri-card" style={{ padding: 0, overflow: "hidden" }}>
+    <div className="agri-fill-root">
+      <div className="agri-card agri-fill-card" style={{ padding: 0, overflow: "hidden" }}>
         {loadError && (
           <div className="agri-pill red" style={{ display: "block", margin: 16, padding: "8px 12px" }}>
             {loadError}
