@@ -19,7 +19,11 @@ export default function PrintReport() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([listFarmers(), listDistributions(), listCommodities()])
+    // includeDeleted: the Liquidation Report totals historical distributions
+    // per commodity, so a since-deleted commodity must still get its row —
+    // AccomplishmentReport's "types available" count filters back down to
+    // active ones itself.
+    Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true })])
       .then(([farmers, distributions, commodities]) => setData({ farmers, distributions, commodities }))
       .catch((err) => setError(err.message));
   }, []);
@@ -161,7 +165,7 @@ function AccomplishmentReport({ farmers, distributions, commodities }) {
         <KV label="Validated Farmers" value={`${validated} (${Math.round((validated / (farmers.length || 1)) * 100)}%)`} />
         <KV label="Total Distribution Activities" value={distributions.length} />
         <KV label="Total Quantity Distributed" value={`${totalQty.toLocaleString()} kg`} />
-        <KV label="Commodity Types Available" value={commodities.length} />
+        <KV label="Commodity Types Available" value={commodities.filter((c) => !c.deletedAt).length} />
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Filter, Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
@@ -10,7 +10,7 @@ import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
-import { countCommodityDistributions, createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
+import { createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
 
 export default function Commodities() {
@@ -51,20 +51,12 @@ export default function Commodities() {
   const { totals } = computeCommodityStats(commodities, distributions);
   const selectedDistributedQty = selected ? (totals[selected.name] ?? 0) : 0;
 
-  // Not-deleted distributions using it block the delete up front; the DB's
-  // ON DELETE RESTRICT is the backstop if anything slips past this check.
+  // Soft delete: the commodity keeps its row (and its name in past
+  // distribution/request records) but disappears from every listing/picker.
   async function handleDelete(commodity) {
     setPendingDelete(null);
     setActionError("");
     try {
-      const used = await countCommodityDistributions(commodity.id);
-      if (used > 0) {
-        setToast({
-          tone: "error",
-          message: `This commodity is used in ${used} distribution${used === 1 ? "" : "s"} and can't be deleted. Set it to Inactive instead.`,
-        });
-        return;
-      }
       await deleteCommodity(commodity.id);
 
       // Selection moves to the next row in the current filtered order (or the
@@ -79,12 +71,6 @@ export default function Commodities() {
     } catch (err) {
       setToast({ tone: "error", message: err.message || "Couldn't delete the commodity." });
     }
-  }
-
-  function resetFilters() {
-    setSearch("");
-    setCategoryFilter("All");
-    setStatusFilter("All");
   }
 
   async function toggleStatus(id) {
@@ -126,9 +112,6 @@ export default function Commodities() {
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
-            <button type="button" className="agri-icon-btn" title="Reset filters" aria-label="Reset filters" onClick={resetFilters}>
-              <Filter size={16} />
-            </button>
           </div>
 
           <div className="agri-table-wrap" ref={tableRef}>
@@ -233,7 +216,7 @@ export default function Commodities() {
       {pendingDelete && (
         <ConfirmDialog
           title={`Delete ${pendingDelete.name}?`}
-          message="This can't be undone."
+          message="It will be removed from the commodity list and can't be selected for new distributions. Past distribution records will keep showing it."
           confirmLabel="Delete"
           onConfirm={() => handleDelete(pendingDelete)}
           onCancel={() => setPendingDelete(null)}

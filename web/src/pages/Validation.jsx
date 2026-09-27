@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
-  Filter,
   Image as ImageIcon,
   Search,
   X,
@@ -165,15 +164,6 @@ export default function Validation() {
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                <button
-                  type="button"
-                  className="agri-icon-btn"
-                  title="Reset filters"
-                  aria-label="Reset filters"
-                  onClick={() => { setSearch(""); setStatusTab("Pending"); setSort("Newest first"); }}
-                >
-                  <Filter size={16} />
-                </button>
               </div>
 
               <div className="agri-filter-pills">

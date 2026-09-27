@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Filter, Pencil, Plus, Power, Search, Trash2, Users, X } from "lucide-react";
+import { Pencil, Plus, Power, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
@@ -166,11 +166,6 @@ export default function Farmers() {
     });
   }, [farmers, debouncedSearch, commodityFilter, statusFilter]);
 
-  function resetFilters() {
-    setSearch("");
-    setCommodityFilter("All");
-    setStatusFilter("All");
-  }
 
   // Rows per page = however many fit in the full-height table area (min 5).
   const tableRef = useRef(null);
@@ -232,10 +227,6 @@ export default function Farmers() {
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
-
-          <button type="button" className="agri-icon-btn" title="Reset filters" aria-label="Reset filters" onClick={resetFilters}>
-            <Filter size={16} />
-          </button>
 
           {isMAO && (
             <button className="btn btn-agri-primary ms-auto d-flex align-items-center gap-2" onClick={() => setModal({ mode: "add" })}>
@@ -464,7 +455,7 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
                 <input type="date" className="form-control" value={form.birthDate} onChange={(e) => update("birthDate", e.target.value)} />
               </Field>
               <Field label="Contact No." col={4} required error={errors.contactNo}>
-                <input className="form-control" value={form.contactNo} onChange={(e) => update("contactNo", e.target.value)} placeholder="09XX XXX XXXX" />
+                <input type="tel" inputMode="numeric" className="form-control" value={form.contactNo} onChange={(e) => update("contactNo", e.target.value)} placeholder="09XX XXX XXXX" />
               </Field>
             </Section>
 

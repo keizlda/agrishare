@@ -9,11 +9,22 @@ function mapCommodity(row) {
     unit: row.unit,
     status: dbStatusToLabel(row.status),
     dateAdded: row.created_at?.slice(0, 10),
+    deletedAt: row.deleted_at,
   };
 }
 
-export async function listCommodities() {
-  const { data, error } = await supabase.from("commodities").select("*").order("created_at", { ascending: false });
+// Every picker/listing (this page, dropdowns, the New Distribution item
+// picker, dashboard widgets) goes through this one function, so filtering
+// deleted_at here is what "hidden everywhere" actually means — soft-deleted
+// rows stay fully readable (RLS is unchanged) so joins from old distribution
+// items/claims/requests can still resolve a deleted commodity's name.
+// includeDeleted is for the one place that needs the opposite: a printed
+// report totaling historical distributions per commodity, which must keep
+// showing a since-deleted commodity's row.
+export async function listCommodities({ includeDeleted = false } = {}) {
+  let query = supabase.from("commodities").select("*");
+  if (!includeDeleted) query = query.is("deleted_at", null);
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw error;
   return data.map(mapCommodity);
 }
@@ -40,29 +51,18 @@ export async function updateCommodity(commodityId, { name, category }) {
   return mapCommodity(data);
 }
 
-// How many (not-deleted) distributions include this commodity. Used to block
-// a delete with a specific message before it's even attempted.
-export async function countCommodityDistributions(commodityId) {
-  const { count, error } = await supabase
-    .from("distribution_event_items")
-    .select("event_id, distribution_events!inner(is_deleted)", { count: "exact", head: true })
-    .eq("commodity_id", commodityId)
-    .eq("distribution_events.is_deleted", false);
-  if (error) throw error;
-  return count ?? 0;
-}
-
-const IN_USE_MESSAGE = "This commodity is used in existing records and can't be deleted. Set it to Inactive instead.";
-
-// The foreign keys from distribution items / claims / requests are
-// ON DELETE RESTRICT, so Postgres (23503) refuses even if the UI check above
-// was bypassed or missed something (e.g. a soft-deleted distribution). RLS
-// limits deleting to mao_admin; a blocked row comes back empty.
+// Soft delete: sets deleted_at instead of removing the row, so distribution
+// items/claims/requests that reference this commodity keep a real row to
+// join against — old records and printed reports keep showing its name.
+// RLS ("commodities: MAO writes", for all -> mao_admin) already restricts
+// this UPDATE to admins; a blocked write (FA President) comes back empty.
 export async function deleteCommodity(commodityId) {
-  const { data, error } = await supabase.from("commodities").delete().eq("commodity_id", commodityId).select("commodity_id").maybeSingle();
-  if (error) {
-    if (error.code === "23503") throw new Error(IN_USE_MESSAGE);
-    throw error;
-  }
+  const { data, error } = await supabase
+    .from("commodities")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("commodity_id", commodityId)
+    .select("commodity_id")
+    .maybeSingle();
+  if (error) throw error;
   if (!data) throw new Error("Couldn't delete this commodity — refresh and try again.");
 }
