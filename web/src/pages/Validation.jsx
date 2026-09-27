@@ -279,10 +279,9 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
   const [photoUrl, setPhotoUrl] = useState(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [remarks, setRemarks] = useState("");
-  const [rejectError, setRejectError] = useState("");
+  const [rejectRemarks, setRejectRemarks] = useState("");
   const [saving, setSaving] = useState(null); // null | "rejected" | "validated"
   const [confirmReject, setConfirmReject] = useState(false);
-  const remarksRef = useRef(null);
 
   useEscapeToClose(lightboxOpen, () => setLightboxOpen(false));
 
@@ -290,7 +289,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
 
   useEffect(() => {
     setRemarks("");
-    setRejectError("");
+    setRejectRemarks("");
     setConfirmReject(false);
     setPhotoUrl(null);
     getSignedPhotoUrl(submission.photoPath).then(setPhotoUrl).catch(() => {});
@@ -301,23 +300,20 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
       ? haversineKm(submission.latitude, submission.longitude, LANGAPUD_REF.lat, LANGAPUD_REF.lng)
       : null;
 
-  // Remarks are required to reject (the farmer reads them), so the confirm
-  // dialog only opens once there's a reason to preview.
+  // The bottom box is optional (it also feeds Validate's remarks); Reject
+  // always opens the confirm modal, prefilled with whatever's already there
+  // so the admin isn't asked to type the same thing twice. The modal's own
+  // Remarks field is what's actually required to reject.
   function requestReject() {
-    if (!remarks.trim()) {
-      setRejectError("Please provide a reason for rejection so the farmer knows what to fix");
-      remarksRef.current?.focus();
-      return;
-    }
-    setRejectError("");
+    setRejectRemarks(remarks);
     setConfirmReject(true);
   }
 
-  async function submitReview(status) {
+  async function submitReview(status, remarksText) {
     setConfirmReject(false);
     setSaving(status);
     try {
-      await onReview(status, remarks.trim());
+      await onReview(status, remarksText.trim());
     } finally {
       setSaving(null);
     }
@@ -455,26 +451,18 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
           <label className="agri-form-label" htmlFor="review-remarks">Remarks</label>
           <textarea
             id="review-remarks"
-            ref={remarksRef}
-            className={`form-control mb-2${rejectError ? " agri-textarea-invalid" : ""}`}
+            className="form-control mb-2"
             rows={2}
-            placeholder="Required to reject — the farmer will see this. Optional to validate."
+            placeholder="Add remarks for the farmer (optional)"
             value={remarks}
             disabled={!!saving}
-            aria-invalid={!!rejectError}
-            aria-describedby={rejectError ? "review-remarks-error" : undefined}
-            onChange={(e) => { setRemarks(e.target.value); setRejectError(""); }}
+            onChange={(e) => setRemarks(e.target.value)}
           />
-          {rejectError && (
-            <div id="review-remarks-error" role="alert" style={{ color: "var(--agri-red)", fontSize: "0.78rem", marginBottom: 8 }}>
-              {rejectError}
-            </div>
-          )}
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn-outline-danger flex-fill" disabled={!!saving} onClick={requestReject}>
               {saving === "rejected" ? "Rejecting…" : "Reject"}
             </button>
-            <button type="button" className="btn btn-agri-primary flex-fill" disabled={!!saving} onClick={() => submitReview("validated")}>
+            <button type="button" className="btn btn-agri-primary flex-fill" disabled={!!saving} onClick={() => submitReview("validated", remarks)}>
               {saving === "validated" ? "Validating…" : "Validate"}
             </button>
           </div>
@@ -487,13 +475,19 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
           message={`${f?.fullName ?? "The farmer"} will be notified and can resubmit.`}
           confirmLabel="Reject"
           busy={!!saving}
-          onConfirm={() => submitReview("rejected")}
+          confirmDisabled={!rejectRemarks.trim()}
+          onConfirm={() => submitReview("rejected", rejectRemarks)}
           onCancel={() => setConfirmReject(false)}
         >
-          <div className="agri-reject-preview">
-            <div className="agri-reject-preview-label">Reason the farmer will see</div>
-            {remarks.trim()}
-          </div>
+          <div className="agri-reject-preview-label">Remarks</div>
+          <textarea
+            className="form-control"
+            rows={3}
+            placeholder="Explain why this submission is being rejected"
+            value={rejectRemarks}
+            disabled={!!saving}
+            onChange={(e) => setRejectRemarks(e.target.value)}
+          />
         </ConfirmDialog>
       )}
 
