@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Plus, Printer, Trash2, Truck, X } from "lucide-react";
+import { ChevronDown, Pencil, Plus, Printer, Trash2, Truck, X } from "lucide-react";
 import Pill, { STATUS_COLOR } from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
@@ -11,7 +11,7 @@ import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
-import { createDistribution, deleteDistribution, listDistributions, updateDistributionStatus } from "../lib/api/distributions.js";
+import { createDistribution, deleteDistribution, listDistributions, updateDistribution, updateDistributionStatus } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 
 // Scheduled -> Ongoing or Cancelled; Ongoing -> Completed or Cancelled;
@@ -52,7 +52,7 @@ export default function Distributions() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [programFilter, setProgramFilter] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
-  const [showModal, setShowModal] = useState(false);
+  const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", distribution }
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -85,11 +85,17 @@ export default function Distributions() {
 
   const selected = distributions.find((d) => d.id === selectedId) ?? null;
 
-  function handleSaved(newDist) {
+  function handleCreated(newDist) {
     setDistributions((prev) => [newDist, ...prev]);
     setSelectedId(newDist.id);
-    setShowModal(false);
+    setModal(null);
     setToast({ tone: "success", message: "Distribution recorded." });
+  }
+
+  function handleUpdated(updated) {
+    setDistributions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+    setModal(null);
+    setToast({ tone: "success", message: "Distribution updated." });
   }
 
   function handleDeleted(deletedId) {
@@ -115,7 +121,7 @@ export default function Distributions() {
           )}
           <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center", flexWrap: "wrap" }}>
             {isMAO && (
-              <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setShowModal(true)}>
+              <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setModal({ mode: "add" })}>
                 <Plus size={16} /> New Distribution
               </button>
             )}
@@ -227,6 +233,17 @@ export default function Distributions() {
               </button>
 
               {isMAO && (
+                <button
+                  type="button"
+                  className="btn btn-outline-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
+                  style={{ marginTop: 8 }}
+                  onClick={() => setModal({ mode: "edit", distribution: selected })}
+                >
+                  <Pencil size={15} /> Edit Distribution
+                </button>
+              )}
+
+              {isMAO && (
                 <DeleteDistributionButton distribution={selected} onDeleted={handleDeleted} onError={(message) => setToast({ tone: "error", message })} />
               )}
             </div>
@@ -234,12 +251,14 @@ export default function Distributions() {
         )}
       </div>
 
-      {showModal && (
-        <NewDistributionModal
+      {modal && (
+        <DistributionModal
+          mode={modal.mode}
+          distribution={modal.distribution}
           commodities={commodities}
           programOptions={programOptions}
-          onClose={() => setShowModal(false)}
-          onSaved={handleSaved}
+          onClose={() => setModal(null)}
+          onSaved={modal.mode === "edit" ? handleUpdated : handleCreated}
         />
       )}
 
@@ -379,8 +398,8 @@ function DeleteDistributionButton({ distribution, onDeleted, onError }) {
 
       {pendingDelete && (
         <ConfirmDialog
-          title={`Delete ${distribution.program} (${distribution.date})?`}
-          message="It will be removed from all lists."
+          title="Delete this distribution?"
+          message="This can't be undone."
           confirmLabel="Delete"
           onConfirm={handleConfirm}
           onCancel={() => setPendingDelete(false)}
@@ -390,12 +409,38 @@ function DeleteDistributionButton({ distribution, onDeleted, onError }) {
   );
 }
 
-function NewDistributionModal({ commodities, programOptions, onClose, onSaved }) {
-  const [form, setForm] = useState({ ...EMPTY_FORM, commodityId: commodities[0]?.id ?? "" });
+function DistributionModal({ mode, distribution, commodities, programOptions, onClose, onSaved }) {
+  const editing = mode === "edit";
+  const primaryItem = distribution?.items?.[0];
+
+  const [form, setForm] = useState(() =>
+    editing
+      ? {
+          date: distribution.date,
+          barangay: distribution.barangay,
+          commodityId: primaryItem?.commodityId != null ? String(primaryItem.commodityId) : (commodities[0]?.id ?? ""),
+          program: programOptions.includes(distribution.program) ? distribution.program : OTHER_PROGRAM,
+          programOther: programOptions.includes(distribution.program) ? "" : distribution.program,
+          venue: distribution.venue,
+          beneficiaries: String(distribution.beneficiaries ?? ""),
+          quantity: String(primaryItem?.quantity ?? ""),
+          fundingSource: distribution.fundingSource ?? "",
+          acknowledgementStatus: distribution.acknowledgementStatus,
+        }
+      : { ...EMPTY_FORM, commodityId: commodities[0]?.id ?? "" },
+  );
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEscapeToClose(true, onClose);
+
+  // The commodity dropdown only lists active, non-deleted commodities — if
+  // this distribution's item points at one that's since gone Inactive or
+  // been deleted, add it back so editing doesn't silently swap it out.
+  const commodityOptions = useMemo(() => {
+    if (!editing || !primaryItem || commodities.some((c) => String(c.id) === String(primaryItem.commodityId))) return commodities;
+    return [...commodities, { id: primaryItem.commodityId, name: primaryItem.name }];
+  }, [commodities, editing, primaryItem]);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -415,16 +460,29 @@ function NewDistributionModal({ commodities, programOptions, onClose, onSaved })
     setFormError("");
     setSaving(true);
     try {
-      const newDist = await createDistribution({
-        program,
-        venue: form.venue,
-        beneficiaries: form.beneficiaries,
-        commodityId: form.commodityId,
-        quantity: form.quantity,
-        fundingSource: form.fundingSource,
-        acknowledgementStatus: form.acknowledgementStatus,
-      });
-      onSaved(newDist);
+      const saved = editing
+        ? await updateDistribution(distribution.id, {
+            date: form.date,
+            program,
+            venue: form.venue,
+            barangay: form.barangay,
+            beneficiaries: form.beneficiaries,
+            commodityId: form.commodityId,
+            quantity: form.quantity,
+            itemId: primaryItem?.itemId ?? null,
+            fundingSource: form.fundingSource,
+            acknowledgementStatus: form.acknowledgementStatus,
+          })
+        : await createDistribution({
+            program,
+            venue: form.venue,
+            beneficiaries: form.beneficiaries,
+            commodityId: form.commodityId,
+            quantity: form.quantity,
+            fundingSource: form.fundingSource,
+            acknowledgementStatus: form.acknowledgementStatus,
+          });
+      onSaved(saved);
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -436,7 +494,7 @@ function NewDistributionModal({ commodities, programOptions, onClose, onSaved })
     <div style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
       <div className="agri-card" style={{ width: 460, maxWidth: "92vw", padding: 22, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
         <div className="agri-panel-header">
-          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>New Distribution</div>
+          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{editing ? "Edit Distribution" : "New Distribution"}</div>
           <button type="button" className="agri-icon-btn" aria-label="Close" onClick={onClose}><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -446,10 +504,33 @@ function NewDistributionModal({ commodities, programOptions, onClose, onSaved })
             </div>
           )}
 
+          {editing && (
+            <div className="row g-3 mb-3">
+              <div className="col-6">
+                <label className="agri-form-label">Date</label>
+                <input required type="date" className="form-control" value={form.date} onChange={(e) => update("date", e.target.value)} />
+              </div>
+              <div className="col-6">
+                <label className="agri-form-label">Barangay</label>
+                <input required className="form-control" value={form.barangay} onChange={(e) => update("barangay", e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {editing && (
+            <div style={{ marginBottom: 14 }}>
+              <div className="agri-form-label" style={{ marginBottom: 4 }}>Status</div>
+              <Pill status={distribution.status} />
+              <div className="agri-muted" style={{ fontSize: "0.72rem", marginTop: 4 }}>
+                Change status from the badge in Distribution Details.
+              </div>
+            </div>
+          )}
+
           <label className="agri-form-label">Commodity</label>
           <select className="form-select mb-3" value={form.commodityId} onChange={(e) => update("commodityId", e.target.value)}>
-            {commodities.length === 0 && <option value="">No active commodities</option>}
-            {commodities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {commodityOptions.length === 0 && <option value="">No active commodities</option>}
+            {commodityOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
           <label className="agri-form-label">Program Name <span style={{ color: "var(--agri-red)" }}>*</span></label>
@@ -499,7 +580,7 @@ function NewDistributionModal({ commodities, programOptions, onClose, onSaved })
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
             <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : "Save Distribution"}</button>
+            <button type="submit" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : editing ? "Save Changes" : "Save Distribution"}</button>
           </div>
         </form>
       </div>

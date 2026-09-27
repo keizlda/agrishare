@@ -3,11 +3,13 @@ import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 
 const SELECT = `
   event_id, program_name, event_date, venue, barangay, funding_source, acknowledgement_status, status, remarks, beneficiaries_count,
-  distribution_event_items ( quantity_allocated, commodities ( name, category, unit ) )
+  distribution_event_items ( event_item_id, commodity_id, quantity_allocated, commodities ( name, category, unit ) )
 `;
 
 function mapDistribution(row) {
   const items = (row.distribution_event_items ?? []).map((i) => ({
+    itemId: i.event_item_id,
+    commodityId: i.commodity_id,
     name: i.commodities?.name ?? "",
     quantity: Number(i.quantity_allocated),
     unit: i.commodities?.unit ?? "kg",
@@ -68,11 +70,55 @@ export async function createDistribution({ program, venue, beneficiaries, commod
   const { data: item, error: itemErr } = await supabase
     .from("distribution_event_items")
     .insert({ event_id: event.event_id, commodity_id: commodityId, quantity_allocated: Number(quantity) || 0 })
-    .select("quantity_allocated, commodities ( name, category, unit )")
+    .select("event_item_id, commodity_id, quantity_allocated, commodities ( name, category, unit )")
     .single();
   if (itemErr) throw itemErr;
 
   return mapDistribution({ ...event, distribution_event_items: [item] });
+}
+
+// Edits the event fields plus its first item's commodity/quantity (the
+// same single-item shape createDistribution uses — this app has no
+// stock/inventory tracking to reconcile, "Total Distributed" is always
+// computed live from distribution_event_items, so overwriting the
+// quantity here is all that's needed, no delta math). Distributions
+// seeded with more than one item keep their other items untouched.
+// RLS ("events: MAO writes" / "event_items: MAO writes") restricts both
+// writes to mao_admin — FA President's call comes back empty.
+export async function updateDistribution(eventId, { date, program, venue, barangay, fundingSource, beneficiaries, acknowledgementStatus, commodityId, quantity, itemId }) {
+  const { data: event, error: eventErr } = await supabase
+    .from("distribution_events")
+    .update({
+      event_date: date,
+      program_name: program,
+      venue,
+      barangay,
+      funding_source: fundingSource || null,
+      acknowledgement_status: labelToDbStatus(acknowledgementStatus || "Pending"),
+      beneficiaries_count: Number(beneficiaries) || 0,
+    })
+    .eq("event_id", eventId)
+    .select("event_id")
+    .maybeSingle();
+  if (eventErr) throw eventErr;
+  if (!event) throw new Error("Couldn't update this distribution — refresh and try again.");
+
+  if (itemId) {
+    const { error: itemErr } = await supabase
+      .from("distribution_event_items")
+      .update({ commodity_id: commodityId, quantity_allocated: Number(quantity) || 0 })
+      .eq("event_item_id", itemId);
+    if (itemErr) throw itemErr;
+  } else {
+    const { error: itemErr } = await supabase
+      .from("distribution_event_items")
+      .insert({ event_id: eventId, commodity_id: commodityId, quantity_allocated: Number(quantity) || 0 });
+    if (itemErr) throw itemErr;
+  }
+
+  const { data, error } = await supabase.from("distribution_events").select(SELECT).eq("event_id", eventId).single();
+  if (error) throw error;
+  return mapDistribution(data);
 }
 
 // RLS ("events: MAO writes") already restricts this to mao_admin — FA

@@ -13,15 +13,6 @@ import { deleteNotification, listMyNotifications, markAllNotificationsRead, mark
 const UPDATES_TAB = "My Updates";
 const TABS = ["Announcements", "Unread", UPDATES_TAB];
 
-// Urgent = red; the rest are green / neutral (Validation Reminder matches the
-// web admin's blue chip).
-const CATEGORY_STYLE = {
-  Urgent: { fg: colors.red, bg: colors.redBg, icon: "alert-circle" },
-  "Distribution Schedule": { fg: colors.primaryDark, bg: colors.primaryLight, icon: "calendar-outline" },
-  "Validation Reminder": { fg: colors.blue, bg: colors.blueBg, icon: "shield-checkmark-outline" },
-  General: { fg: colors.gray, bg: colors.grayBg, icon: "megaphone-outline" },
-};
-
 // type -> Ionicons name + color, matching the web bell (validated=green check,
 // rejected=red x, request=inbox).
 const UPDATE_ICONS = {
@@ -31,16 +22,6 @@ const UPDATE_ICONS = {
   distribution: { name: "cube-outline", color: colors.orange, bg: colors.orangeBg },
   system: { name: "notifications-outline", color: colors.gray, bg: colors.grayBg },
 };
-
-function CategoryBadge({ category }) {
-  const s = CATEGORY_STYLE[category] ?? CATEGORY_STYLE.General;
-  return (
-    <View style={[styles.badge, { backgroundColor: s.bg }]}>
-      <Ionicons name={s.icon} size={11} color={s.fg} />
-      <Text style={[styles.badgeText, { color: s.fg }]}>{category}</Text>
-    </View>
-  );
-}
 
 export default function AnnouncementsScreen({ navigation }) {
   const { farmer } = useAuth();
@@ -190,19 +171,16 @@ export default function AnnouncementsScreen({ navigation }) {
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => openAnnouncement(a)}
-              style={[styles.card, styles.annCard, !a.read && styles.cardUnread, a.category === "Urgent" && styles.cardUrgent]}
+              style={[styles.card, styles.annCard, !a.read && styles.cardUnread]}
             >
               <View style={{ flex: 1 }}>
                 <View style={styles.rowBetween}>
-                  <View style={styles.badgeRow}>
-                    <CategoryBadge category={a.category} />
-                    {a.isPinned && (
-                      <View style={styles.pinned}>
-                        <Pin size={11} color={colors.primaryDark} />
-                        <Text style={styles.pinnedText}>Pinned</Text>
-                      </View>
-                    )}
-                  </View>
+                  {a.isPinned && (
+                    <View style={styles.pinned}>
+                      <Pin size={11} color={colors.primaryDark} />
+                      <Text style={styles.pinnedText}>Pinned</Text>
+                    </View>
+                  )}
                   {!a.read && <View style={styles.unreadDot} accessibilityLabel="Unread" />}
                 </View>
                 <Text style={[styles.title, !a.read && { fontWeight: "800" }]} numberOfLines={2}>{a.title}</Text>
@@ -226,7 +204,6 @@ export default function AnnouncementsScreen({ navigation }) {
         {open && (
           <View style={styles.detail}>
             <View style={styles.detailBar}>
-              <CategoryBadge category={open.category} />
               <TouchableOpacity onPress={() => setOpen(null)} style={styles.closeBtn} accessibilityLabel="Close">
                 <X size={20} color={colors.text} />
               </TouchableOpacity>
@@ -276,7 +253,6 @@ const styles = StyleSheet.create({
   },
   annCard: { padding: 14 },
   cardUnread: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  cardUrgent: { borderLeftWidth: 4, borderLeftColor: colors.red },
   markAllBtn: { alignSelf: "flex-end", marginBottom: 8 },
   markAllText: { fontSize: 12, fontWeight: "700", color: colors.primaryDark },
   iconWrap: {
@@ -288,9 +264,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  badgeRow: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
-  badge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, alignSelf: "flex-start" },
-  badgeText: { fontSize: 10.5, fontWeight: "700" },
   pinned: { flexDirection: "row", alignItems: "center", gap: 3 },
   pinnedText: { fontSize: 10.5, fontWeight: "700", color: colors.primaryDark },
   date: { fontSize: 10, color: colors.textMuted, fontWeight: "600" },
@@ -303,7 +276,7 @@ const styles = StyleSheet.create({
   errorText: { textAlign: "center", color: colors.red, fontSize: 12, marginBottom: 10 },
 
   detail: { flex: 1, backgroundColor: colors.card },
-  detailBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 54, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  detailBar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 16, paddingTop: 54, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   closeBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   detailContent: { padding: spacing.base, paddingBottom: 48 },
   detailTitle: { fontSize: 20, fontWeight: "800", color: colors.text, lineHeight: 26 },

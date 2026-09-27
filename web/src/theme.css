@@ -478,6 +478,19 @@ table.agri-table tbody tr.selected {
   color: #fff;
 }
 
+/* Outline counterpart — e.g. Edit Distribution, which sits beside the solid
+   Print button and shouldn't compete with it. */
+.btn-outline-agri-primary {
+  background: transparent;
+  border-color: var(--agri-primary);
+  color: var(--agri-primary-dark);
+}
+.btn-outline-agri-primary:hover {
+  background: var(--agri-primary-soft);
+  border-color: var(--agri-primary);
+  color: var(--agri-primary-dark);
+}
+
 .agri-icon-btn {
   border: 1px solid var(--agri-border);
   background: #fff;
@@ -1832,4 +1845,43 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+/* ---------- Shared row actions menu (RowActionsMenu.jsx) ---------- */
+/* Portaled to document.body at a fixed position computed from the trigger
+   button's own rect (see the component), so no wrapper positioning is
+   needed here — just the visible card + item styling. */
+.agri-row-menu {
+  position: fixed;
+  z-index: 80;
+  background: #fff;
+  border: 1px solid var(--agri-border);
+  border-radius: 10px;
+  box-shadow: var(--agri-shadow), 0 8px 20px rgba(20, 40, 25, 0.12);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.agri-row-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--agri-text);
+}
+.agri-row-menu-item:hover {
+  background: var(--agri-primary-soft);
+}
+.agri-row-menu-item.danger {
+  color: var(--agri-red);
+}
+.agri-row-menu-item.danger:hover {
+  background: var(--agri-red-bg);
 }

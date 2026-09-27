@@ -1,17 +1,10 @@
 import { supabase } from "../supabaseClient";
 
-const CATEGORY_LABELS = {
-  general: "General",
-  distribution_schedule: "Distribution Schedule",
-  validation_reminder: "Validation Reminder",
-  urgent: "Urgent",
-};
-
-// RLS already limits rows to published, unexpired posts aimed at this farmer
-// (audience + validation status), and the embedded announcement_reads only
+// RLS already limits rows to published posts aimed at this farmer (recipient
+// booleans + validation status), and the embedded announcement_reads only
 // ever contains this farmer's own receipt — so a non-empty array = read.
 const SELECT =
-  "announcement_id, title, body, category, image_url, is_pinned, published_at, created_at, expires_at, announcement_reads ( read_at )";
+  "announcement_id, title, body, image_url, is_pinned, published_at, created_at, announcement_reads ( read_at )";
 
 function mapAnnouncement(row) {
   const posted = new Date(row.published_at ?? row.created_at);
@@ -19,12 +12,10 @@ function mapAnnouncement(row) {
     id: row.announcement_id,
     title: row.title,
     body: row.body,
-    category: CATEGORY_LABELS[row.category] ?? "General",
     imagePath: row.image_url,
     isPinned: row.is_pinned,
     postedAt: posted.toISOString(),
     date: posted.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-    expiresAt: row.expires_at,
     read: (row.announcement_reads ?? []).length > 0,
   };
 }
@@ -37,8 +28,7 @@ export async function listAnnouncements() {
     .order("is_pinned", { ascending: false })
     .order("published_at", { ascending: false });
   if (error) throw error;
-  const now = Date.now();
-  return data.map(mapAnnouncement).filter((a) => !a.expiresAt || new Date(a.expiresAt).getTime() > now);
+  return data.map(mapAnnouncement);
 }
 
 // Idempotent: the (announcement_id, farmer_id) primary key + ignoreDuplicates

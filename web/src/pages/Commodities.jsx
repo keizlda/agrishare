@@ -3,6 +3,7 @@ import { Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
+import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import { commodityCategories, computeCommodityStats } from "../data/mockData.js";
@@ -116,7 +117,7 @@ export default function Commodities() {
 
           <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table">
-              <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th><th></th></tr></thead>
               <tbody>
                 {pageItems.map((c) => (
                   <tr key={c.id} className={c.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(c.id)}>
@@ -125,26 +126,13 @@ export default function Commodities() {
                     <td><Pill status={c.status} /></td>
                     <td>{c.dateAdded}</td>
                     <td>
-                      <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        type="button"
-                        className="agri-icon-btn"
-                        title="Edit"
-                        aria-label={`Edit ${c.name}`}
-                        onClick={(e) => { e.stopPropagation(); setModal({ mode: "edit", commodity: c }); }}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="agri-icon-btn"
-                        title="Delete"
-                        aria-label={`Delete ${c.name}`}
-                        onClick={(e) => { e.stopPropagation(); setPendingDelete(c); }}
-                      >
-                        <Trash2 size={14} color="var(--agri-red)" />
-                      </button>
-                    </div>
+                      <RowActionsMenu
+                        label={`Actions for ${c.name}`}
+                        actions={[
+                          { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ mode: "edit", commodity: c }) },
+                          { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(c) },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}

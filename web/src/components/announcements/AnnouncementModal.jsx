@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import {
-  AUDIENCES,
-  CATEGORIES,
+  RECIPIENTS,
   MAX_BODY,
   MAX_TITLE,
   createAnnouncement,
@@ -11,18 +10,6 @@ import {
   updateAnnouncement,
   validateImageFile,
 } from "../../lib/api/announcements.js";
-
-// YYYY-MM-DD in local time (what <input type="date"> speaks).
-function toDateInput(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-// An expiry date means "through the end of that day".
-function endOfDayIso(dateStr) {
-  return dateStr ? new Date(`${dateStr}T23:59:59`).toISOString() : null;
-}
 
 // Shared by the dashboard's "Post Announcement" quick action (create) and the
 // Announcements page (create + edit). `announcement` present = edit mode.
@@ -33,10 +20,8 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
   const [form, setForm] = useState(() => ({
     title: announcement?.title ?? "",
     body: announcement?.body ?? "",
-    category: announcement?.category ?? CATEGORIES[0],
-    audience: announcement?.audience ?? AUDIENCES[0],
+    recipients: announcement?.recipients ?? [RECIPIENTS[0]],
     isPinned: announcement?.isPinned ?? false,
-    expiresOn: toDateInput(announcement?.expiresAt),
   }));
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -67,6 +52,10 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
     setErrors((e) => ({ ...e, [field]: undefined, form: undefined }));
   }
 
+  function toggleRecipient(recipient, checked) {
+    update("recipients", checked ? [...form.recipients, recipient] : form.recipients.filter((r) => r !== recipient));
+  }
+
   function pickImage(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -93,9 +82,7 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
     else if (form.title.length > MAX_TITLE) next.title = `Title must be ${MAX_TITLE} characters or fewer.`;
     if (!form.body.trim()) next.body = "Body is required.";
     else if (form.body.length > MAX_BODY) next.body = `Body must be ${MAX_BODY} characters or fewer.`;
-    if (form.expiresOn && new Date(`${form.expiresOn}T23:59:59`) <= new Date()) {
-      next.expiresOn = "Expiry date must be in the future.";
-    }
+    if (form.recipients.length === 0) next.recipients = "Choose at least one recipient.";
     return next;
   }
 
@@ -108,7 +95,7 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
     setSaving(status);
     setErrors({});
     try {
-      const fields = { ...form, expiresAt: endOfDayIso(form.expiresOn), status };
+      const fields = { ...form, status };
       const saved = editing
         ? await updateAnnouncement(announcement.id, fields, {
             imageFile,
@@ -178,20 +165,24 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
           <div className="agri-muted" style={{ fontSize: "0.72rem" }}>{form.body.length}/{MAX_BODY}</div>
         </div>
 
-        <div className="row g-3 mb-3">
-          <div className="col-12 col-sm-6">
-            <label className="agri-form-label" htmlFor="ann-category">Category</label>
-            <select id="ann-category" className="form-select" value={form.category} onChange={(e) => update("category", e.target.value)} disabled={busy}>
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div className="col-12 col-sm-6">
-            <label className="agri-form-label" htmlFor="ann-audience">Target Audience</label>
-            <select id="ann-audience" className="form-select" value={form.audience} onChange={(e) => update("audience", e.target.value)} disabled={busy}>
-              {AUDIENCES.map((a) => <option key={a}>{a}</option>)}
-            </select>
-          </div>
+        <div className="agri-form-label" style={{ marginBottom: 8 }}>Recipients <span style={{ color: "var(--agri-red)" }}>*</span></div>
+        <div style={{ marginBottom: 4 }}>
+          {RECIPIENTS.map((r) => (
+            <div className="form-check" key={r}>
+              <input
+                id={`ann-recipient-${r}`}
+                className="form-check-input"
+                type="checkbox"
+                checked={form.recipients.includes(r)}
+                onChange={(e) => toggleRecipient(r, e.target.checked)}
+                disabled={busy}
+              />
+              <label className="form-check-label" htmlFor={`ann-recipient-${r}`} style={{ fontSize: "0.85rem" }}>{r}</label>
+            </div>
+          ))}
         </div>
+        {errors.recipients && <div style={{ color: "var(--agri-red)", fontSize: "0.78rem", marginBottom: 8 }}>{errors.recipients}</div>}
+        <div className="mb-3" />
 
         <label className="agri-form-label">Image (optional)</label>
         {shownImage ? (
@@ -208,34 +199,17 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickImage} />
         {errors.image && <div style={{ color: "var(--agri-red)", fontSize: "0.78rem", marginTop: 4 }}>{errors.image}</div>}
 
-        <div className="row g-3 mt-1 mb-3 align-items-end">
-          <div className="col-12 col-sm-6">
-            <label className="agri-form-label" htmlFor="ann-expiry">Expires on (optional)</label>
-            <input
-              id="ann-expiry"
-              type="date"
-              className={`form-control${errors.expiresOn ? " is-invalid" : ""}`}
-              min={toDateInput(new Date().toISOString())}
-              value={form.expiresOn}
-              onChange={(e) => update("expiresOn", e.target.value)}
-              disabled={busy}
-            />
-            {errors.expiresOn && <div style={{ color: "var(--agri-red)", fontSize: "0.78rem", marginTop: 4 }}>{errors.expiresOn}</div>}
-          </div>
-          <div className="col-12 col-sm-6">
-            <div className="form-check form-switch mb-2">
-              <input
-                id="ann-pin"
-                className="form-check-input"
-                type="checkbox"
-                role="switch"
-                checked={form.isPinned}
-                onChange={(e) => update("isPinned", e.target.checked)}
-                disabled={busy}
-              />
-              <label className="form-check-label" htmlFor="ann-pin" style={{ fontSize: "0.85rem" }}>Pin to the top</label>
-            </div>
-          </div>
+        <div className="form-check form-switch mt-3 mb-3">
+          <input
+            id="ann-pin"
+            className="form-check-input"
+            type="checkbox"
+            role="switch"
+            checked={form.isPinned}
+            onChange={(e) => update("isPinned", e.target.checked)}
+            disabled={busy}
+          />
+          <label className="form-check-label" htmlFor="ann-pin" style={{ fontSize: "0.85rem" }}>Pin to the top</label>
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>

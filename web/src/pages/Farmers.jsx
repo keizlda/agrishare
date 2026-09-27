@@ -5,6 +5,7 @@ import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
+import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
@@ -240,7 +241,7 @@ export default function Farmers() {
             <thead>
               <tr>
                 <th>RSBSA No.</th><th>Full Name</th><th>Sex</th><th>Birth Date</th><th>Contact No.</th>
-                <th>Barangay</th><th>Commodity</th><th>Farm Size</th><th>Farm Location</th><th>Status</th><th>Actions</th>
+                <th>Barangay</th><th>Commodity</th><th>Farm Size</th><th>Farm Location</th><th>Status</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -257,37 +258,19 @@ export default function Farmers() {
                   <td>{f.farmLocation}</td>
                   <td><Pill status={f.status} /></td>
                   <td>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {isMAO ? (
-                        <>
-                          <button
-                            className="agri-icon-btn"
-                            title="Edit"
-                            aria-label={`Edit ${f.firstName} ${f.lastName}`}
-                            onClick={() => setModal({ mode: "edit", farmer: f })}
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            className="agri-icon-btn"
-                            title="Delete"
-                            aria-label={`Delete ${f.firstName} ${f.lastName}`}
-                            onClick={() => setPendingDelete(f)}
-                          >
-                            <Trash2 size={14} color="var(--agri-red)" />
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="agri-icon-btn"
-                          title={f.status === "Active" ? "Mark Inactive" : "Mark Active"}
-                          aria-label={`${f.status === "Active" ? "Mark Inactive" : "Mark Active"}: ${f.firstName} ${f.lastName}`}
-                          onClick={() => handleToggleStatus(f.id)}
-                        >
-                          <Power size={14} color={f.status === "Active" ? "var(--agri-red)" : "var(--agri-primary)"} />
-                        </button>
-                      )}
-                    </div>
+                    <RowActionsMenu
+                      label={`Actions for ${f.firstName} ${f.lastName}`}
+                      actions={[
+                        isMAO && { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ mode: "edit", farmer: f }) },
+                        isMAO && { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(f) },
+                        !isMAO && {
+                          key: "toggle-status",
+                          label: f.status === "Active" ? "Mark Inactive" : "Mark Active",
+                          icon: Power,
+                          onClick: () => handleToggleStatus(f.id),
+                        },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

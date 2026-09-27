@@ -1,16 +1,6 @@
 import { supabase } from "../supabaseClient.js";
 
-// DB enums are snake_case; the UI uses display labels. "FA President Only"
-// can't be produced by dbStatusToLabel (it'd give "Fa President Only"), so
-// the audience/category maps are explicit in both directions.
-export const CATEGORIES = ["General", "Distribution Schedule", "Validation Reminder", "Urgent"];
-export const AUDIENCES = ["All Farmers", "Validated Farmers Only", "FA President Only"];
-
-const CATEGORY_TO_DB = { General: "general", "Distribution Schedule": "distribution_schedule", "Validation Reminder": "validation_reminder", Urgent: "urgent" };
-const AUDIENCE_TO_DB = { "All Farmers": "all_farmers", "Validated Farmers Only": "validated_farmers_only", "FA President Only": "fa_president_only" };
-const invert = (obj) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [v, k]));
-const CATEGORY_FROM_DB = invert(CATEGORY_TO_DB);
-const AUDIENCE_FROM_DB = invert(AUDIENCE_TO_DB);
+export const RECIPIENTS = ["Validated Farmers", "Farmers' Association President"];
 
 export const MAX_TITLE = 150;
 export const MAX_BODY = 2000;
@@ -21,26 +11,28 @@ const BUCKET = "announcement-images";
 // announcement_reads(count) embeds the number of farmers who've opened it
 // (admin can read every receipt; see the RLS policy).
 const SELECT = `
-  announcement_id, title, body, category, target_audience, image_url, is_pinned, status,
-  published_at, expires_at, created_by, created_at, updated_at,
+  announcement_id, title, body, for_validated_farmers, for_fa_president, image_url, is_pinned, status,
+  published_at, created_by, created_at, updated_at,
   announcement_reads ( count )
 `;
 
 function mapAnnouncement(row) {
+  const recipients = [];
+  if (row.for_validated_farmers) recipients.push("Validated Farmers");
+  if (row.for_fa_president) recipients.push("Farmers' Association President");
   return {
     id: row.announcement_id,
     title: row.title,
     body: row.body,
-    category: CATEGORY_FROM_DB[row.category] ?? row.category,
-    audience: AUDIENCE_FROM_DB[row.target_audience] ?? row.target_audience,
+    recipients,
+    forValidatedFarmers: row.for_validated_farmers,
+    forFaPresident: row.for_fa_president,
     imagePath: row.image_url,
     isPinned: row.is_pinned,
     status: row.status === "published" ? "Published" : "Draft",
     publishedAt: row.published_at,
-    expiresAt: row.expires_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    expired: !!row.expires_at && new Date(row.expires_at) <= new Date(),
     readCount: row.announcement_reads?.[0]?.count ?? 0,
   };
 }
@@ -82,14 +74,15 @@ export async function getAnnouncementImageUrl(path, expiresInSeconds = 3600) {
 
 // `status` is "Draft" | "Published". published_at is stamped by a database
 // trigger the moment a post becomes Published, never sent from here.
-function toDbFields({ title, body, category, audience, isPinned, expiresAt, status }) {
+// `recipients` is a subset of RECIPIENTS — the DB check constraint requires
+// at least one, which the form also enforces before ever calling this.
+function toDbFields({ title, body, recipients, isPinned, status }) {
   return {
     title: title.trim(),
     body: body.trim(),
-    category: CATEGORY_TO_DB[category],
-    target_audience: AUDIENCE_TO_DB[audience],
+    for_validated_farmers: recipients.includes("Validated Farmers"),
+    for_fa_president: recipients.includes("Farmers' Association President"),
     is_pinned: !!isPinned,
-    expires_at: expiresAt || null,
     status: status === "Published" ? "published" : "draft",
   };
 }

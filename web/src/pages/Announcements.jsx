@@ -1,15 +1,15 @@
 import { useMemo, useState } from "react";
-import { EyeOff, Megaphone, Pencil, Pin, PinOff, Plus, Search, Send, Trash2 } from "lucide-react";
+import { Megaphone, Pencil, Pin, PinOff, Plus, Search, Send, Trash2 } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
+import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import {
-  CATEGORIES,
   deleteAnnouncement,
   listAnnouncements,
   setAnnouncementPinned,
@@ -26,7 +26,6 @@ export default function Announcements() {
   const { data: announcements, setData: setAnnouncements, loading, error: loadError } = useSupabaseList(listAnnouncements);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [categoryFilter, setCategoryFilter] = useState("All");
   const [modal, setModal] = useState(null); // null | { announcement? }
   const [pendingDelete, setPendingDelete] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -37,18 +36,16 @@ export default function Announcements() {
     return announcements.filter(
       (a) =>
         (statusFilter === "All" || a.status === statusFilter) &&
-        (categoryFilter === "All" || a.category === categoryFilter) &&
         (!q || a.title.toLowerCase().includes(q) || a.body.toLowerCase().includes(q)),
     );
-  }, [announcements, search, statusFilter, categoryFilter]);
+  }, [announcements, search, statusFilter]);
 
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
-  const filtersActive = search || statusFilter !== "All" || categoryFilter !== "All";
+  const filtersActive = search || statusFilter !== "All";
 
   function resetFilters() {
     setSearch("");
     setStatusFilter("All");
-    setCategoryFilter("All");
   }
 
   // Pinned first, then newest — same order the farmer app uses.
@@ -79,12 +76,7 @@ export default function Announcements() {
   }
 
   const togglePin = (a) => run(a, () => setAnnouncementPinned(a.id, !a.isPinned), a.isPinned ? "Announcement unpinned." : "Announcement pinned.");
-  const togglePublish = (a) =>
-    run(
-      a,
-      () => setAnnouncementStatus(a.id, a.status === "Published" ? "Draft" : "Published"),
-      a.status === "Published" ? "Announcement unpublished." : "Announcement published.",
-    );
+  const publish = (a) => run(a, () => setAnnouncementStatus(a.id, "Published"), "Announcement published.");
 
   async function confirmDelete() {
     const a = pendingDelete;
@@ -121,16 +113,12 @@ export default function Announcements() {
             <option>Published</option>
             <option>Draft</option>
           </select>
-          <select className="form-select" style={{ width: 190 }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Filter by category">
-            <option value="All">All Categories</option>
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-          </select>
         </div>
 
         <div className="agri-table-wrap">
           <table className="agri-table">
             <thead>
-              <tr><th>Announcement</th><th>Category</th><th>Audience</th><th>Status</th><th>Published</th><th>Expires</th><th>Read by</th><th>Actions</th></tr>
+              <tr><th>Announcement</th><th>Recipients</th><th>Status</th><th>Published</th><th></th></tr>
             </thead>
             <tbody>
               {pageItems.map((a) => (
@@ -142,37 +130,24 @@ export default function Announcements() {
                     </div>
                     <div className="agri-muted agri-cell-truncate" style={{ fontSize: "0.75rem", maxWidth: 260 }} title={a.body}>{a.body}</div>
                   </td>
-                  <td><Pill status={a.category} /></td>
-                  <td>{a.audience}</td>
-                  <td>
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      <Pill status={a.status} />
-                      {a.status === "Published" && a.expired && <span className="agri-pill gray">Expired</span>}
-                    </div>
-                  </td>
+                  <td>{a.recipients.join(", ")}</td>
+                  <td><Pill status={a.status} /></td>
                   <td>{a.status === "Published" ? formatDate(a.publishedAt) : "—"}</td>
-                  <td>{formatDate(a.expiresAt)}</td>
-                  <td>{a.status === "Published" ? a.readCount : "—"}</td>
                   <td>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button type="button" className="agri-icon-btn" title="Edit" aria-label={`Edit ${a.title}`} onClick={() => setModal({ announcement: a })} disabled={busyId === a.id}>
-                        <Pencil size={14} />
-                      </button>
-                      <button type="button" className="agri-icon-btn" title={a.isPinned ? "Unpin" : "Pin to top"} aria-label={a.isPinned ? "Unpin" : "Pin to top"} onClick={() => togglePin(a)} disabled={busyId === a.id}>
-                        {a.isPinned ? <PinOff size={14} /> : <Pin size={14} />}
-                      </button>
-                      <button type="button" className="agri-icon-btn" title={a.status === "Published" ? "Unpublish" : "Publish"} aria-label={a.status === "Published" ? "Unpublish" : "Publish"} onClick={() => togglePublish(a)} disabled={busyId === a.id}>
-                        {a.status === "Published" ? <EyeOff size={14} /> : <Send size={14} />}
-                      </button>
-                      <button type="button" className="agri-icon-btn" title="Delete" aria-label={`Delete ${a.title}`} onClick={() => setPendingDelete(a)} disabled={busyId === a.id}>
-                        <Trash2 size={14} color="var(--agri-red)" />
-                      </button>
-                    </div>
+                    <RowActionsMenu
+                      label={`Actions for ${a.title}`}
+                      actions={[
+                        { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ announcement: a }) },
+                        { key: "pin", label: a.isPinned ? "Unpin" : "Pin to top", icon: a.isPinned ? PinOff : Pin, onClick: () => togglePin(a) },
+                        a.status === "Draft" && { key: "publish", label: "Publish", icon: Send, onClick: () => publish(a) },
+                        { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(a) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}
               {loading && (
-                <tr><td colSpan={8} className="agri-muted text-center py-4">Loading announcements…</td></tr>
+                <tr><td colSpan={5} className="agri-muted text-center py-4">Loading announcements…</td></tr>
               )}
             </tbody>
           </table>

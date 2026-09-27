@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Download, Eye } from "lucide-react";
+import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import { usePersistedState } from "../hooks/usePersistedState.js";
 import { barangays, reportTypes } from "../data/mockData.js";
 
@@ -90,7 +91,7 @@ export default function Reports() {
         <div className="agri-panel-header"><div style={{ fontWeight: 700 }}>Recent Reports</div></div>
         <div className="agri-table-wrap">
           <table className="agri-table">
-            <thead><tr><th>Report Name</th><th>Type</th><th>Date Generated</th><th>Date Range</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Report Name</th><th>Type</th><th>Date Generated</th><th>Date Range</th><th></th></tr></thead>
             <tbody>
               {reports.map((r) => (
                 <tr key={r.id}>
@@ -99,10 +100,13 @@ export default function Reports() {
                   <td>{r.dateGenerated}</td>
                   <td>{r.dateFrom} – {r.dateTo}</td>
                   <td>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button className="agri-icon-btn" title="Preview" onClick={() => handlePreview(r)}><Eye size={14} /></button>
-                      <button className="agri-icon-btn" title="Download" onClick={() => handleDownload(r)}><Download size={14} /></button>
-                    </div>
+                    <RowActionsMenu
+                      label={`Actions for ${r.name}`}
+                      actions={[
+                        { key: "preview", label: "Preview", icon: Eye, onClick: () => handlePreview(r) },
+                        { key: "download", label: "Download", icon: Download, onClick: () => handleDownload(r) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}
