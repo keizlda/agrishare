@@ -170,19 +170,17 @@ export default function Topbar() {
                     <Megaphone size={15} /> Announcements
                   </button>
                 )}
-                {isMAO && (
-                  <button
-                    onClick={() => { setOpenMenu(null); navigate("/settings"); }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px",
-                      background: "none", border: "none", color: "var(--agri-text)", fontSize: "0.85rem", borderRadius: 8,
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agri-primary-soft)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-                  >
-                    <Settings size={15} /> Settings
-                  </button>
-                )}
+                <button
+                  onClick={() => { setOpenMenu(null); navigate("/settings"); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px",
+                    background: "none", border: "none", color: "var(--agri-text)", fontSize: "0.85rem", borderRadius: 8,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agri-primary-soft)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                >
+                  <Settings size={15} /> Settings
+                </button>
                 <button
                   onClick={handleLogout}
                   style={{

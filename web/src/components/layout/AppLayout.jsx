@@ -6,7 +6,9 @@ import { useIsMobile } from "../../hooks/useIsMobile.js";
 
 // Mirrors Topbar.jsx's NAV_ITEMS roles — kept as a separate map here since
 // the guard needs to run before Topbar even mounts (direct URL entry).
-const MAO_ONLY_ROUTES = ["/validation", "/reports", "/commodities", "/announcements", "/settings"];
+// /settings is reachable by both roles — General Information is MAO-only
+// within the page itself, but Change Password is per-user for everyone.
+const MAO_ONLY_ROUTES = ["/validation", "/reports", "/commodities", "/announcements"];
 
 // Pages that fill the viewport height below the navbar (desktop only — the
 // CSS is scoped to >=1024px). Everything else keeps normal page scrolling.

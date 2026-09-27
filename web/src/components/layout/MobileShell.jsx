@@ -37,7 +37,7 @@ const MORE_ITEMS = [
   { to: "/reports", label: "Reports", icon: FileBarChart2, roles: ["MAO Admin"] },
   { to: "/commodities", label: "Commodities", icon: Star, roles: ["MAO Admin"] },
   { to: "/announcements", label: "Announcements", icon: Megaphone, roles: ["MAO Admin"] },
-  { to: "/settings", label: "Settings", icon: Settings, roles: ["MAO Admin"] },
+  { to: "/settings", label: "Settings", icon: Settings, roles: ["MAO Admin", "FA President"] },
 ];
 
 export default function MobileShell() {
