@@ -1761,6 +1761,45 @@ table.agri-table thead th {
 
 .agri-detail-actions {
   margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agri-detail-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+.agri-detail-btn {
+  height: 42px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.agri-detail-btn-edit {
+  background: #fff;
+  border: 1px solid var(--agri-border);
+  color: var(--agri-text);
+}
+.agri-detail-btn-edit svg {
+  color: var(--agri-primary);
+}
+.agri-detail-btn-edit:hover {
+  background: var(--agri-primary-soft);
+}
+
+.agri-detail-btn-delete {
+  background: #fff;
+  border: 1px solid var(--agri-border);
+  color: var(--agri-red);
+}
+.agri-detail-btn-delete:hover {
+  background: var(--agri-red-bg);
+  border-color: var(--agri-red);
+}
+.agri-detail-btn-delete:disabled {
+  opacity: 0.6;
 }
 
 @media (min-width: 1024px) {
@@ -1823,7 +1862,7 @@ table.agri-table thead th {
   }
   .agri-app-fill .agri-detail-actions {
     border-top: 1px solid var(--agri-border);
-    padding-top: 14px;
+    padding-top: 12px;
   }
 
   /* Validation: the two-pane inbox owns its own scroll areas, so it just

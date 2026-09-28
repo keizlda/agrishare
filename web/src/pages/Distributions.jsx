@@ -226,25 +226,24 @@ export default function Distributions() {
 
             <div className="agri-detail-actions">
               <button
-                className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
+                className="btn btn-agri-primary agri-detail-btn w-100 d-flex align-items-center justify-content-center gap-2"
                 onClick={() => window.open(`/print/distributions/${selected.id}?autoPrint=1`, "_blank", "noopener,noreferrer")}
               >
-                <Printer size={15} /> Print Distribution Report
+                <Printer size={16} /> Print Distribution Report
               </button>
 
               {isMAO && (
-                <button
-                  type="button"
-                  className="btn btn-outline-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
-                  style={{ marginTop: 8 }}
-                  onClick={() => setModal({ mode: "edit", distribution: selected })}
-                >
-                  <Pencil size={15} /> Edit Distribution
-                </button>
-              )}
+                <div className="agri-detail-actions-row">
+                  <button
+                    type="button"
+                    className="btn agri-detail-btn agri-detail-btn-edit d-flex align-items-center justify-content-center gap-2"
+                    onClick={() => setModal({ mode: "edit", distribution: selected })}
+                  >
+                    <Pencil size={16} /> Edit
+                  </button>
 
-              {isMAO && (
-                <DeleteDistributionButton distribution={selected} onDeleted={handleDeleted} onError={(message) => setToast({ tone: "error", message })} />
+                  <DeleteDistributionButton distribution={selected} onDeleted={handleDeleted} onError={(message) => setToast({ tone: "error", message })} />
+                </div>
               )}
             </div>
           </div>
@@ -359,16 +358,9 @@ function DistributionStatusControl({ distribution, canEdit, onSaved, onError }) 
   );
 }
 
-// Completed distributions are part of the permanent record and can't be
-// deleted — the button stays visible (so admins know it exists) but its
-// action is disabled, with a tooltip explaining why.
-const UNDELETABLE_STATUS = "Completed";
-
 function DeleteDistributionButton({ distribution, onDeleted, onError }) {
   const [pendingDelete, setPendingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  const canDelete = distribution.status !== UNDELETABLE_STATUS;
 
   async function handleConfirm() {
     setPendingDelete(false);
@@ -387,13 +379,11 @@ function DeleteDistributionButton({ distribution, onDeleted, onError }) {
     <>
       <button
         type="button"
-        className="btn btn-outline-danger w-100 d-flex align-items-center justify-content-center gap-2"
-        style={{ marginTop: 8 }}
-        disabled={!canDelete || deleting}
-        title={canDelete ? undefined : "Completed distributions can't be deleted."}
+        className="btn agri-detail-btn agri-detail-btn-delete d-flex align-items-center justify-content-center gap-2"
+        disabled={deleting}
         onClick={() => setPendingDelete(true)}
       >
-        <Trash2 size={15} /> {deleting ? "Deleting…" : "Delete Distribution"}
+        <Trash2 size={16} /> {deleting ? "Deleting…" : "Delete"}
       </button>
 
       {pendingDelete && (
