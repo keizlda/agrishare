@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import PrintLayout, { KV } from "../components/print/PrintLayout.jsx";
 import { useAutoPrint } from "../hooks/useAutoPrint.js";
 import { getDistribution } from "../lib/api/distributions.js";
+import { friendlyError } from "../lib/friendlyError.js";
 
 const STATUS_DOT = {
   Ongoing: "#f08c00",
@@ -19,7 +20,7 @@ export default function PrintDistribution() {
   useEffect(() => {
     getDistribution(id)
       .then(setDistribution)
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(friendlyError(err, "Couldn't load this distribution.")));
   }, [id]);
 
   useAutoPrint(!!distribution, searchParams.get("autoPrint") === "1");

@@ -79,9 +79,13 @@ export async function getDistribution(eventId) {
 // ---------------------------------------------------------------------------
 const BENEFICIARY_SELECT = `
   claim_id, farmer_id, quantity_received, acknowledgement_status, acknowledged_at, duplicate_override_reason,
-  farmers ( rsbsa_no, first_name, surname, addresses ( barangay ) )
+  farmers ( rsbsa_no, first_name, surname, deleted_at, addresses ( barangay ) )
 `;
 
+// A deleted farmer's past distribution record is kept (never hidden here —
+// see friendlyError.js's sibling rule in the Farmers page for the "hide
+// deleted everywhere else" half of this), just flagged so the Distributions
+// detail panel can show "(removed)" next to their name.
 function mapBeneficiary(row) {
   return {
     claimId: row.claim_id,
@@ -90,6 +94,7 @@ function mapBeneficiary(row) {
     lastName: row.farmers?.surname ?? "",
     rsbsaNo: row.farmers?.rsbsa_no ?? "",
     barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
+    farmerDeleted: !!row.farmers?.deleted_at,
     quantity: Number(row.quantity_received),
     acknowledgementStatus: row.acknowledgement_status === "received" ? "Received" : "Pending",
     acknowledgedAt: row.acknowledged_at,

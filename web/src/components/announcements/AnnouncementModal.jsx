@@ -12,6 +12,7 @@ import {
 } from "../../lib/api/announcements.js";
 import { listDistributionBeneficiaries, listDistributions } from "../../lib/api/distributions.js";
 import { listCommodities } from "../../lib/api/commodities.js";
+import { friendlyError } from "../../lib/friendlyError.js";
 
 const OTHER_ASSISTANCE = "Other (specify)";
 
@@ -97,7 +98,11 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
     setLoadingBeneficiaries(true);
     listDistributionBeneficiaries(Number(form.linkedDistributionId))
       .then((rows) => {
-        if (!cancelled) setLinkedBeneficiaries(rows);
+        // Deleted farmers are left out of this preview (unlike the
+        // Distributions detail panel, which keeps them for the historical
+        // record) — an announcement is forward-looking, not a record of
+        // what happened.
+        if (!cancelled) setLinkedBeneficiaries(rows.filter((r) => !r.farmerDeleted));
       })
       .catch(() => {
         if (!cancelled) setLinkedBeneficiaries([]);
@@ -199,7 +204,7 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
         : await createAnnouncement(fields, imageFile);
       onSaved(saved, { editing, status, published: status === "Published" && (!editing || announcement.status === "Draft") });
     } catch (err) {
-      setErrors({ form: err.message || "Couldn't save the announcement. Please try again." });
+      setErrors({ form: friendlyError(err, "Couldn't save the announcement. Please try again.") });
       setSaving(null);
     }
   }

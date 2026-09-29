@@ -72,8 +72,14 @@ Deno.serve(async (req) => {
     async function findLoginIdConflict(loginId: string, excludeFarmerId?: number) {
       // rsbsa_digits ending in loginId — since the format is enforced as
       // 2-2-2-3-6 (15 digits), the last 6 digits are always the sequence
-      // group, so a suffix match is exactly "same login ID".
-      let query = admin.from("farmers").select("farmer_id, first_name, surname").like("rsbsa_digits", `%${loginId}`);
+      // group, so a suffix match is exactly "same login ID". Deleted
+      // farmers don't count — the whole point of the partial unique index
+      // is that their old login ID becomes available again.
+      let query = admin
+        .from("farmers")
+        .select("farmer_id, first_name, surname")
+        .like("rsbsa_digits", `%${loginId}`)
+        .is("deleted_at", null);
       if (excludeFarmerId != null) query = query.neq("farmer_id", excludeFarmerId);
       const { data, error } = await query;
       if (error) throw error;
@@ -165,20 +171,50 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete") {
-      const { profileId } = body;
-      if (!profileId) return jsonResponse({ ok: true }); // farmer never had an account
-      // Ban rather than hard-delete: audit_logs/distribution_claims rows
-      // still reference this profile id as an actor, and profiles.id has no
-      // cascade-safe way to null those out without losing history.
-      const { error } = await admin.auth.admin.updateUserById(profileId, { ban_duration: "876000h" }); // ~100 years
-      if (error) return jsonResponse({ error: error.message }, 500);
+      // Soft-deletes the farmer record and disables their login account
+      // together, in this one server-side call: distribution_claims/
+      // requests/crop_validations all reference farmer_id with no cascade
+      // (distribution history must survive a farmer being removed), so the
+      // row is never actually deleted — just marked, alongside banning the
+      // auth account so they can't log in to the mobile app. The plain
+      // UPDATE below still fires the farmers table's existing audit
+      // trigger, so this shows up in audit_logs like any other change.
+      const { farmerId } = body;
+      const { data: farmer, error: farmerErr } = await admin
+        .from("farmers")
+        .select("profile_id, deleted_at")
+        .eq("farmer_id", farmerId)
+        .single();
+      if (farmerErr || !farmer) return jsonResponse({ error: "Farmer not found." }, 404);
+      if (farmer.deleted_at) return jsonResponse({ error: "This farmer has already been deleted." }, 409);
+
+      const { error: softDeleteErr } = await admin
+        .from("farmers")
+        .update({ deleted_at: new Date().toISOString(), deleted_by: callerData.user.id })
+        .eq("farmer_id", farmerId);
+      if (softDeleteErr) return jsonResponse({ error: softDeleteErr.message }, 500);
+
+      if (farmer.profile_id) {
+        // Ban rather than hard-delete: audit_logs/distribution_claims rows
+        // still reference this profile id as an actor, and profiles.id has
+        // no cascade-safe way to null those out without losing history.
+        const { error: banErr } = await admin.auth.admin.updateUserById(farmer.profile_id, { ban_duration: "876000h" }); // ~100 years
+        if (banErr) {
+          // The farmer is already marked deleted at this point — surface
+          // the account-disable failure rather than pretending it worked,
+          // but don't undo the soft delete over it.
+          return jsonResponse({ error: `Farmer removed, but their login account couldn't be disabled: ${banErr.message}` }, 500);
+        }
+      }
+
       return jsonResponse({ ok: true });
     }
 
     if (action === "backfill") {
       const { data: farmers, error: farmersErr } = await admin
         .from("farmers")
-        .select("farmer_id, profile_id, rsbsa_no, first_name, surname, contact_no");
+        .select("farmer_id, profile_id, rsbsa_no, first_name, surname, contact_no")
+        .is("deleted_at", null);
       if (farmersErr) return jsonResponse({ error: farmersErr.message }, 500);
 
       const rsbsaPattern = /^\d{2}-\d{2}-\d{2}-\d{3}-\d{6}$/;

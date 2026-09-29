@@ -13,6 +13,7 @@ import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
+import { friendlyError } from "../lib/friendlyError.js";
 
 export default function Commodities() {
   const { data: commodities, setData: setCommodities, loading, error: loadError } = useSupabaseList(listCommodities);
@@ -70,7 +71,7 @@ export default function Commodities() {
       setCommodities((prev) => prev.filter((c) => c.id !== commodity.id));
       setToast({ tone: "success", message: "Commodity deleted." });
     } catch (err) {
-      setToast({ tone: "error", message: err.message || "Couldn't delete the commodity." });
+      setToast({ tone: "error", message: friendlyError(err, "Couldn't delete the commodity.") });
     }
   }
 
@@ -83,7 +84,7 @@ export default function Commodities() {
       await setCommodityStatus(id, nextStatus);
       setCommodities((prev) => prev.map((c) => (c.id === id ? { ...c, status: nextStatus } : c)));
     } catch (err) {
-      setActionError(err.message);
+      setActionError(friendlyError(err, "Couldn't update this commodity's status."));
     }
   }
 
@@ -233,7 +234,7 @@ function CommodityModal({ mode, commodity, onClose, onSaved }) {
       const saved = mode === "edit" ? await updateCommodity(commodity.id, form) : await createCommodity(form);
       onSaved(saved);
     } catch (err) {
-      setFormError(err.message);
+      setFormError(friendlyError(err, "Couldn't save this commodity. Please try again."));
     } finally {
       setSaving(false);
     }

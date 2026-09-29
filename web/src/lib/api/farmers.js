@@ -11,7 +11,7 @@ export function isValidRsbsaFormat(rsbsaNo) {
 }
 
 const SELECT = `
-  farmer_id, profile_id, rsbsa_no, surname, first_name, middle_name, sex, birth_date, contact_no,
+  farmer_id, profile_id, deleted_at, rsbsa_no, surname, first_name, middle_name, sex, birth_date, contact_no,
   household_head, household_members, org_affiliation, status, validation_status, created_at,
   addresses ( street, barangay, municipality, province ),
   farm_parcels ( farm_location, farm_size_hectares, ownership_type, is_pcic_insured, livestock_details, crops ( crop_type ) )
@@ -64,6 +64,7 @@ function mapFarmer(row) {
   return {
     id: row.farmer_id,
     profileId: row.profile_id,
+    deletedAt: row.deleted_at ?? null,
     rsbsaNo: row.rsbsa_no,
     rsbsaValid: isValidRsbsaFormat(row.rsbsa_no),
     firstName: row.first_name,
@@ -92,9 +93,24 @@ function mapFarmer(row) {
 }
 
 export async function listFarmers() {
-  const { data, error } = await supabase.from("farmers").select(SELECT).order("created_at", { ascending: false });
+  const { data, error } = await supabase.from("farmers").select(SELECT).is("deleted_at", null).order("created_at", { ascending: false });
   if (error) throw error;
   return data.map(mapFarmer);
+}
+
+// Duplicate-check helper: a deleted farmer's RSBSA number is free to be
+// reused going forward, but re-registering the exact same person is still
+// worth a heads-up, so this is checked separately from the (active-only)
+// in-memory duplicate check the form already does against listFarmers().
+export async function findDeletedFarmerByRsbsa(rsbsaNo) {
+  const { data, error } = await supabase
+    .from("farmers")
+    .select("farmer_id, first_name, surname")
+    .eq("rsbsa_no", rsbsaNo)
+    .not("deleted_at", "is", null)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { id: data.farmer_id, firstName: data.first_name, lastName: data.surname } : null;
 }
 
 export async function createFarmer(form) {
@@ -283,20 +299,14 @@ export async function updateFarmer(farmerId, form) {
   return { ...mapFarmer(fresh), accountNotice };
 }
 
-// Disabling the auth account is best-effort: the farmer record is the
-// primary thing "Delete" promises to remove, and a flaky account-disable
-// call shouldn't block that after the admin already confirmed the delete.
+// Soft delete: marks the farmer removed and disables their mobile login,
+// both in one server-side call (manage-farmer-account) — the row itself is
+// never actually deleted, since distribution_claims/requests/crop_validations
+// all reference farmer_id with no cascade (distribution history must
+// survive). See findDeletedFarmerByRsbsa for the "already exists, but
+// deleted" duplicate check on re-registration.
 export async function deleteFarmer(farmerId) {
-  const { data: farmer } = await supabase.from("farmers").select("profile_id").eq("farmer_id", farmerId).maybeSingle();
-
-  const { error } = await supabase.from("farmers").delete().eq("farmer_id", farmerId);
-  if (error) throw error;
-
-  if (farmer?.profile_id) {
-    await invokeAccountFn("delete", { profileId: farmer.profile_id }).catch((err) => {
-      console.warn("Farmer deleted, but disabling their login account failed:", err.message);
-    });
-  }
+  return invokeAccountFn("delete", { farmerId });
 }
 
 export async function setFarmerStatus(farmerId, statusLabel) {
@@ -330,7 +340,7 @@ export async function searchFarmers(query, limit = 8) {
   const digitsOnly = q.replace(/\D/g, "");
   const orClauses = [`first_name.ilike.%${q}%`, `surname.ilike.%${q}%`, `rsbsa_no.ilike.%${q}%`];
   if (digitsOnly) orClauses.push(`rsbsa_digits.ilike.%${digitsOnly}%`);
-  const { data, error } = await supabase.from("farmers").select(SEARCH_SELECT).or(orClauses.join(",")).limit(limit);
+  const { data, error } = await supabase.from("farmers").select(SEARCH_SELECT).is("deleted_at", null).or(orClauses.join(",")).limit(limit);
   if (error) throw error;
   return data.map(mapFarmerBrief);
 }

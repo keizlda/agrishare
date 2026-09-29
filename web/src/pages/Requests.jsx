@@ -5,6 +5,7 @@ import Toast from "../components/ui/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { listRequests, listRequestsForAdminReview, faReviewRequest, adminReviewRequest } from "../lib/api/requests.js";
+import { friendlyError } from "../lib/friendlyError.js";
 
 // status is the raw four-value lifecycle (Pending/Forwarded/Approved/
 // Rejected) — Pill's color lookup keys off that. The label shown to the
@@ -86,8 +87,9 @@ function FARequestsView({ currentUserId }) {
       setRemarks("");
       setToast({ tone: "success", message: decision === "approve" ? "Approved and forwarded to Admin." : "Request rejected." });
     } catch (err) {
-      setActionError(err.message);
-      setToast({ tone: "error", message: err.message });
+      const message = friendlyError(err, "Couldn't save this decision. Please try again.");
+      setActionError(message);
+      setToast({ tone: "error", message });
     } finally {
       setSaving(false);
     }
@@ -255,8 +257,9 @@ function AdminRequestsView() {
       setRemarks("");
       setToast({ tone: "success", message: `Request ${decision === "approve" ? "approved" : "rejected"}.` });
     } catch (err) {
-      setActionError(err.message);
-      setToast({ tone: "error", message: err.message });
+      const message = friendlyError(err, "Couldn't save this decision. Please try again.");
+      setActionError(message);
+      setToast({ tone: "error", message });
     } finally {
       setSaving(false);
     }

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, Sprout, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { friendlyError } from "../lib/friendlyError.js";
 import loginBg from "../assets/login-bg.jpg";
 import daSeal from "../assets/da-seal.png";
 
@@ -27,7 +28,7 @@ export default function Login() {
       await login(email, password);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err.message === "Invalid login credentials" ? "Incorrect email or password." : err.message);
+      setError(err.message === "Invalid login credentials" ? "Incorrect email or password." : friendlyError(err, "Couldn't sign in. Please try again."));
     } finally {
       setSubmitting(false);
     }

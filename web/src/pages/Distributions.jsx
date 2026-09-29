@@ -24,6 +24,7 @@ import {
   updateDistributionStatus,
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
+import { friendlyError } from "../lib/friendlyError.js";
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -191,7 +192,7 @@ export default function Distributions() {
       applyBeneficiarySummary(rows, selected.id);
       setToast({ tone: "success", message: "All beneficiaries marked as received." });
     } catch (err) {
-      setToast({ tone: "error", message: err.message || "Failed to mark beneficiaries as received." });
+      setToast({ tone: "error", message: friendlyError(err, "Failed to mark beneficiaries as received.") });
     } finally {
       setMarkingAll(false);
     }
@@ -220,7 +221,7 @@ export default function Distributions() {
       applyBeneficiarySummary(nextRows, selected.id);
     } catch (err) {
       setBeneficiaryRows(previousRows);
-      setToast({ tone: "error", message: err.message || "Failed to update acknowledgement." });
+      setToast({ tone: "error", message: friendlyError(err, "Failed to update acknowledgement.") });
     }
   }
 
@@ -354,7 +355,10 @@ export default function Distributions() {
                   <tbody>
                     {beneficiaryRows.map((row) => (
                       <tr key={row.claimId}>
-                        <td>{row.firstName} {row.lastName}</td>
+                        <td>
+                          {row.firstName} {row.lastName}
+                          {row.farmerDeleted && <span className="agri-muted"> (removed)</span>}
+                        </td>
                         <td>{row.rsbsaNo}</td>
                         <td>{row.quantity.toLocaleString()}</td>
                         <td>
@@ -470,7 +474,7 @@ function DistributionStatusControl({ distribution, canEdit, onSaved, onError }) 
       const updated = await updateDistributionStatus(distribution.id, newStatus);
       onSaved(updated);
     } catch (err) {
-      onError(err.message || "Failed to update status.");
+      onError(friendlyError(err, "Failed to update status."));
     } finally {
       setSaving(false);
     }
@@ -544,7 +548,7 @@ function DeleteDistributionButton({ distribution, onDeleted, onError }) {
       await deleteDistribution(distribution.id);
       onDeleted(distribution.id);
     } catch (err) {
-      onError(err.message || "Failed to delete distribution.");
+      onError(friendlyError(err, "Failed to delete distribution."));
     } finally {
       setDeleting(false);
     }
@@ -621,6 +625,7 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
             barangay: r.barangay,
             status: "Active",
             validationStatus: "Validated",
+            farmerDeleted: r.farmerDeleted,
             quantity: r.quantity,
             acknowledgementStatus: r.acknowledgementStatus,
             overrideReason: r.overrideReason ?? "",
@@ -782,7 +787,7 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
           });
       onSaved(saved);
     } catch (err) {
-      setFormError(err.message);
+      setFormError(friendlyError(err, "Couldn't save this distribution. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -885,6 +890,7 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
                       <tr key={row.farmerId}>
                         <td>
                           {row.firstName} {row.lastName}
+                          {row.farmerDeleted && <span className="agri-muted"> (removed)</span>}
                           {row.duplicate && (
                             <div className="agri-beneficiary-duplicate-warning">
                               Already received {row.duplicate.quantity} from {row.duplicate.program} on {row.duplicate.date}

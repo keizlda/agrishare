@@ -4,6 +4,7 @@ import Toast from "../components/ui/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { supabase } from "../lib/supabaseClient.js";
 import { getOrgSettings, updateOrgSettings } from "../lib/api/orgSettings.js";
+import { friendlyError } from "../lib/friendlyError.js";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -38,7 +39,7 @@ function GeneralInformation() {
   useEffect(() => {
     getOrgSettings()
       .then(setForm)
-      .catch((err) => setLoadError(err.message))
+      .catch((err) => setLoadError(friendlyError(err, "Couldn't load settings.")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -55,7 +56,7 @@ function GeneralInformation() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
-      setToast({ tone: "error", message: err.message || "Couldn't save settings." });
+      setToast({ tone: "error", message: friendlyError(err, "Couldn't save settings.") });
     } finally {
       setSaving(false);
     }
@@ -170,7 +171,7 @@ function ChangePassword() {
       setNewPassword("");
       setConfirmPassword("");
     } catch (err) {
-      setToast({ tone: "error", message: err.message || "Couldn't update your password." });
+      setToast({ tone: "error", message: friendlyError(err, "Couldn't update your password.") });
     } finally {
       setSaving(false);
     }

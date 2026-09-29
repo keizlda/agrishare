@@ -19,6 +19,7 @@ import { usePagination } from "../hooks/usePagination.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { getSignedPhotoUrl, listSubmissions, rejectSubmission, validateSubmission } from "../lib/api/cropValidation.js";
 import { listFarmers } from "../lib/api/farmers.js";
+import { friendlyError } from "../lib/friendlyError.js";
 
 const PAGE_SIZE = 15;
 const STATUS_TABS = ["All", "Pending", "Validated", "Rejected"];
@@ -137,7 +138,7 @@ export default function Validation() {
       setSubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
       setToast({ tone: "success", message: status === "validated" ? "Submission validated." : "Submission rejected." });
     } catch (err) {
-      setToast({ tone: "error", message: err.message });
+      setToast({ tone: "error", message: friendlyError(err, "Couldn't save this decision. Please try again.") });
     }
   }
 

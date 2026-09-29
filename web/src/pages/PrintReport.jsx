@@ -6,6 +6,7 @@ import { computeCommodityStats, distributionTotalQty } from "../data/mockData.js
 import { listFarmers } from "../lib/api/farmers.js";
 import { listBeneficiaryReport, listDistributions } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
+import { friendlyError } from "../lib/friendlyError.js";
 
 export default function PrintReport() {
   const [searchParams] = useSearchParams();
@@ -25,7 +26,7 @@ export default function PrintReport() {
     // active ones itself.
     Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true }), listBeneficiaryReport()])
       .then(([farmers, distributions, commodities, beneficiaryClaims]) => setData({ farmers, distributions, commodities, beneficiaryClaims }))
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(friendlyError(err, "Couldn't load this report.")));
   }, []);
 
   useAutoPrint(!!data, searchParams.get("autoPrint") === "1");

@@ -10,6 +10,7 @@ import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
+import { friendlyError } from "../lib/friendlyError.js";
 import {
   deleteAnnouncement,
   forwardAnnouncementToFarmers,
@@ -73,7 +74,7 @@ export default function Announcements() {
       setAnnouncements((prev) => sortList(prev.map((x) => (x.id === a.id ? { ...updated } : x))));
       setToast({ tone: "success", message: successMessage });
     } catch (err) {
-      setToast({ tone: "error", message: err.message || "Something went wrong. Please try again." });
+      setToast({ tone: "error", message: friendlyError(err, "Something went wrong. Please try again.") });
     } finally {
       setBusyId(null);
     }
@@ -92,7 +93,7 @@ export default function Announcements() {
       setAnnouncements((prev) => prev.filter((x) => x.id !== a.id));
       setToast({ tone: "success", message: "Announcement deleted." });
     } catch (err) {
-      setToast({ tone: "error", message: err.message || "Couldn't delete the announcement." });
+      setToast({ tone: "error", message: friendlyError(err, "Couldn't delete the announcement.") });
     } finally {
       setBusyId(null);
     }

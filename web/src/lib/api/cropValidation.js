@@ -4,7 +4,7 @@ const SELECT = `
   validation_id, farmer_id, photo_url, latitude, longitude, gps_accuracy_meters,
   captured_at, status, remarks, reviewed_by, reviewed_at, created_at,
   farmers (
-    farmer_id, rsbsa_no, surname, first_name, sex, birth_date, contact_no, status,
+    farmer_id, rsbsa_no, surname, first_name, sex, birth_date, contact_no, status, deleted_at,
     addresses ( street, barangay, municipality, province ),
     farm_parcels ( farm_location, farm_size_hectares, ownership_type, crops ( crop_type ) )
   ),
@@ -54,7 +54,10 @@ function mapSubmission(row) {
 export async function listSubmissions() {
   const { data, error } = await supabase.from("crop_validations").select(SELECT).order("created_at", { ascending: false });
   if (error) throw error;
-  return data.map(mapSubmission);
+  // A deleted farmer's pending/past submissions drop out of this list —
+  // their crop_validations rows still exist (no cascade), just no longer
+  // surfaced here.
+  return data.filter((row) => !row.farmers?.deleted_at).map(mapSubmission);
 }
 
 // photo_url is a private Storage object path (e.g. "12/1735600000000.jpg"),

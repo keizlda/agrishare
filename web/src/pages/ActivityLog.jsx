@@ -4,6 +4,7 @@ import Pagination from "../components/ui/Pagination.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Pill from "../components/ui/Pill.jsx";
 import { ACTION_LABELS, ACTION_TYPES, ENTITY_LABELS, ENTITY_TYPES, listAuditLogs } from "../lib/api/auditLogs.js";
+import { friendlyError } from "../lib/friendlyError.js";
 
 const ACTION_PILL = { insert: "Published", update: "Ongoing", delete: "Rejected" };
 
@@ -36,7 +37,7 @@ export default function ActivityLog() {
         setPageSize(ps);
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message || "Couldn't load the activity log.");
+        if (!cancelled) setError(friendlyError(err, "Couldn't load the activity log."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

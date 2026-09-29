@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { AlertTriangle, Copy, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
+import { Copy, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
@@ -13,10 +13,12 @@ import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { commodityCategories } from "../data/mockData.js";
+import { friendlyError } from "../lib/friendlyError.js";
 import {
   checkLoginIdAvailable,
   createFarmer,
   deleteFarmer,
+  findDeletedFarmerByRsbsa,
   isValidRsbsaFormat,
   listFarmers,
   resetFarmerPassword,
@@ -159,7 +161,11 @@ function validateFarmerForm(form) {
   if (!form.firstName.trim()) errors.firstName = "First name is required.";
   if (!form.lastName.trim()) errors.lastName = "Last name is required.";
   if (!form.sex) errors.sex = "Sex is required.";
-  if (!form.birthDate) errors.birthDate = "Birth date is required.";
+  if (!form.birthDate) {
+    errors.birthDate = "Birth date is required.";
+  } else if (new Date(form.birthDate).getFullYear() >= new Date().getFullYear()) {
+    errors.birthDate = "Enter a realistic birth date — not this year or in the future.";
+  }
 
   const cleanedContact = form.contactNo.replace(/\s+/g, "");
   if (!cleanedContact) {
@@ -230,8 +236,9 @@ export default function Farmers() {
     try {
       await deleteFarmer(id);
       setFarmers((prev) => prev.filter((f) => f.id !== id));
+      setToast({ tone: "success", message: "Farmer removed." });
     } catch (err) {
-      setActionError(err.message);
+      setActionError(friendlyError(err, "Couldn't remove this farmer. Please try again."));
     } finally {
       setPendingDelete(null);
     }
@@ -246,7 +253,7 @@ export default function Farmers() {
       await setFarmerStatus(id, nextStatus);
       setFarmers((prev) => prev.map((f) => (f.id === id ? { ...f, status: nextStatus } : f)));
     } catch (err) {
-      setActionError(err.message);
+      setActionError(friendlyError(err, "Couldn't update this farmer's status."));
     }
   }
 
@@ -259,7 +266,7 @@ export default function Farmers() {
       setPendingReset(null);
       setAccountDialog({ farmerName: `${f.firstName} ${f.lastName}`, rsbsaNo: f.rsbsaNo, loginId, password });
     } catch (err) {
-      setActionError(err.message);
+      setActionError(friendlyError(err, "Couldn't reset this farmer's password."));
       setPendingReset(null);
     } finally {
       setResetting(false);
@@ -315,18 +322,7 @@ export default function Farmers() {
             <tbody>
               {pageItems.map((f) => (
                 <tr key={f.id}>
-                  <td>
-                    {f.rsbsaNo}
-                    {!f.rsbsaValid && (
-                      <span
-                        className="agri-pill red"
-                        style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 6, fontSize: "0.68rem", padding: "1px 7px" }}
-                        title="Doesn't match the RSBSA format RR-PP-MM-BBB-NNNNNN"
-                      >
-                        <AlertTriangle size={10} /> Invalid format
-                      </span>
-                    )}
-                  </td>
+                  <td>{f.rsbsaNo}</td>
                   <td>{f.firstName} {f.lastName}</td>
                   <td>{f.sex}</td>
                   <td>{f.birthDate}</td>
@@ -416,7 +412,7 @@ export default function Farmers() {
       {pendingDelete && (
         <ConfirmDialog
           title="Delete Farmer Record?"
-          message={`This will permanently remove ${pendingDelete.firstName} ${pendingDelete.lastName} (${pendingDelete.rsbsaNo}) from the system. This cannot be undone.`}
+          message={`Delete ${pendingDelete.firstName} ${pendingDelete.lastName}? They'll be removed from the farmer list and their mobile account will be disabled. Their past distribution records will be kept.`}
           confirmLabel="Delete"
           onConfirm={() => handleDelete(pendingDelete.id)}
           onCancel={() => setPendingDelete(null)}
@@ -501,6 +497,7 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
   const [form, setForm] = useState(() => (mode === "edit" ? farmerToForm(farmer) : EMPTY_FORM));
   const [errors, setErrors] = useState({});
   const [duplicate, setDuplicate] = useState(null);
+  const [deletedDuplicate, setDeletedDuplicate] = useState(null);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -514,6 +511,7 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
     e.preventDefault();
     setFormError("");
     setDuplicate(null);
+    setDeletedDuplicate(null);
 
     const fieldErrors = validateFarmerForm(form);
     setErrors(fieldErrors);
@@ -526,11 +524,26 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
       return;
     }
 
+    const rsbsaTrimmed = form.rsbsaNo.trim();
+    const rsbsaChanged = rsbsaTrimmed !== (mode === "edit" ? farmer.rsbsaNo : null);
+
+    if (rsbsaChanged) {
+      try {
+        const deleted = await findDeletedFarmerByRsbsa(rsbsaTrimmed);
+        if (deleted) {
+          setDeletedDuplicate(deleted);
+          return;
+        }
+      } catch {
+        // Non-fatal — proceed and let the DB's own unique index (active
+        // farmers only) be the final word if this check couldn't run.
+      }
+    }
+
     // Block the save up front if this RSBSA's last-6-digit login ID is
     // already taken by a different farmer — cheaper and clearer than
     // writing the record first and finding out from the Edge Function.
-    const rsbsaTrimmed = form.rsbsaNo.trim();
-    if (isValidRsbsaFormat(rsbsaTrimmed) && rsbsaTrimmed !== (mode === "edit" ? farmer.rsbsaNo : null)) {
+    if (isValidRsbsaFormat(rsbsaTrimmed) && rsbsaChanged) {
       try {
         const check = await checkLoginIdAvailable(rsbsaTrimmed, excludeId);
         if (!check.available) {
@@ -550,7 +563,7 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
       const saved = mode === "edit" ? await updateFarmer(farmer.id, cleanForm) : await createFarmer(cleanForm);
       onSaved(saved);
     } catch (err) {
-      setFormError(err.message);
+      setFormError(friendlyError(err, "Couldn't save this farmer. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -583,6 +596,11 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
               >
                 View existing record: {duplicate.firstName} {duplicate.lastName} — RSBSA {duplicate.rsbsaNo}
               </button>
+            </div>
+          )}
+          {deletedDuplicate && (
+            <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "10px 12px" }}>
+              A deleted farmer record with this RSBSA number exists ({deletedDuplicate.firstName} {deletedDuplicate.lastName}).
             </div>
           )}
           {formError && (
