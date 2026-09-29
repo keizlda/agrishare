@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Pencil, Plus, Power, Search, Trash2, Users, X } from "lucide-react";
+import { AlertTriangle, Copy, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
@@ -13,7 +13,17 @@ import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { commodityCategories } from "../data/mockData.js";
-import { createFarmer, deleteFarmer, listFarmers, setFarmerStatus, updateFarmer } from "../lib/api/farmers.js";
+import {
+  checkLoginIdAvailable,
+  createFarmer,
+  deleteFarmer,
+  isValidRsbsaFormat,
+  listFarmers,
+  resetFarmerPassword,
+  RSBSA_PATTERN,
+  setFarmerStatus,
+  updateFarmer,
+} from "../lib/api/farmers.js";
 
 // Farmers page only offers actual crop commodities in its dropdowns — Farm
 // Tools/Livestock are program categories (still valid on the Commodities
@@ -22,13 +32,14 @@ const FARMER_COMMODITY_OPTIONS = commodityCategories.filter((c) => c !== "Farm T
 const OWNERSHIP_OPTIONS = ["Owner", "Tenant", "Lessee", "Farmworker"];
 const PCIC_OPTIONS = ["Yes", "No", "Not Applicable"];
 
-// RSBSA number grouping — digit counts per hyphen-separated group, e.g.
-// 2024-01-002-000123. Single source of truth for both the live-typing
-// formatter and the submit-time pattern check, so the grouping only ever
-// needs to change in one place.
-const RSBSA_GROUPS = [4, 2, 3, 6];
+// RSBSA number grouping — official Enrollment Form (Revised 01-2024) shape:
+// RR-PP-MM-BBB-NNNNNN (region-province-municipality-barangay-sequence), e.g.
+// 09-73-12-021-000143. Drives the live-typing formatter below; the matching
+// validation pattern (RSBSA_PATTERN) is imported from lib/api/farmers.js so
+// the form, the DB-format badge, and the account Edge Function's login-ID
+// derivation all agree on one definition.
+const RSBSA_GROUPS = [2, 2, 2, 3, 6];
 const RSBSA_MAX_DIGITS = RSBSA_GROUPS.reduce((sum, n) => sum + n, 0);
-const RSBSA_PATTERN = new RegExp(`^${RSBSA_GROUPS.map((n) => `\\d{${n}}`).join("-")}$`);
 
 // Strips non-digits, caps at RSBSA_MAX_DIGITS, re-joins into RSBSA_GROUPS —
 // a hyphen only appears once the user has actually typed into the next
@@ -89,6 +100,39 @@ function farmerToForm(f) {
   };
 }
 
+// Self-contained print window (no route/data round-trip) so the temporary
+// password never sits in a URL or gets persisted anywhere retrievable later
+// — it only ever exists in memory for the few seconds between the Edge
+// Function's response and this slip being printed or dismissed.
+function printAccountSlip({ farmerName, rsbsaNo, loginId, password }) {
+  const w = window.open("", "_blank", "width=420,height=560");
+  if (!w) return;
+  w.document.write(`<!doctype html><html><head><title>AgriShare Login Slip</title><meta charset="utf-8" />
+    <style>
+      body { font-family: Arial, sans-serif; padding: 26px; color: #1f2a24; }
+      h1 { font-size: 16px; margin: 0 0 2px; }
+      .sub { font-size: 11px; color: #6b7a70; margin-bottom: 20px; }
+      .row { margin-bottom: 10px; }
+      .label { font-size: 10px; color: #6b7a70; text-transform: uppercase; letter-spacing: .04em; }
+      .value { font-size: 15px; font-weight: 700; }
+      .box { border: 1px solid #e4eae4; border-radius: 8px; padding: 14px; margin-top: 14px; }
+      .note { font-size: 10px; color: #6b7a70; margin-top: 18px; line-height: 1.5; }
+    </style></head>
+    <body>
+      <h1>AgriShare Mobile Login</h1>
+      <div class="sub">Municipal Agriculture Office &mdash; Labangan</div>
+      <div class="row"><div class="label">Farmer</div><div class="value">${farmerName}</div></div>
+      <div class="row"><div class="label">RSBSA No.</div><div class="value">${rsbsaNo}</div></div>
+      <div class="box">
+        <div class="row"><div class="label">Login ID</div><div class="value">${loginId}</div></div>
+        <div class="row" style="margin-bottom:0"><div class="label">Password</div><div class="value">${password}</div></div>
+      </div>
+      <div class="note">Enter the Login ID and Password on the AgriShare mobile app. Change the password after logging in for the first time.</div>
+      <script>window.onload = () => window.print();</script>
+    </body></html>`);
+  w.document.close();
+}
+
 function normalizeName(form) {
   return `${form.firstName} ${form.middleName} ${form.lastName}`.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -110,7 +154,7 @@ function validateFarmerForm(form) {
   if (!trimmedRsbsa) {
     errors.rsbsaNo = "RSBSA number is required.";
   } else if (!RSBSA_PATTERN.test(trimmedRsbsa)) {
-    errors.rsbsaNo = "Enter the complete RSBSA number (format: 2024-01-002-000123).";
+    errors.rsbsaNo = "Enter the complete RSBSA number (format: 09-73-12-021-000143).";
   }
   if (!form.firstName.trim()) errors.firstName = "First name is required.";
   if (!form.lastName.trim()) errors.lastName = "Last name is required.";
@@ -154,13 +198,21 @@ export default function Farmers() {
 
   const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", farmer }
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [pendingReset, setPendingReset] = useState(null);
+  const [resetting, setResetting] = useState(false);
+  const [accountDialog, setAccountDialog] = useState(null); // { farmerName, rsbsaNo, loginId, password, notice? }
   const [actionError, setActionError] = useState("");
   const [toast, setToast] = useState(null);
 
   const filtered = useMemo(() => {
+    const searchDigits = debouncedSearch.replace(/\D/g, "");
     return farmers.filter((f) => {
       const fullName = `${f.firstName} ${f.lastName}`.toLowerCase();
-      const matchesSearch = !debouncedSearch || fullName.includes(debouncedSearch.toLowerCase()) || f.rsbsaNo.includes(debouncedSearch);
+      const matchesSearch =
+        !debouncedSearch ||
+        fullName.includes(debouncedSearch.toLowerCase()) ||
+        f.rsbsaNo.includes(debouncedSearch) ||
+        (searchDigits && f.rsbsaNo.replace(/\D/g, "").includes(searchDigits));
       const matchesCommodity = commodityFilter === "All" || f.commodity === commodityFilter;
       const matchesStatus = statusFilter === "All" || f.status === statusFilter;
       return matchesSearch && matchesCommodity && matchesStatus;
@@ -195,6 +247,22 @@ export default function Farmers() {
       setFarmers((prev) => prev.map((f) => (f.id === id ? { ...f, status: nextStatus } : f)));
     } catch (err) {
       setActionError(err.message);
+    }
+  }
+
+  async function handleResetPassword() {
+    const f = pendingReset;
+    setResetting(true);
+    setActionError("");
+    try {
+      const { loginId, password } = await resetFarmerPassword(f.id);
+      setPendingReset(null);
+      setAccountDialog({ farmerName: `${f.firstName} ${f.lastName}`, rsbsaNo: f.rsbsaNo, loginId, password });
+    } catch (err) {
+      setActionError(err.message);
+      setPendingReset(null);
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -247,7 +315,18 @@ export default function Farmers() {
             <tbody>
               {pageItems.map((f) => (
                 <tr key={f.id}>
-                  <td>{f.rsbsaNo}</td>
+                  <td>
+                    {f.rsbsaNo}
+                    {!f.rsbsaValid && (
+                      <span
+                        className="agri-pill red"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 6, fontSize: "0.68rem", padding: "1px 7px" }}
+                        title="Doesn't match the RSBSA format RR-PP-MM-BBB-NNNNNN"
+                      >
+                        <AlertTriangle size={10} /> Invalid format
+                      </span>
+                    )}
+                  </td>
                   <td>{f.firstName} {f.lastName}</td>
                   <td>{f.sex}</td>
                   <td>{f.birthDate}</td>
@@ -262,6 +341,8 @@ export default function Farmers() {
                       label={`Actions for ${f.firstName} ${f.lastName}`}
                       actions={[
                         isMAO && { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ mode: "edit", farmer: f }) },
+                        isMAO &&
+                          f.profileId && { key: "reset-password", label: "Reset Password", icon: KeyRound, onClick: () => setPendingReset(f) },
                         isMAO && { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(f) },
                         !isMAO && {
                           key: "toggle-status",
@@ -304,12 +385,28 @@ export default function Farmers() {
             setModal(null);
           }}
           onSaved={(saved) => {
+            const { loginId, tempPassword, accountNotice, ...farmer } = saved;
             if (modal.mode === "edit") {
-              setFarmers((prev) => prev.map((f) => (f.id === saved.id ? saved : f)));
+              setFarmers((prev) => prev.map((f) => (f.id === farmer.id ? farmer : f)));
               setToast({ tone: "success", message: "Farmer record updated." });
+              if (accountNotice?.type === "account-created") {
+                setAccountDialog({
+                  farmerName: `${farmer.firstName} ${farmer.lastName}`,
+                  rsbsaNo: farmer.rsbsaNo,
+                  loginId: accountNotice.loginId,
+                  password: accountNotice.password,
+                });
+              } else if (accountNotice?.type === "login-id-changed") {
+                setToast({ tone: "success", message: `Farmer record updated. Their new Login ID is ${accountNotice.loginId}.` });
+              } else if (accountNotice?.type === "error") {
+                setActionError(`Farmer saved, but the login account couldn't be updated: ${accountNotice.message}`);
+              }
             } else {
-              setFarmers((prev) => [saved, ...prev]);
+              setFarmers((prev) => [farmer, ...prev]);
               setToast({ tone: "success", message: "Farmer added." });
+              if (loginId) {
+                setAccountDialog({ farmerName: `${farmer.firstName} ${farmer.lastName}`, rsbsaNo: farmer.rsbsaNo, loginId, password: tempPassword });
+              }
             }
             setModal(null);
           }}
@@ -326,7 +423,76 @@ export default function Farmers() {
         />
       )}
 
+      {pendingReset && (
+        <ConfirmDialog
+          title="Reset Password?"
+          message={`${pendingReset.firstName} ${pendingReset.lastName}'s password will be set back to the default. They'll be asked to change it the next time they log in.`}
+          confirmLabel="Reset Password"
+          danger={false}
+          busy={resetting}
+          onConfirm={handleResetPassword}
+          onCancel={() => setPendingReset(null)}
+        />
+      )}
+
+      {accountDialog && <AccountCredentialsDialog {...accountDialog} onClose={() => setAccountDialog(null)} />}
+
       {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
+    </div>
+  );
+}
+
+function AccountCredentialsDialog({ farmerName, rsbsaNo, loginId, password, onClose }) {
+  const [copied, setCopied] = useState(false);
+  useEscapeToClose(true, onClose);
+
+  function handleCopy() {
+    navigator.clipboard
+      ?.writeText(`Login ID: ${loginId}\nPassword: ${password}`)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {});
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }} onClick={onClose}>
+      <div className="agri-card" style={{ width: 380, maxWidth: "90vw", padding: 22, textAlign: "center" }} role="alertdialog" aria-label="Account created" onClick={(e) => e.stopPropagation()}>
+        <div
+          style={{
+            width: 46, height: 46, borderRadius: "50%", background: "var(--agri-primary-light)", color: "var(--agri-primary-dark)",
+            display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px",
+          }}
+        >
+          <KeyRound size={22} />
+        </div>
+        <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: 6 }}>Account created</div>
+        <div className="agri-muted" style={{ fontSize: "0.85rem", marginBottom: 16 }}>
+          Share these details with {farmerName} so they can log in to the AgriShare mobile app.
+        </div>
+
+        <div style={{ border: "1px solid var(--agri-border)", borderRadius: 8, padding: 14, marginBottom: 16, textAlign: "left" }}>
+          <div className="agri-muted" style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.03em" }}>Login ID</div>
+          <div style={{ fontWeight: 700, fontSize: "1rem", marginBottom: 10 }}>{loginId}</div>
+          <div className="agri-muted" style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.03em" }}>Password</div>
+          <div style={{ fontWeight: 700, fontSize: "1rem" }}>{password}</div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+          <button type="button" className="btn btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-2" onClick={handleCopy}>
+            <Copy size={14} /> {copied ? "Copied!" : "Copy"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-2"
+            onClick={() => printAccountSlip({ farmerName, rsbsaNo, loginId, password })}
+          >
+            <Printer size={14} /> Print Slip
+          </button>
+        </div>
+        <button type="button" className="btn btn-agri-primary w-100" onClick={onClose}>Done</button>
+      </div>
     </div>
   );
 }
@@ -358,6 +524,23 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
     if (match) {
       setDuplicate(match);
       return;
+    }
+
+    // Block the save up front if this RSBSA's last-6-digit login ID is
+    // already taken by a different farmer — cheaper and clearer than
+    // writing the record first and finding out from the Edge Function.
+    const rsbsaTrimmed = form.rsbsaNo.trim();
+    if (isValidRsbsaFormat(rsbsaTrimmed) && rsbsaTrimmed !== (mode === "edit" ? farmer.rsbsaNo : null)) {
+      try {
+        const check = await checkLoginIdAvailable(rsbsaTrimmed, excludeId);
+        if (!check.available) {
+          setFormError(`Login ID ${check.loginId} is already used by ${check.conflictWith}. Check the RSBSA number.`);
+          return;
+        }
+      } catch {
+        // Non-fatal — the save itself still enforces this via the Edge
+        // Function, this pre-check is purely to fail fast in the UI.
+      }
     }
 
     const cleanForm = { ...form, contactNo: form.contactNo.replace(/\s+/g, "") };
@@ -413,11 +596,11 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
               <Field label="RSBSA Number" col={12} required error={errors.rsbsaNo}>
                 <input
                   className="form-control"
-                  placeholder="2024-01-002-000XXX"
+                  placeholder="00-00-00-000-000000"
                   value={form.rsbsaNo}
                   onChange={(e) => update("rsbsaNo", formatRsbsaNo(e.target.value))}
                   inputMode="numeric"
-                  maxLength={18}
+                  maxLength={19}
                 />
               </Field>
               <Field label="First Name" col={4} required error={errors.firstName}>

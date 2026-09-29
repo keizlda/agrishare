@@ -36,6 +36,14 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.welcome}>Welcome Back, {farmer?.firstName}!</Text>
         <Text style={styles.sub}>Here's your farm overview.</Text>
 
+        {farmer?.mustChangePassword && (
+          <ReminderBanner
+            text="You're using the default password. Change it to keep your account secure."
+            actionLabel="Change Password"
+            onPress={() => navigation.navigate("ChangePassword")}
+          />
+        )}
+
         <TouchableOpacity style={styles.requestCard} onPress={() => navigation.navigate("Requests")}>
           <View style={styles.requestIcon}>
             <Package size={20} color="#fff" />

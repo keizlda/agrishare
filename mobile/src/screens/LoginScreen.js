@@ -17,15 +17,15 @@ import daSeal from "../assets/da-seal.png";
 
 export default function LoginScreen() {
   const { login } = useAuth();
-  const [rsbsaNo, setRsbsaNo] = useState("");
+  const [rsbsaNo, setRsbsaNo] = useState(""); // just the last 6 digits
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleLogin() {
-    if (!rsbsaNo || !password) {
-      setError("Please enter your RSBSA number and password.");
+    if (rsbsaNo.length < 6 || !password) {
+      setError("Please enter the last 6 digits of your RSBSA number and your password.");
       return;
     }
     setError("");
@@ -76,17 +76,27 @@ export default function LoginScreen() {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
+          <Text style={styles.fieldLabel}>RSBSA Number</Text>
           <View style={styles.inputWrap}>
             <Mail size={16} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Enter your RSBSA number"
+              placeholder="Last 6 digits"
               placeholderTextColor="#9aa89f"
               value={rsbsaNo}
-              onChangeText={setRsbsaNo}
+              // A pasted/typed full RSBSA number (with or without hyphens)
+              // is quietly reduced to just its last 6 digits as they type —
+              // only that part is ever the login ID. No native maxLength
+              // here on purpose: RN would clip a pasted full number to its
+              // first N characters before this handler ever sees the rest,
+              // which is the opposite of what "keep the last 6" needs — the
+              // slice below is what actually caps it at 6 digits.
+              onChangeText={(text) => setRsbsaNo(text.replace(/\D/g, "").slice(-6))}
+              keyboardType="number-pad"
               autoCapitalize="none"
             />
           </View>
+          <Text style={styles.helperText}>Enter the last 6 digits of your RSBSA number</Text>
 
           <View style={styles.inputWrap}>
             <Lock size={16} color={colors.textMuted} style={styles.inputIcon} />
@@ -156,6 +166,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "800", color: colors.primaryDarker },
   subtitle: { fontSize: 12.5, color: colors.textMuted, marginTop: 2, marginBottom: 18 },
   error: { color: colors.red, fontSize: 12, marginBottom: 10 },
+  fieldLabel: { width: "100%", fontSize: 11.5, fontWeight: "700", color: colors.text, marginBottom: 4 },
+  helperText: { width: "100%", fontSize: 10.5, color: colors.textMuted, marginTop: -8, marginBottom: 12 },
   inputWrap: {
     width: "100%",
     flexDirection: "row",
@@ -163,7 +175,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.sm,
-    marginBottom: 12,
+    marginBottom: 6,
     paddingHorizontal: 10,
   },
   inputIcon: { marginRight: 6 },

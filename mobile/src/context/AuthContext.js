@@ -4,12 +4,16 @@ import { getMyFarmerProfile } from "../lib/api/farmer";
 
 const AuthContext = createContext(null);
 
-// Supabase Auth is email-based, but farmers log in with their RSBSA number
-// (paper FR 3.2.1). Every farmer account was seeded with a synthetic email
-// derived the same way: strip everything but digits/letters from the RSBSA
-// number and append @farmer.agrishare.local — see backend/scripts/seed.mjs.
+// Supabase Auth is email-based, but farmers log in with just the last 6
+// digits of their RSBSA number (the sequence group of RR-PP-MM-BBB-NNNNNN —
+// paper FR 3.2.1). Every farmer account's real auth email is
+// `{last6}@farmers.agrishare.ph`, computed the same way here and in
+// manage-farmer-account (backend/supabase/functions), never shown to the
+// farmer. Accepts either the last 6 digits directly or a full/partial RSBSA
+// number pasted in — only the last 6 digits ever matter.
 function rsbsaToSyntheticEmail(rsbsaNo) {
-  return `${rsbsaNo.replace(/[^a-z0-9]/gi, "")}@farmer.agrishare.local`;
+  const last6 = rsbsaNo.replace(/\D/g, "").slice(-6);
+  return `${last6}@farmers.agrishare.ph`;
 }
 
 export function AuthProvider({ children }) {
@@ -48,6 +52,17 @@ export function AuthProvider({ children }) {
     const email = rsbsaToSyntheticEmail(rsbsaNo);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+
+    // MAO Admin / FA President accounts also live in auth.users, but this
+    // app is farmer-only (paper scope) — reject them here with a clear
+    // message instead of letting getMyFarmerProfile fail on the missing
+    // farmers row with a generic "no rows" error.
+    const { data: account, error: roleErr } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+    if (roleErr || account?.role !== "farmer") {
+      await supabase.auth.signOut();
+      throw new Error("Please use the web system.");
+    }
+
     const profile = await getMyFarmerProfile(data.user.id);
     setFarmer(profile);
     return profile;

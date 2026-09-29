@@ -6,8 +6,10 @@ import Button from "../components/ui/Button";
 import Toast from "../components/ui/Toast";
 import { colors, spacing } from "../theme";
 import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../context/AuthContext";
 
 export default function ChangePasswordScreen({ navigation }) {
+  const { refreshFarmer } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -43,6 +45,13 @@ export default function ChangePasswordScreen({ navigation }) {
 
       const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
       if (updateErr) throw updateErr;
+
+      // Clears the "using the default password" banner on Home. Non-fatal
+      // if it fails — the password itself is already changed either way.
+      await supabase.from("profiles").update({ must_change_password: false }).eq("id", userData.user.id).then(
+        () => refreshFarmer(),
+        () => {},
+      );
 
       setCurrentPassword("");
       setNewPassword("");
