@@ -4,6 +4,7 @@ import LoginScreen from "../screens/LoginScreen";
 import CropValidationScreen from "../screens/CropValidationScreen";
 import RequestsScreen from "../screens/RequestsScreen";
 import AnnouncementsScreen from "../screens/AnnouncementsScreen";
+import MyDistributionsScreen from "../screens/MyDistributionsScreen";
 import ChangePasswordScreen from "../screens/ChangePasswordScreen";
 import MainTabs from "./MainTabs";
 import { useAuth } from "../context/AuthContext";
@@ -31,6 +32,7 @@ export default function RootNavigator() {
           <Stack.Screen name="Requests" component={RequestsScreen} options={{ presentation: "modal" }} />
           {/* No longer a bottom tab — reached from Home's bell instead. */}
           <Stack.Screen name="Announcements" component={AnnouncementsScreen} options={{ presentation: "modal" }} />
+          <Stack.Screen name="MyDistributions" component={MyDistributionsScreen} options={{ presentation: "modal" }} />
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ presentation: "modal" }} />
         </>
       ) : (

@@ -6,9 +6,17 @@ import Pill from "../components/Pill";
 import ReminderBanner from "../components/ReminderBanner";
 import { colors, radius, shadows } from "../theme";
 import { useAuth } from "../context/AuthContext";
-import { listDistributions } from "../lib/api/distributions";
+import { listMyDistributions } from "../lib/api/distributions";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
 import dashboardBanner from "../assets/dashboard-banner.png";
+
+// Completed -> "Received" (they got it); Ongoing/Scheduled -> "Upcoming"
+// (it's coming or in progress); anything else (Cancelled) keeps its own label.
+function recentBadge(status) {
+  if (status === "Completed") return "Received";
+  if (status === "Ongoing" || status === "Scheduled") return "Upcoming";
+  return status;
+}
 
 export default function HomeScreen({ navigation }) {
   const { farmer } = useAuth();
@@ -16,7 +24,7 @@ export default function HomeScreen({ navigation }) {
   const [distributions, setDistributions] = useState([]);
 
   useEffect(() => {
-    listDistributions().then(setDistributions).catch(() => {});
+    listMyDistributions().then(setDistributions).catch(() => {});
   }, []);
 
   const recent = distributions.slice(0, 3);
@@ -55,24 +63,38 @@ export default function HomeScreen({ navigation }) {
           <InfoRow label="Primary Commodity" value={farmer?.primaryCommodity} last />
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Recent Distributions</Text>
-
-        <View style={styles.card}>
-          {recent.map((d, i) => (
-            <View key={d.id} style={[styles.distRow, i === recent.length - 1 && { borderBottomWidth: 0 }]}>
-              <View style={styles.distIcon}>
-                <Leaf size={16} color={colors.primaryDark} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.distTitle}>{d.program}</Text>
-                <Text style={styles.distSub}>
-                  {d.date} · {d.venue} · {d.item} · {d.quantity.toLocaleString()} {d.unit}
-                </Text>
-              </View>
-              <Pill status={d.status} />
-            </View>
-          ))}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionTitle, { marginBottom: 0, marginTop: 0 }]}>Recent Distributions</Text>
+          {distributions.length > 0 && (
+            <TouchableOpacity onPress={() => navigation.navigate("MyDistributions")} style={styles.viewAllRow}>
+              <Text style={styles.viewProfile}>View All</Text>
+              <ChevronRight size={13} color={colors.primaryDark} />
+            </TouchableOpacity>
+          )}
         </View>
+
+        {recent.length === 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.emptyText}>You haven't been tagged in a distribution yet.</Text>
+          </View>
+        ) : (
+          <View style={styles.card}>
+            {recent.map((d, i) => (
+              <View key={d.claimId} style={[styles.distRow, i === recent.length - 1 && { borderBottomWidth: 0 }]}>
+                <View style={styles.distIcon}>
+                  <Leaf size={16} color={colors.primaryDark} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.distTitle}>{d.program}</Text>
+                  <Text style={styles.distSub}>
+                    {d.date} · {d.venue} · {d.item} · {d.quantity.toLocaleString()} {d.unit}
+                  </Text>
+                </View>
+                <Pill status={recentBadge(d.status)} />
+              </View>
+            ))}
+          </View>
+        )}
 
         <ReminderBanner text="Please make sure all distribution records are accurate and secured with your signature." />
       </ScrollView>
@@ -98,6 +120,9 @@ const styles = StyleSheet.create({
   welcome: { fontSize: 19, fontWeight: "800", color: colors.text },
   sub: { fontSize: 12.5, color: colors.textMuted, marginTop: 2, marginBottom: 14 },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 8, marginTop: 4 },
+  sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4, marginBottom: 8 },
+  viewAllRow: { flexDirection: "row", alignItems: "center", gap: 2 },
+  emptyText: { fontSize: 11.5, color: colors.textMuted, padding: 14, textAlign: "center" },
 
   requestCard: {
     flexDirection: "row",

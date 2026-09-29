@@ -75,6 +75,7 @@ export const statusColor = (status) => {
     case "Validated":
     case "Completed":
     case "Approved":
+    case "Received":
       return statusColors.success;
     case "Inactive":
     case "Not Validated":
@@ -82,6 +83,7 @@ export const statusColor = (status) => {
       return statusColors.danger;
     case "Pending":
     case "Ongoing":
+    case "Upcoming":
       return statusColors.warning;
     case "For Review":
     case "Forwarded":

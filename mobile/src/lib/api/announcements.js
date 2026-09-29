@@ -3,8 +3,11 @@ import { supabase } from "../supabaseClient";
 // RLS already limits rows to published posts aimed at this farmer (recipient
 // booleans + validation status), and the embedded announcement_reads only
 // ever contains this farmer's own receipt — so a non-empty array = read.
-const SELECT =
-  "announcement_id, title, body, image_url, is_pinned, published_at, created_at, announcement_reads ( read_at )";
+const SELECT = `
+  announcement_id, title, body, image_url, is_pinned, published_at, created_at,
+  distribution_date, distribution_time, venue, assistance_type, requirements, linked_distribution_id,
+  forwarded_at, announcement_reads ( read_at )
+`;
 
 function mapAnnouncement(row) {
   const posted = new Date(row.published_at ?? row.created_at);
@@ -17,7 +20,26 @@ function mapAnnouncement(row) {
     postedAt: posted.toISOString(),
     date: posted.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
     read: (row.announcement_reads ?? []).length > 0,
+    distributionDate: row.distribution_date,
+    distributionTime: row.distribution_time,
+    venue: row.venue,
+    assistanceType: row.assistance_type,
+    requirements: row.requirements,
+    linkedDistributionId: row.linked_distribution_id,
+    isGeneralNotice: !row.distribution_date,
+    wasForwarded: !!row.forwarded_at,
   };
+}
+
+// Used by the detail sheet to show "You are included in this distribution" —
+// RLS already scopes distribution_claims to this farmer's own rows, so a
+// non-empty result means this specific farmer, not just any farmer, is
+// tagged in the linked distribution.
+export async function isTaggedInDistribution(eventId) {
+  if (!eventId) return false;
+  const { data, error } = await supabase.from("distribution_claims").select("claim_id").eq("event_id", eventId).limit(1);
+  if (error) throw error;
+  return data.length > 0;
 }
 
 // Pinned first, then newest.

@@ -7,7 +7,7 @@ import ScreenHeader from "../components/ScreenHeader";
 import EmptyState from "../components/ui/EmptyState";
 import { colors, radius, spacing } from "../theme";
 import { useAuth } from "../context/AuthContext";
-import { getAnnouncementImageUrl, listAnnouncements, markAnnouncementRead, subscribeToAnnouncements } from "../lib/api/announcements";
+import { getAnnouncementImageUrl, isTaggedInDistribution, listAnnouncements, markAnnouncementRead, subscribeToAnnouncements } from "../lib/api/announcements";
 import { deleteNotification, listMyNotifications, markAllNotificationsRead, markNotificationRead } from "../lib/api/userNotifications";
 
 const UPDATES_TAB = "My Updates";
@@ -20,6 +20,7 @@ const UPDATE_ICONS = {
   rejected: { name: "close-circle", color: colors.red, bg: colors.redBg },
   request: { name: "file-tray-outline", color: colors.purple, bg: colors.purpleBg },
   distribution: { name: "cube-outline", color: colors.orange, bg: colors.orangeBg },
+  announcement: { name: "megaphone-outline", color: colors.blue, bg: colors.blueBg },
   system: { name: "notifications-outline", color: colors.gray, bg: colors.grayBg },
 };
 
@@ -35,6 +36,7 @@ export default function AnnouncementsScreen({ navigation }) {
   const [updates, setUpdates] = useState([]);
   const [open, setOpen] = useState(null); // announcement shown in the detail sheet
   const [openImage, setOpenImage] = useState(null);
+  const [openIncluded, setOpenIncluded] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -69,7 +71,9 @@ export default function AnnouncementsScreen({ navigation }) {
   function openAnnouncement(a) {
     setOpen(a);
     setOpenImage(null);
+    setOpenIncluded(false);
     if (a.imagePath) getAnnouncementImageUrl(a.imagePath).then(setOpenImage).catch(() => {});
+    if (a.linkedDistributionId) isTaggedInDistribution(a.linkedDistributionId).then(setOpenIncluded).catch(() => {});
     if (!a.read && farmerId) {
       setItems((prev) => prev.map((x) => (x.id === a.id ? { ...x, read: true } : x)));
       markAnnouncementRead(a.id, farmerId).catch(() => {
@@ -90,6 +94,8 @@ export default function AnnouncementsScreen({ navigation }) {
     }
     if (u.type === "validated" || u.type === "rejected") navigation.navigate("MainTabs", { screen: "Validation" });
     else if (u.type === "request") navigation.navigate("Requests");
+    else if (u.type === "distribution") navigation.navigate("MyDistributions");
+    else if (u.type === "announcement") setTab("Announcements");
   }
 
   function removeUpdate(id) {
@@ -216,7 +222,15 @@ export default function AnnouncementsScreen({ navigation }) {
                 </View>
               )}
               <Text style={styles.detailTitle}>{open.title}</Text>
-              <Text style={styles.detailDate}>Posted {open.date}</Text>
+              <Text style={styles.detailDate}>Posted {open.date}{open.wasForwarded ? " · Forwarded by your FA President" : ""}</Text>
+
+              {openIncluded && (
+                <View style={styles.includedBanner}>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.primaryDark} />
+                  <Text style={styles.includedText}>You are included in this distribution</Text>
+                </View>
+              )}
+
               {!!open.imagePath && (openImage ? (
                 <Image source={{ uri: openImage }} style={styles.detailImage} resizeMode="cover" />
               ) : (
@@ -224,11 +238,32 @@ export default function AnnouncementsScreen({ navigation }) {
                   <ActivityIndicator color={colors.primary} />
                 </View>
               ))}
-              <Text style={styles.detailBody} selectable>{open.body}</Text>
+
+              {!open.isGeneralNotice && (
+                <View style={styles.detailKvGroup}>
+                  <DetailRow label="Distribution Date" value={open.distributionDate} />
+                  <DetailRow label="Time" value={open.distributionTime} />
+                  <DetailRow label="Venue" value={open.venue} />
+                  <DetailRow label="Type of Assistance" value={open.assistanceType} />
+                  <DetailRow label="Requirements Needed" value={open.requirements} last />
+                </View>
+              )}
+
+              {!!open.body && <Text style={styles.detailBody} selectable>{open.body}</Text>}
             </ScrollView>
           </View>
         )}
       </Modal>
+    </View>
+  );
+}
+
+function DetailRow({ label, value, last }) {
+  if (!value) return null;
+  return (
+    <View style={[styles.detailRow, last && { borderBottomWidth: 0 }]}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
 }
@@ -283,5 +318,22 @@ const styles = StyleSheet.create({
   detailDate: { fontSize: 12, color: colors.textMuted, marginTop: 6, marginBottom: 14 },
   detailImage: { width: "100%", height: 200, borderRadius: radius.md, marginBottom: 14 },
   imagePlaceholder: { backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" },
-  detailBody: { fontSize: 14.5, color: colors.text, lineHeight: 22 },
+  detailBody: { fontSize: 14.5, color: colors.text, lineHeight: 22, marginTop: 14 },
+
+  includedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 12,
+  },
+  includedText: { fontSize: 12.5, fontWeight: "700", color: colors.primaryDark, flex: 1 },
+
+  detailKvGroup: { marginTop: 16 },
+  detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
+  detailLabel: { fontSize: 11.5, color: colors.textMuted },
+  detailValue: { fontSize: 12.5, color: colors.text, fontWeight: "600", flexShrink: 1, textAlign: "right" },
 });
