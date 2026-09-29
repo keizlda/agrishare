@@ -1,105 +1,35 @@
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenHeader from "../components/ScreenHeader";
+import Avatar from "../components/Avatar";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
-import { aboutContent, faqContent, helpCenterContent, privacyContent, termsContent } from "../data/infoContent";
+import { useTabBarHeight } from "../hooks/useTabBarHeight";
 
-const SUPPORT_EMAIL = "support@labangan.gov.ph";
-
-const ACCOUNT_ITEMS = [
-  { icon: "person-outline", label: "My Information" },
-  { icon: "key-outline", label: "Change Password" },
-  { icon: "notifications-outline", label: "Notification Settings" },
-  { icon: "phone-portrait-outline", label: "Linked Devices" },
-  { icon: "globe-outline", label: "Language" },
-];
-const SUPPORT_ITEMS = [
-  { icon: "help-circle-outline", label: "Help Center" },
-  { icon: "call-outline", label: "Contact Support" },
-  { icon: "document-text-outline", label: "FAQs" },
-  { icon: "warning-outline", label: "Report an Issue" },
-];
-const OTHER_ITEMS = [
-  { icon: "reader-outline", label: "Terms and Conditions" },
-  { icon: "shield-checkmark-outline", label: "Privacy Policy" },
-  { icon: "information-circle-outline", label: "About AGRISHARE" },
-];
+const ACCOUNT_ITEMS = [{ icon: "key-outline", label: "Change Password" }];
 
 export default function MoreScreen({ navigation }) {
-  const { farmer, logout, logoutEverywhere } = useAuth();
-
-  function openInfo(content) {
-    navigation.navigate("Info", content);
-  }
-
-  function contactSupport() {
-    Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("AgriShare Support Request")}`);
-  }
-
-  function reportIssue() {
-    const body = `Farmer: ${farmer?.firstName ?? ""} ${farmer?.lastName ?? ""}\nRSBSA No.: ${farmer?.rsbsaNo ?? ""}\n\nDescribe the issue:\n`;
-    Linking.openURL(
-      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("AgriShare Issue Report")}&body=${encodeURIComponent(body)}`,
-    );
-  }
-
-  function signOutEverywhere() {
-    Alert.alert("Log out of all devices?", "This will sign you out of AgriShare everywhere you're currently logged in, including this device.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log Out Everywhere", style: "destructive", onPress: logoutEverywhere },
-    ]);
-  }
+  const { farmer, logout } = useAuth();
+  const tabBarHeight = useTabBarHeight();
 
   const HANDLERS = {
-    "My Information": () => navigation.navigate("Profile"),
     "Change Password": () => navigation.navigate("ChangePassword"),
-    "Notification Settings": () => navigation.navigate("NotificationSettings"),
-    "Linked Devices": signOutEverywhere,
-    Language: () => navigation.navigate("Language"),
-    "Help Center": () => openInfo(helpCenterContent),
-    "Contact Support": contactSupport,
-    FAQs: () => openInfo(faqContent),
-    "Report an Issue": reportIssue,
-    "Terms and Conditions": () => openInfo(termsContent),
-    "Privacy Policy": () => openInfo(privacyContent),
-    "About AGRISHARE": () => openInfo(aboutContent),
   };
 
   return (
     <View style={styles.screen}>
       <ScreenHeader title="More" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight }]}>
         <TouchableOpacity style={styles.profileRow} onPress={() => navigation.navigate("Profile")}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={20} color={colors.primaryDark} />
-          </View>
+          <Avatar uri={farmer?.avatarUrl} size={40} key={farmer?.avatarUrl} />
           <View style={{ flex: 1 }}>
             <Text style={styles.profileName}>{farmer?.firstName} {farmer?.lastName}</Text>
             <Text style={styles.profileSub}>Farmer · {farmer?.farmerId}</Text>
           </View>
-          <View style={styles.viewProfileRow}>
-            <Text style={styles.viewProfile}>View Profile</Text>
-            <Ionicons name="chevron-forward" size={13} color={colors.primaryDark} />
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.validationCard, { backgroundColor: colors.blueBg }]} onPress={() => navigation.navigate("Requests")}>
-          <View style={[styles.validationIcon, { backgroundColor: colors.blue }]}>
-            <Ionicons name="mail" size={20} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.validationTitle, { color: colors.blue }]}>Commodity Requests</Text>
-            <Text style={[styles.validationSub, { color: colors.blue }]}>Request additional commodities from your FA President</Text>
-          </View>
-          <View style={[styles.validationBtn, { backgroundColor: colors.blue }]}>
-            <Text style={styles.validationBtnText}>View</Text>
-          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.primaryDark} />
         </TouchableOpacity>
 
         <Section title="Account" items={ACCOUNT_ITEMS.map((item) => ({ ...item, onPress: HANDLERS[item.label] }))} />
-        <Section title="Support" items={SUPPORT_ITEMS.map((item) => ({ ...item, onPress: HANDLERS[item.label] }))} />
-        <Section title="Other" items={OTHER_ITEMS.map((item) => ({ ...item, onPress: HANDLERS[item.label] }))} />
 
         <TouchableOpacity style={styles.logoutRow} onPress={logout}>
           <Ionicons name="log-out-outline" size={16} color={colors.red} />
@@ -145,42 +75,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     padding: 12,
-    marginBottom: 14,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 20,
   },
   profileName: { fontSize: 13.5, fontWeight: "700", color: colors.text },
   profileSub: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  viewProfileRow: { flexDirection: "row", alignItems: "center" },
-  viewProfile: { fontSize: 11, color: colors.primaryDark, fontWeight: "600" },
-
-  validationCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.md,
-    padding: 14,
-    marginBottom: 20,
-  },
-  validationIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  validationTitle: { fontSize: 13.5, fontWeight: "700", color: colors.primaryDarker },
-  validationSub: { fontSize: 10.5, color: colors.primaryDark, marginTop: 2 },
-  validationBtn: { backgroundColor: colors.primary, borderRadius: radius.sm, paddingVertical: 7, paddingHorizontal: 10 },
-  validationBtnText: { color: "#fff", fontSize: 10.5, fontWeight: "700" },
 
   section: { marginBottom: 16 },
   sectionTitle: { fontSize: 12, fontWeight: "700", color: colors.textMuted, marginBottom: 6, textTransform: "uppercase" },

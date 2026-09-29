@@ -8,12 +8,14 @@ import Pill from "../components/Pill";
 import EmptyState from "../components/ui/EmptyState";
 import { colors, radius, shadows, spacing } from "../theme";
 import { getSignedPhotoUrl, listMyCropValidations } from "../lib/api/cropValidation";
+import { useTabBarHeight } from "../hooks/useTabBarHeight";
 
 // Tab-root hub: history of past submissions + a launcher into the existing
 // CropValidationScreen submission form (still a separate modal route, now
 // reached from here instead of from More). Mirrors RequestsScreen's
 // New-button-then-list layout, which already does this exact pattern well.
 export default function ValidationScreen({ navigation }) {
+  const tabBarHeight = useTabBarHeight();
   const [items, setItems] = useState([]);
   const [thumbs, setThumbs] = useState({});
   const [viewerUri, setViewerUri] = useState(null);
@@ -48,7 +50,7 @@ export default function ValidationScreen({ navigation }) {
       <FlatList
         data={items}
         keyExtractor={(i) => String(i.id)}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight }]}
         ListHeaderComponent={
           <>
             <TouchableOpacity style={styles.newBtn} onPress={() => navigation.navigate("CropValidation")}>

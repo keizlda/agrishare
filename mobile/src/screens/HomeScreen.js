@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { ChevronRight, Leaf } from "lucide-react-native";
+import { ChevronRight, Leaf, Package } from "lucide-react-native";
 import ScreenHeader from "../components/ScreenHeader";
-import StatTile from "../components/StatTile";
 import Pill from "../components/Pill";
 import ReminderBanner from "../components/ReminderBanner";
 import { colors, radius, shadows } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listDistributions } from "../lib/api/distributions";
+import { useTabBarHeight } from "../hooks/useTabBarHeight";
 import dashboardBanner from "../assets/dashboard-banner.png";
 
 export default function HomeScreen({ navigation }) {
   const { farmer } = useAuth();
+  const tabBarHeight = useTabBarHeight();
   const [distributions, setDistributions] = useState([]);
 
   useEffect(() => {
@@ -19,19 +20,24 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const recent = distributions.slice(0, 3);
-  const homeOverview = {
-    totalDistributions: distributions.length,
-    totalQuantityReceived: distributions.reduce((sum, d) => sum + d.quantity, 0),
-    activePrograms: distributions.filter((d) => d.status === "Ongoing").length,
-    upcomingSchedules: distributions.filter((d) => d.status === "Scheduled").length,
-  };
 
   return (
     <ImageBackground source={dashboardBanner} resizeMode="cover" style={styles.screen}>
       <ScreenHeader showLogo onBellPress={() => navigation.navigate("Announcements")} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight }]}>
         <Text style={styles.welcome}>Welcome Back, {farmer?.firstName}!</Text>
         <Text style={styles.sub}>Here's your farm overview.</Text>
+
+        <TouchableOpacity style={styles.requestCard} onPress={() => navigation.navigate("Requests")}>
+          <View style={styles.requestIcon}>
+            <Package size={20} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.requestTitle}>Request Commodity</Text>
+            <Text style={styles.requestSub}>Submit a request for seeds, fertilizer, or tools</Text>
+          </View>
+          <ChevronRight size={16} color={colors.primaryDark} />
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.infoCard} onPress={() => navigation.navigate("Profile")}>
           <View style={styles.infoHeader}>
@@ -49,20 +55,7 @@ export default function HomeScreen({ navigation }) {
           <InfoRow label="Primary Commodity" value={farmer?.primaryCommodity} last />
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Overview</Text>
-        <View style={styles.tileRow}>
-          <StatTile icon="cube-outline" label="Total Distributions" value={homeOverview.totalDistributions} color="green" />
-          <StatTile icon="people-outline" label="Total Quantity Received" value={`${homeOverview.totalQuantityReceived.toLocaleString()} kg`} color="blue" />
-          <StatTile icon="clipboard-outline" label="Active Programs" value={homeOverview.activePrograms} color="orange" />
-          <StatTile icon="calendar-outline" label="Upcoming Schedules" value={homeOverview.upcomingSchedules} color="purple" />
-        </View>
-
-        <View style={styles.rowBetween}>
-          <Text style={styles.sectionTitle}>Recent Distributions</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Distributions")}>
-            <Text style={styles.viewAll}>View All</Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.sectionTitle}>Recent Distributions</Text>
 
         <View style={styles.card}>
           {recent.map((d, i) => (
@@ -81,7 +74,7 @@ export default function HomeScreen({ navigation }) {
           ))}
         </View>
 
-        <ReminderBanner text="Please make sure all distribution records are accurate and secured with your signature." actionLabel="Learn More" />
+        <ReminderBanner text="Please make sure all distribution records are accurate and secured with your signature." />
       </ScrollView>
     </ImageBackground>
   );
@@ -105,8 +98,26 @@ const styles = StyleSheet.create({
   welcome: { fontSize: 19, fontWeight: "800", color: colors.text },
   sub: { fontSize: 12.5, color: colors.textMuted, marginTop: 2, marginBottom: 14 },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 8, marginTop: 4 },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  viewAll: { fontSize: 12, color: colors.primaryDark, fontWeight: "600" },
+
+  requestCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    padding: 14,
+    marginBottom: 18,
+  },
+  requestIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  requestTitle: { fontSize: 13.5, fontWeight: "700", color: colors.primaryDarker },
+  requestSub: { fontSize: 10.5, color: colors.primaryDark, marginTop: 2 },
 
   infoCard: {
     backgroundColor: colors.card,
@@ -131,8 +142,6 @@ const styles = StyleSheet.create({
   },
   infoLabel: { fontSize: 11.5, color: colors.textMuted },
   infoValue: { fontSize: 12.5, color: colors.text, fontWeight: "600" },
-
-  tileRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
 
   card: {
     backgroundColor: colors.card,

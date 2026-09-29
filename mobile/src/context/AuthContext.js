@@ -66,8 +66,15 @@ export function AuthProvider({ children }) {
     setFarmer(null);
   }
 
+  // Lets the profile screen push a fresh avatar URL into shared state right
+  // after an upload/remove, so Home/More/Profile all reflect it without a
+  // full re-fetch of the farmer profile.
+  function updateAvatarUrl(url) {
+    setFarmer((prev) => (prev ? { ...prev, avatarUrl: url } : prev));
+  }
+
   return (
-    <AuthContext.Provider value={{ farmer, isAuthenticated: !!farmer, initializing, login, logout, logoutEverywhere }}>
+    <AuthContext.Provider value={{ farmer, isAuthenticated: !!farmer, initializing, login, logout, logoutEverywhere, updateAvatarUrl }}>
       {children}
     </AuthContext.Provider>
   );

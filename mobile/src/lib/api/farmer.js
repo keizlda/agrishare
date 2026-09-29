@@ -4,7 +4,8 @@ import { dbStatusToLabel } from "../status";
 const SELECT = `
   farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status, validation_status,
   addresses ( barangay ),
-  farm_parcels ( farm_size_hectares, crops ( crop_type ) )
+  farm_parcels ( farm_size_hectares, crops ( crop_type ) ),
+  profiles!profile_id ( avatar_url )
 `;
 
 // Maps a farmers row (joined with address/parcel/crop) to the shape every
@@ -24,6 +25,7 @@ function mapFarmer(row) {
     primaryCommodity: parcel?.crops?.[0]?.crop_type ?? "—",
     status: dbStatusToLabel(row.status),
     validationStatus: dbStatusToLabel(row.validation_status),
+    avatarUrl: row.profiles?.avatar_url ?? null,
   };
 }
 

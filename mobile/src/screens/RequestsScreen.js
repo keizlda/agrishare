@@ -8,8 +8,8 @@ import { useAuth } from "../context/AuthContext";
 import { listCommodities } from "../lib/api/commodities";
 import { createRequest, listMyRequests } from "../lib/api/requests";
 
-// A route param (route.params.presetCommodity) lets other screens (e.g.
-// Commodities) deep-link straight into the form with a commodity pre-picked.
+// A route param (route.params.presetCommodity) lets other screens deep-link
+// straight into the form with a commodity pre-picked.
 export default function RequestsScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { farmer } = useAuth();
