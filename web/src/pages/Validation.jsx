@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Image as ImageIcon,
   Search,
+  User as UserIcon,
   X,
   XCircle,
 } from "lucide-react";
@@ -245,15 +246,7 @@ export default function Validation() {
 }
 
 function SubmissionRow({ submission, active, unread, flagged, onClick }) {
-  const [thumb, setThumb] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getSignedPhotoUrl(submission.photoPath)
-      .then((url) => { if (!cancelled) setThumb(url); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [submission.photoPath]);
+  const avatarUrl = submission.farmer?.avatarUrl;
 
   return (
     <button
@@ -263,7 +256,7 @@ function SubmissionRow({ submission, active, unread, flagged, onClick }) {
     >
       {unread && <span className="agri-submission-dot" />}
       <div className="agri-submission-thumb">
-        {thumb ? <img src={thumb} alt="" /> : <ImageIcon size={16} color="#b7c2ba" />}
+        {avatarUrl ? <img src={avatarUrl} alt="" /> : <UserIcon size={16} color="#b7c2ba" />}
         {flagged && <span className="agri-amber-marker" title="Inactive farmer with a validated submission — due for revalidation" />}
       </div>
       <div className="agri-submission-body">

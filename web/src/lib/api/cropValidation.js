@@ -6,7 +6,8 @@ const SELECT = `
   farmers (
     farmer_id, rsbsa_no, surname, first_name, sex, birth_date, contact_no, status, deleted_at,
     addresses ( street, barangay, municipality, province ),
-    farm_parcels ( farm_location, farm_size_hectares, ownership_type, crops ( crop_type ) )
+    farm_parcels ( farm_location, farm_size_hectares, ownership_type, crops ( crop_type ) ),
+    profiles!profile_id ( avatar_url )
   ),
   reviewer:profiles!reviewed_by ( full_name )
 `;
@@ -46,6 +47,7 @@ function mapSubmission(row) {
           farmSize: parcel?.farm_size_hectares != null ? Number(parcel.farm_size_hectares) : null,
           farmLocation: parcel?.farm_location ?? "",
           status: farmer.status === "active" ? "Active" : "Inactive",
+          avatarUrl: farmer.profiles?.avatar_url ?? null,
         }
       : null,
   };
