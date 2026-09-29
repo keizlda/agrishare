@@ -4,7 +4,7 @@ import PrintLayout, { KV } from "../components/print/PrintLayout.jsx";
 import { useAutoPrint } from "../hooks/useAutoPrint.js";
 import { computeCommodityStats, distributionTotalQty } from "../data/mockData.js";
 import { listFarmers } from "../lib/api/farmers.js";
-import { listDistributions } from "../lib/api/distributions.js";
+import { listBeneficiaryReport, listDistributions } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 
 export default function PrintReport() {
@@ -23,8 +23,8 @@ export default function PrintReport() {
     // per commodity, so a since-deleted commodity must still get its row —
     // AccomplishmentReport's "types available" count filters back down to
     // active ones itself.
-    Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true })])
-      .then(([farmers, distributions, commodities]) => setData({ farmers, distributions, commodities }))
+    Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true }), listBeneficiaryReport()])
+      .then(([farmers, distributions, commodities, beneficiaryClaims]) => setData({ farmers, distributions, commodities, beneficiaryClaims }))
       .catch((err) => setError(err.message));
   }, []);
 
@@ -44,18 +44,32 @@ export default function PrintReport() {
 
   return (
     <PrintLayout title={reportType} subtitle={subtitleParts.join(" · ") || undefined}>
-      {reportType === "Beneficiary List" && <BeneficiaryList farmers={data.farmers} barangay={barangay} commodity={commodity} />}
+      {reportType === "Beneficiary List" && (
+        <BeneficiaryList claims={data.beneficiaryClaims} barangay={barangay} commodity={commodity} dateFrom={dateFrom} dateTo={dateTo} />
+      )}
       {reportType === "Distribution Summary" && <DistributionSummary distributions={data.distributions} barangay={barangay} />}
       {reportType === "Liquidation Report" && <LiquidationReport commodities={data.commodities} distributions={data.distributions} />}
       {reportType === "Accomplishment Report" && <AccomplishmentReport {...data} />}
+      {reportType === "Attendance Sheet" && (
+        <AttendanceSheet claims={data.beneficiaryClaims} barangay={barangay} commodity={commodity} dateFrom={dateFrom} dateTo={dateTo} />
+      )}
     </PrintLayout>
   );
 }
 
-function BeneficiaryList({ farmers, barangay, commodity }) {
-  const rows = farmers
-    .filter((f) => barangay === "All Barangays" || f.barangay === barangay)
-    .filter((f) => commodity === "All Commodities" || f.commodity === commodity);
+function filterClaims(claims, { barangay, commodity, dateFrom, dateTo }) {
+  return claims
+    .filter((c) => barangay === "All Barangays" || c.barangay === barangay)
+    .filter((c) => commodity === "All Commodities" || c.commodity === commodity)
+    .filter((c) => !dateFrom || (c.eventDate ?? "") >= dateFrom)
+    .filter((c) => !dateTo || (c.eventDate ?? "") <= dateTo);
+}
+
+// Built from tagged distribution_claims rows (Phase 2), not the farmers
+// table — a farmer only appears once per distribution they were actually
+// tagged in, with the real quantity/acknowledgement they were given.
+function BeneficiaryList({ claims, barangay, commodity, dateFrom, dateTo }) {
+  const rows = filterClaims(claims, { barangay, commodity, dateFrom, dateTo });
 
   return (
     <div className="pr-section">
@@ -66,22 +80,26 @@ function BeneficiaryList({ farmers, barangay, commodity }) {
             <th>Full Name</th>
             <th>Barangay</th>
             <th>Commodity</th>
-            <th>Status</th>
+            <th>Date</th>
+            <th className="pr-num pr-col-pad-left">Qty</th>
+            <th className="pr-col-pad-left">Acknowledgement</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((f) => (
-            <tr key={f.id}>
-              <td>{f.rsbsaNo}</td>
-              <td>{f.firstName} {f.lastName}</td>
-              <td>{f.barangay}</td>
-              <td>{f.commodity}</td>
-              <td>{f.status}</td>
+          {rows.map((c) => (
+            <tr key={c.claimId}>
+              <td>{c.rsbsaNo}</td>
+              <td>{c.firstName} {c.lastName}</td>
+              <td>{c.barangay}</td>
+              <td>{c.commodity}</td>
+              <td>{c.eventDate}</td>
+              <td className="pr-num pr-col-pad-left">{c.quantity.toLocaleString()}</td>
+              <td className="pr-col-pad-left">{c.acknowledgementStatus}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      {rows.length === 0 && <div className="pr-empty" style={{ marginTop: 12 }}>No matching farmers.</div>}
+      {rows.length === 0 && <div className="pr-empty" style={{ marginTop: 12 }}>No tagged beneficiaries match these filters.</div>}
     </div>
   );
 }
@@ -110,7 +128,7 @@ function DistributionSummary({ distributions, barangay }) {
               <td>{d.date}</td>
               <td>{d.program}</td>
               <td>{d.barangay}</td>
-              <td className="pr-num">{d.beneficiaries}</td>
+              <td className="pr-num">{d.taggedBeneficiaryCount > 0 ? d.taggedBeneficiaryCount : `${d.beneficiaries} (not tagged)`}</td>
               <td className="pr-num pr-col-pad-left">{distributionTotalQty(d).toLocaleString()} kg</td>
               <td className="pr-col-pad-left">{d.status}</td>
             </tr>
@@ -118,6 +136,42 @@ function DistributionSummary({ distributions, barangay }) {
         </tbody>
       </table>
       {rows.length === 0 && <div className="pr-empty" style={{ marginTop: 12 }}>No matching distributions.</div>}
+    </div>
+  );
+}
+
+// No./Name/RSBSA/Commodity/Qty/blank Signature — for farmers to sign as
+// physical proof of receipt at the distribution site.
+function AttendanceSheet({ claims, barangay, commodity, dateFrom, dateTo }) {
+  const rows = filterClaims(claims, { barangay, commodity, dateFrom, dateTo });
+
+  return (
+    <div className="pr-section">
+      <table className="pr-items-table">
+        <thead>
+          <tr>
+            <th>No.</th>
+            <th>Farmer Name</th>
+            <th>RSBSA No.</th>
+            <th>Commodity</th>
+            <th className="pr-num pr-col-pad-left">Qty</th>
+            <th className="pr-col-pad-left">Signature</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((c, i) => (
+            <tr key={c.claimId}>
+              <td>{i + 1}</td>
+              <td>{c.firstName} {c.lastName}</td>
+              <td>{c.rsbsaNo}</td>
+              <td>{c.commodity}</td>
+              <td className="pr-num pr-col-pad-left">{c.quantity.toLocaleString()}</td>
+              <td className="pr-col-pad-left">&nbsp;</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <div className="pr-empty" style={{ marginTop: 12 }}>No tagged beneficiaries match these filters.</div>}
     </div>
   );
 }

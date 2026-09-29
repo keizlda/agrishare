@@ -103,6 +103,41 @@ export async function listDistributionBeneficiaries(eventId) {
   return data.map(mapBeneficiary);
 }
 
+// ---------------------------------------------------------------------------
+// Reports (Phase 4) — Beneficiary List / Distribution Summary / Attendance
+// Sheet all read from actual tagged claims rather than the farmers table or
+// the legacy headcount, so an untagged old distribution simply contributes
+// no rows here (same "not tagged" gap shown on the Distributions page).
+// ---------------------------------------------------------------------------
+const BENEFICIARY_REPORT_SELECT = `
+  claim_id, farmer_id, quantity_received, acknowledgement_status,
+  farmers ( rsbsa_no, first_name, surname, addresses ( barangay ) ),
+  commodities ( name ),
+  distribution_events ( event_id, event_date, program_name, is_deleted )
+`;
+
+function mapBeneficiaryReportRow(row) {
+  return {
+    claimId: row.claim_id,
+    farmerId: row.farmer_id,
+    firstName: row.farmers?.first_name ?? "",
+    lastName: row.farmers?.surname ?? "",
+    rsbsaNo: row.farmers?.rsbsa_no ?? "",
+    barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
+    commodity: row.commodities?.name ?? "",
+    quantity: Number(row.quantity_received),
+    acknowledgementStatus: row.acknowledgement_status === "received" ? "Received" : "Pending",
+    eventDate: row.distribution_events?.event_date,
+    program: row.distribution_events?.program_name,
+  };
+}
+
+export async function listBeneficiaryReport() {
+  const { data, error } = await supabase.from("distribution_claims").select(BENEFICIARY_REPORT_SELECT);
+  if (error) throw error;
+  return data.filter((row) => row.distribution_events && !row.distribution_events.is_deleted).map(mapBeneficiaryReportRow);
+}
+
 // Same-commodity/program/year duplicate check — one call per tagged chip.
 export async function checkDuplicateDistribution({ farmerId, commodityId, programName, year, excludeEventId }) {
   const { data, error } = await supabase.rpc("find_duplicate_distribution", {

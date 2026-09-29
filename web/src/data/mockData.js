@@ -24,7 +24,7 @@ export function computeCommodityStats(commodityList, distributionList) {
   return { totals, mostDistributedName: mostDistributed[0], mostDistributedQty: mostDistributed[1], totalQuantity };
 }
 
-export const reportTypes = ["Beneficiary List", "Distribution Summary", "Liquidation Report", "Accomplishment Report"];
+export const reportTypes = ["Beneficiary List", "Distribution Summary", "Liquidation Report", "Accomplishment Report", "Attendance Sheet"];
 
 // Buckets real distribution quantities by month for whichever year the data
 // actually falls in (the most recent event's year), instead of assuming
