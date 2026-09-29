@@ -1,6 +1,6 @@
 import { supabase } from "../supabaseClient.js";
 
-export const RECIPIENTS = ["Validated Farmers", "Farmers' Association President"];
+export const RECIPIENTS = ["All Registered Farmers", "Farmers' Association President"];
 
 export const MAX_TITLE = 150;
 export const MAX_BODY = 2000;
@@ -11,25 +11,35 @@ const BUCKET = "announcement-images";
 // announcement_reads(count) embeds the number of farmers who've opened it
 // (admin can read every receipt; see the RLS policy).
 const SELECT = `
-  announcement_id, title, body, for_validated_farmers, for_fa_president, image_url, is_pinned, status,
-  published_at, created_by, created_at, updated_at,
+  announcement_id, title, body, for_all_registered_farmers, for_fa_president, image_url, is_pinned, status,
+  distribution_date, distribution_time, venue, assistance_type, requirements, linked_distribution_id,
+  forwarded_by, forwarded_at, published_at, created_by, created_at, updated_at,
   announcement_reads ( count )
 `;
 
 function mapAnnouncement(row) {
   const recipients = [];
-  if (row.for_validated_farmers) recipients.push("Validated Farmers");
+  if (row.for_all_registered_farmers) recipients.push("All Registered Farmers");
   if (row.for_fa_president) recipients.push("Farmers' Association President");
   return {
     id: row.announcement_id,
     title: row.title,
     body: row.body,
     recipients,
-    forValidatedFarmers: row.for_validated_farmers,
+    forAllRegisteredFarmers: row.for_all_registered_farmers,
     forFaPresident: row.for_fa_president,
     imagePath: row.image_url,
     isPinned: row.is_pinned,
     status: row.status === "published" ? "Published" : "Draft",
+    distributionDate: row.distribution_date,
+    distributionTime: row.distribution_time,
+    venue: row.venue,
+    assistanceType: row.assistance_type,
+    requirements: row.requirements,
+    linkedDistributionId: row.linked_distribution_id,
+    isGeneralNotice: !row.distribution_date,
+    forwardedBy: row.forwarded_by,
+    forwardedAt: row.forwarded_at,
     publishedAt: row.published_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -45,6 +55,17 @@ export async function listAnnouncements() {
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data.map(mapAnnouncement);
+}
+
+// Forwarding doesn't return the row (RPC is void) — refetch the one
+// announcement so the caller gets a normal mapped object back to patch
+// into its list, same shape as create/update/patch.
+export async function forwardAnnouncementToFarmers(id) {
+  const { error } = await supabase.rpc("forward_announcement_to_farmers", { p_announcement_id: id });
+  if (error) throw error;
+  const { data, error: fetchErr } = await supabase.from("announcements").select(SELECT).eq("announcement_id", id).single();
+  if (fetchErr) throw fetchErr;
+  return mapAnnouncement(data);
 }
 
 export function validateImageFile(file) {
@@ -76,14 +97,36 @@ export async function getAnnouncementImageUrl(path, expiresInSeconds = 3600) {
 // trigger the moment a post becomes Published, never sent from here.
 // `recipients` is a subset of RECIPIENTS — the DB check constraint requires
 // at least one, which the form also enforces before ever calling this.
-function toDbFields({ title, body, recipients, isPinned, status }) {
+// General-notice posts (isGeneralNotice) carry no distribution fields;
+// distribution posts carry them and may leave body blank (see the
+// Phase 3 migration's relaxed body check).
+function toDbFields({
+  title,
+  body,
+  recipients,
+  isPinned,
+  status,
+  isGeneralNotice,
+  distributionDate,
+  distributionTime,
+  venue,
+  assistanceType,
+  requirements,
+  linkedDistributionId,
+}) {
   return {
     title: title.trim(),
     body: body.trim(),
-    for_validated_farmers: recipients.includes("Validated Farmers"),
+    for_all_registered_farmers: recipients.includes("All Registered Farmers"),
     for_fa_president: recipients.includes("Farmers' Association President"),
     is_pinned: !!isPinned,
     status: status === "Published" ? "published" : "draft",
+    distribution_date: isGeneralNotice ? null : distributionDate || null,
+    distribution_time: isGeneralNotice ? null : distributionTime || null,
+    venue: isGeneralNotice ? null : venue || null,
+    assistance_type: isGeneralNotice ? null : assistanceType || null,
+    requirements: isGeneralNotice ? null : requirements || null,
+    linked_distribution_id: isGeneralNotice ? null : linkedDistributionId || null,
   };
 }
 

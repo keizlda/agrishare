@@ -7,10 +7,12 @@ import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import {
   deleteAnnouncement,
+  forwardAnnouncementToFarmers,
   listAnnouncements,
   setAnnouncementPinned,
   setAnnouncementStatus,
@@ -23,6 +25,8 @@ function formatDate(iso) {
 }
 
 export default function Announcements() {
+  const { user } = useAuth();
+  const isMAO = user?.role !== "FA President";
   const { data: announcements, setData: setAnnouncements, loading, error: loadError } = useSupabaseList(listAnnouncements);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -77,6 +81,7 @@ export default function Announcements() {
 
   const togglePin = (a) => run(a, () => setAnnouncementPinned(a.id, !a.isPinned), a.isPinned ? "Announcement unpinned." : "Announcement pinned.");
   const publish = (a) => run(a, () => setAnnouncementStatus(a.id, "Published"), "Announcement published.");
+  const forward = (a) => run(a, () => forwardAnnouncementToFarmers(a.id), "Announcement forwarded to all farmers.");
 
   async function confirmDelete() {
     const a = pendingDelete;
@@ -101,9 +106,11 @@ export default function Announcements() {
         )}
 
         <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center", flexWrap: "wrap" }}>
-          <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setModal({})}>
-            <Plus size={16} /> New Announcement
-          </button>
+          {isMAO && (
+            <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setModal({})}>
+              <Plus size={16} /> New Announcement
+            </button>
+          )}
           <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
             <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "#8b978f" }} />
             <input className="form-control" placeholder="Search announcements" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -118,7 +125,7 @@ export default function Announcements() {
         <div className="agri-table-wrap">
           <table className="agri-table">
             <thead>
-              <tr><th>Announcement</th><th>Recipients</th><th>Status</th><th>Published</th><th></th></tr>
+              <tr><th>Announcement</th><th>Date / Venue</th><th>Recipients</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
               {pageItems.map((a) => (
@@ -129,19 +136,31 @@ export default function Announcements() {
                       <span className="agri-cell-truncate" style={{ maxWidth: 250 }} title={a.title}>{a.title}</span>
                     </div>
                     <div className="agri-muted agri-cell-truncate" style={{ fontSize: "0.75rem", maxWidth: 260 }} title={a.body}>{a.body}</div>
+                    {a.forwardedAt && (
+                      <div className="agri-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
+                        Forwarded by FA President on {formatDate(a.forwardedAt)}
+                      </div>
+                    )}
                   </td>
+                  <td>{a.isGeneralNotice ? <span className="agri-muted">General notice</span> : `${formatDate(a.distributionDate)} — ${a.venue}`}</td>
                   <td>{a.recipients.join(", ")}</td>
                   <td><Pill status={a.status} /></td>
-                  <td>{a.status === "Published" ? formatDate(a.publishedAt) : "—"}</td>
                   <td>
                     <RowActionsMenu
                       label={`Actions for ${a.title}`}
-                      actions={[
-                        { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ announcement: a }) },
-                        { key: "pin", label: a.isPinned ? "Unpin" : "Pin to top", icon: a.isPinned ? PinOff : Pin, onClick: () => togglePin(a) },
-                        a.status === "Draft" && { key: "publish", label: "Publish", icon: Send, onClick: () => publish(a) },
-                        { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(a) },
-                      ]}
+                      actions={
+                        isMAO
+                          ? [
+                              { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ announcement: a }) },
+                              { key: "pin", label: a.isPinned ? "Unpin" : "Pin to top", icon: a.isPinned ? PinOff : Pin, onClick: () => togglePin(a) },
+                              a.status === "Draft" && { key: "publish", label: "Publish", icon: Send, onClick: () => publish(a) },
+                              { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(a) },
+                            ]
+                          : [
+                              a.forFaPresident &&
+                                !a.forAllRegisteredFarmers && { key: "forward", label: "Forward to farmers", icon: Send, onClick: () => forward(a) },
+                            ]
+                      }
                     />
                   </td>
                 </tr>
