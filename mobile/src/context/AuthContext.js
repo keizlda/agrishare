@@ -67,14 +67,25 @@ export function AuthProvider({ children }) {
   }
 
   // Lets the profile screen push a fresh avatar URL into shared state right
-  // after an upload/remove, so Home/More/Profile all reflect it without a
-  // full re-fetch of the farmer profile.
+  // after an upload/remove, so Home/Profile both reflect it without a full
+  // re-fetch of the farmer profile.
   function updateAvatarUrl(url) {
     setFarmer((prev) => (prev ? { ...prev, avatarUrl: url } : prev));
   }
 
+  // Pull-to-refresh on the Profile tab — re-reads the farmer row (plus its
+  // address/parcel/crop/avatar joins) in case anything changed server-side.
+  async function refreshFarmer() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const profile = await getMyFarmerProfile(session.user.id);
+    setFarmer(profile);
+  }
+
   return (
-    <AuthContext.Provider value={{ farmer, isAuthenticated: !!farmer, initializing, login, logout, logoutEverywhere, updateAvatarUrl }}>
+    <AuthContext.Provider
+      value={{ farmer, isAuthenticated: !!farmer, initializing, login, logout, logoutEverywhere, updateAvatarUrl, refreshFarmer }}
+    >
       {children}
     </AuthContext.Provider>
   );

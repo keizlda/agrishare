@@ -1,9 +1,9 @@
 import { StyleSheet, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Home, MoreHorizontal, ShieldCheck } from "lucide-react-native";
+import { Home, ShieldCheck, User } from "lucide-react-native";
 import HomeScreen from "../screens/HomeScreen";
 import ValidationScreen from "../screens/ValidationScreen";
-import MoreScreen from "../screens/MoreScreen";
+import ProfileScreen from "../screens/ProfileScreen";
 import { colors, radii } from "../theme";
 import { MIN_BOTTOM_INSET, TAB_BAR_BASE_HEIGHT } from "../hooks/useTabBarHeight";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,11 +14,13 @@ const Tab = createBottomTabNavigator();
 // bell on Home, so a whole dedicated tab was redundant. Crop Validation
 // takes that slot instead, promoted from a card buried in More.
 // Distributions and Commodities were removed entirely (mobile no longer
-// exposes those pages — web still owns that data).
+// exposes those pages — web still owns that data). "More" was later
+// renamed to "Profile" and now renders the merged My Profile + settings
+// screen directly, rather than a menu that links out to a separate one.
 const ICONS = {
   Home: Home,
   Validation: ShieldCheck,
-  More: MoreHorizontal,
+  Profile: User,
 };
 
 // Active tab renders in primary green inside the same light-green tint pill
@@ -54,7 +56,7 @@ export default function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Validation" component={ValidationScreen} />
-      <Tab.Screen name="More" component={MoreScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
