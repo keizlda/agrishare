@@ -14,6 +14,9 @@ export const STATUS_COLOR = {
   Cancelled: "red",
   Pending: "orange",
   Ongoing: "orange",
+  Partial: "orange",
+  Received: "green",
+  Complete: "green",
   "For Review": "purple",
   Forwarded: "purple",
 };

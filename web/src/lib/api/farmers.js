@@ -193,6 +193,35 @@ export async function setFarmerStatus(farmerId, statusLabel) {
   if (error) throw error;
 }
 
+// Debounced typeahead for the beneficiary-tagging field (Distributions).
+// Matches on name or RSBSA number; deliberately not the full listFarmers()
+// select — this only needs to render a compact suggestion row.
+const SEARCH_SELECT = "farmer_id, rsbsa_no, first_name, surname, status, validation_status, addresses ( barangay )";
+
+function mapFarmerBrief(row) {
+  return {
+    id: row.farmer_id,
+    rsbsaNo: row.rsbsa_no,
+    firstName: row.first_name,
+    lastName: row.surname,
+    barangay: row.addresses?.[0]?.barangay ?? "Langapud",
+    status: dbStatusToLabel(row.status),
+    validationStatus: dbStatusToLabel(row.validation_status),
+  };
+}
+
+export async function searchFarmers(query, limit = 8) {
+  const q = query.trim();
+  if (!q) return [];
+  const { data, error } = await supabase
+    .from("farmers")
+    .select(SEARCH_SELECT)
+    .or(`first_name.ilike.%${q}%,surname.ilike.%${q}%,rsbsa_no.ilike.%${q}%`)
+    .limit(limit);
+  if (error) throw error;
+  return data.map(mapFarmerBrief);
+}
+
 export async function setFarmerValidation(farmerId, validationStatusLabel) {
   const { error } = await supabase
     .from("farmers")
