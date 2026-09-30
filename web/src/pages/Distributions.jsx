@@ -18,40 +18,33 @@ import {
   deleteDistribution,
   listDistributionBeneficiaries,
   listDistributions,
-  markAllBeneficiariesReceived,
-  saveDistributionBeneficiaries,
   updateDistribution,
   updateDistributionStatus,
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { friendlyError } from "../lib/friendlyError.js";
 
-function round2(n) {
-  return Math.round((Number(n) || 0) * 100) / 100;
-}
-
-// New chips added during this edit get an even split of whatever's left
-// after already-edited/loaded rows' quantities are subtracted from the
-// total — existing saved rows (edited: true) keep their stored qty.
+// New chips added during this edit split whatever's left after
+// already-edited/loaded rows' quantities are subtracted from the total —
+// existing saved rows (edited: true) keep their stored qty. Works in
+// integer cents throughout so the shares always add back up to exactly the
+// total: each share is rounded DOWN to 2 decimals, and every last cent of
+// leftover from that rounding goes to the last unedited farmer, rather than
+// letting each row round independently and the total drift off by a cent.
 function redistributeQuantities(rows, totalQuantity) {
   const unedited = rows.filter((r) => !r.edited);
   if (unedited.length === 0) return rows;
-  const editedSum = rows.filter((r) => r.edited).reduce((sum, r) => sum + (Number(r.quantity) || 0), 0);
-  const remaining = Math.max((Number(totalQuantity) || 0) - editedSum, 0);
-  const share = round2(remaining / unedited.length);
-  return rows.map((r) => (r.edited ? r : { ...r, quantity: share }));
-}
-
-function summarizeBeneficiaryRows(rows) {
-  const tagged = rows.length;
-  const received = rows.filter((r) => r.acknowledgementStatus === "Received").length;
-  let status = "Not Tagged";
-  if (tagged > 0) {
-    if (received === 0) status = "Pending";
-    else if (received === tagged) status = "Complete";
-    else status = "Partial";
-  }
-  return { tagged, status };
+  const editedCents = rows.filter((r) => r.edited).reduce((sum, r) => sum + Math.round((Number(r.quantity) || 0) * 100), 0);
+  const remainingCents = Math.max(Math.round((Number(totalQuantity) || 0) * 100) - editedCents, 0);
+  const shareCents = Math.floor(remainingCents / unedited.length);
+  const leftoverCents = remainingCents - shareCents * unedited.length;
+  let seen = 0;
+  return rows.map((r) => {
+    if (r.edited) return r;
+    seen += 1;
+    const cents = seen === unedited.length ? shareCents + leftoverCents : shareCents;
+    return { ...r, quantity: cents / 100 };
+  });
 }
 
 // Scheduled -> Ongoing or Cancelled; Ongoing -> Completed or Cancelled;
@@ -72,11 +65,9 @@ const STATUS_DOT_COLOR = {
   gray: "#667066",
 };
 
-const OTHER_PROGRAM = "Other (specify)";
 const EMPTY_FORM = {
   commodityId: "",
   program: "",
-  programOther: "",
   venue: "",
   taggedBeneficiaries: [],
   quantity: "",
@@ -96,7 +87,6 @@ export default function Distributions() {
   const [toast, setToast] = useState(null);
   const [beneficiaryRows, setBeneficiaryRows] = useState([]);
   const [beneficiaryLoading, setBeneficiaryLoading] = useState(false);
-  const [markingAll, setMarkingAll] = useState(false);
 
   useEffect(() => {
     listCommodities()
@@ -130,15 +120,25 @@ export default function Distributions() {
     };
   }, [selectedId]);
 
-  const programOptions = useMemo(
-    () => [...new Set(distributions.map((d) => d.program).filter(Boolean))].sort(),
-    [distributions],
-  );
+  // De-duplicated case-insensitively — "RCEF Seed Distribution" and "rcef
+  // seed distribution" are the same program, and only need one filter option
+  // between them (whichever casing was seen first).
+  const programOptions = useMemo(() => {
+    const seen = new Map();
+    for (const d of distributions) {
+      const trimmed = (d.program || "").trim();
+      if (!trimmed || seen.has(trimmed.toLowerCase())) continue;
+      seen.set(trimmed.toLowerCase(), trimmed);
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+  }, [distributions]);
 
   const filtered = useMemo(
     () =>
       distributions.filter(
-        (d) => (statusFilter === "All" || d.status === statusFilter) && (programFilter === "All" || d.program === programFilter),
+        (d) =>
+          (statusFilter === "All" || d.status === statusFilter) &&
+          (programFilter === "All" || (d.program || "").trim().toLowerCase() === programFilter.trim().toLowerCase()),
       ),
     [distributions, statusFilter, programFilter],
   );
@@ -173,56 +173,6 @@ export default function Distributions() {
       return next;
     });
     setToast({ tone: "success", message: "Distribution deleted." });
-  }
-
-  function applyBeneficiarySummary(rows, distributionId) {
-    const { tagged, status } = summarizeBeneficiaryRows(rows);
-    setDistributions((prev) =>
-      prev.map((d) => (d.id === distributionId ? { ...d, taggedBeneficiaryCount: tagged, beneficiaryStatus: status } : d)),
-    );
-  }
-
-  async function handleMarkAllReceived() {
-    if (!selected) return;
-    setMarkingAll(true);
-    try {
-      await markAllBeneficiariesReceived(selected.id);
-      const rows = await listDistributionBeneficiaries(selected.id);
-      setBeneficiaryRows(rows);
-      applyBeneficiarySummary(rows, selected.id);
-      setToast({ tone: "success", message: "All beneficiaries marked as received." });
-    } catch (err) {
-      setToast({ tone: "error", message: friendlyError(err, "Failed to mark beneficiaries as received.") });
-    } finally {
-      setMarkingAll(false);
-    }
-  }
-
-  async function handleToggleBeneficiary(row) {
-    if (!selected) return;
-    const commodityId = selected.items?.[0]?.commodityId;
-    if (!commodityId) return;
-    const nextRows = beneficiaryRows.map((r) =>
-      r.claimId === row.claimId ? { ...r, acknowledgementStatus: r.acknowledgementStatus === "Received" ? "Pending" : "Received" } : r,
-    );
-    const previousRows = beneficiaryRows;
-    setBeneficiaryRows(nextRows);
-    try {
-      await saveDistributionBeneficiaries(
-        selected.id,
-        commodityId,
-        nextRows.map((r) => ({
-          farmerId: r.farmerId,
-          quantity: r.quantity,
-          acknowledgementStatus: r.acknowledgementStatus,
-          overrideReason: r.overrideReason,
-        })),
-      );
-      applyBeneficiarySummary(nextRows, selected.id);
-    } catch (err) {
-      setBeneficiaryRows(previousRows);
-      setToast({ tone: "error", message: friendlyError(err, "Failed to update acknowledgement.") });
-    }
   }
 
   return (
@@ -327,23 +277,7 @@ export default function Distributions() {
               <div className="agri-detail-row"><div><div className="agri-detail-label">Remarks</div>{selected.remarks}</div></div>
             )}
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16, marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontWeight: 700, fontSize: "0.8rem" }}>Beneficiaries</span>
-                <Pill status={selected.beneficiaryStatus} />
-              </div>
-              {isMAO && beneficiaryRows.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary"
-                  style={{ fontSize: "0.72rem", padding: "4px 10px" }}
-                  disabled={markingAll || beneficiaryRows.every((r) => r.acknowledgementStatus === "Received")}
-                  onClick={handleMarkAllReceived}
-                >
-                  {markingAll ? "Marking…" : "Mark all as received"}
-                </button>
-              )}
-            </div>
+            <div style={{ fontWeight: 700, fontSize: "0.8rem", marginTop: 16, marginBottom: 8 }}>Beneficiaries</div>
             {beneficiaryLoading ? (
               <div className="agri-muted" style={{ fontSize: "0.78rem" }}>Loading beneficiaries…</div>
             ) : beneficiaryRows.length === 0 ? (
@@ -351,7 +285,7 @@ export default function Distributions() {
             ) : (
               <div className="agri-beneficiary-table-wrap">
                 <table className="agri-table">
-                  <thead><tr><th>Farmer</th><th>RSBSA No.</th><th>Qty</th><th>Ack.</th></tr></thead>
+                  <thead><tr><th>Farmer</th><th>RSBSA No.</th><th>Qty</th></tr></thead>
                   <tbody>
                     {beneficiaryRows.map((row) => (
                       <tr key={row.claimId}>
@@ -361,19 +295,6 @@ export default function Distributions() {
                         </td>
                         <td>{row.rsbsaNo}</td>
                         <td>{row.quantity.toLocaleString()}</td>
-                        <td>
-                          {isMAO ? (
-                            <button
-                              type="button"
-                              className={`agri-beneficiary-ack-toggle${row.acknowledgementStatus === "Received" ? " received" : ""}`}
-                              onClick={() => handleToggleBeneficiary(row)}
-                            >
-                              {row.acknowledgementStatus}
-                            </button>
-                          ) : (
-                            <Pill status={row.acknowledgementStatus} />
-                          )}
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -430,7 +351,6 @@ export default function Distributions() {
           mode={modal.mode}
           distribution={modal.distribution}
           commodities={commodities}
-          programOptions={programOptions}
           onClose={() => setModal(null)}
           onSaved={modal.mode === "edit" ? handleUpdated : handleCreated}
         />
@@ -578,7 +498,7 @@ function DeleteDistributionButton({ distribution, onDeleted, onError }) {
   );
 }
 
-function DistributionModal({ mode, distribution, commodities, programOptions, onClose, onSaved }) {
+function DistributionModal({ mode, distribution, commodities, onClose, onSaved }) {
   const editing = mode === "edit";
   const primaryItem = distribution?.items?.[0];
 
@@ -588,8 +508,7 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
           date: distribution.date,
           barangay: distribution.barangay,
           commodityId: primaryItem?.commodityId != null ? String(primaryItem.commodityId) : (commodities[0]?.id ?? ""),
-          program: programOptions.includes(distribution.program) ? distribution.program : OTHER_PROGRAM,
-          programOther: programOptions.includes(distribution.program) ? "" : distribution.program,
+          program: distribution.program ?? "",
           venue: distribution.venue,
           taggedBeneficiaries: [],
           quantity: String(primaryItem?.quantity ?? ""),
@@ -659,7 +578,7 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
   const hasUnresolvedDuplicate = form.taggedBeneficiaries.some((r) => r.duplicate);
 
   function runDuplicateCheck(farmer) {
-    const program = form.program === OTHER_PROGRAM ? form.programOther.trim() : form.program;
+    const program = form.program.trim();
     if (!form.commodityId || !program) return;
     const year = new Date(form.date || new Date()).getFullYear();
     checkDuplicateDistribution({
@@ -722,15 +641,6 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
     }));
   }
 
-  function toggleRowAck(farmerId) {
-    setForm((f) => ({
-      ...f,
-      taggedBeneficiaries: f.taggedBeneficiaries.map((r) =>
-        r.farmerId === farmerId ? { ...r, acknowledgementStatus: r.acknowledgementStatus === "Received" ? "Pending" : "Received" } : r,
-      ),
-    }));
-  }
-
   function updateTotalQuantity(value) {
     setForm((f) => ({ ...f, quantity: value, taggedBeneficiaries: redistributeQuantities(f.taggedBeneficiaries, value) }));
   }
@@ -743,7 +653,7 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
       setFormError("Add a commodity in Commodities before recording a distribution.");
       return;
     }
-    const program = form.program === OTHER_PROGRAM ? form.programOther.trim() : form.program;
+    const program = form.program.trim();
     if (!program) {
       setFormError("Program name is required.");
       return;
@@ -755,10 +665,13 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
     setFormError("");
     setSaving(true);
     try {
+      // acknowledgement_status stays "Pending" on every claim row — receipt
+      // acknowledgement is now set once for the whole distribution via the
+      // Acknowledgement Status dropdown below, not per farmer.
       const taggedBeneficiaries = form.taggedBeneficiaries.map((r) => ({
         farmerId: r.farmerId,
         quantity: Number(r.quantity) || 0,
-        acknowledgementStatus: r.acknowledgementStatus,
+        acknowledgementStatus: "Pending",
         overrideReason: r.duplicate ? overrideReason.trim() : r.overrideReason || "",
       }));
       const saved = editing
@@ -837,21 +750,13 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
           </select>
 
           <label className="agri-form-label">Program Name <span style={{ color: "var(--agri-red)" }}>*</span></label>
-          <select className="form-select mb-2" value={form.program} onChange={(e) => update("program", e.target.value)}>
-            <option value="">Select a program…</option>
-            {programOptions.map((p) => <option key={p} value={p}>{p}</option>)}
-            <option value={OTHER_PROGRAM}>{OTHER_PROGRAM}</option>
-          </select>
-          {form.program === OTHER_PROGRAM && (
-            <input
-              required
-              className="form-control mb-3"
-              placeholder="Enter the new program name"
-              value={form.programOther}
-              onChange={(e) => update("programOther", e.target.value)}
-            />
-          )}
-          {form.program !== OTHER_PROGRAM && <div className="mb-3" />}
+          <input
+            required
+            className="form-control mb-3"
+            placeholder="e.g. RCEF Seed Distribution"
+            value={form.program}
+            onChange={(e) => update("program", e.target.value)}
+          />
 
           <label className="agri-form-label">Venue</label>
           <input required className="form-control mb-3" value={form.venue} onChange={(e) => update("venue", e.target.value)} placeholder="e.g. Barangay Hall" />
@@ -884,7 +789,7 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
             <>
               <div className="agri-beneficiary-table-wrap">
                 <table className="agri-table">
-                  <thead><tr><th>Farmer</th><th>Qty</th><th>Ack.</th></tr></thead>
+                  <thead><tr><th>Farmer</th><th>Qty</th></tr></thead>
                   <tbody>
                     {form.taggedBeneficiaries.map((row) => (
                       <tr key={row.farmerId}>
@@ -906,15 +811,6 @@ function DistributionModal({ mode, distribution, commodities, programOptions, on
                             value={row.quantity}
                             onChange={(e) => updateRowQuantity(row.farmerId, e.target.value)}
                           />
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className={`agri-beneficiary-ack-toggle${row.acknowledgementStatus === "Received" ? " received" : ""}`}
-                            onClick={() => toggleRowAck(row.farmerId)}
-                          >
-                            {row.acknowledgementStatus}
-                          </button>
                         </td>
                       </tr>
                     ))}

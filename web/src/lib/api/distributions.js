@@ -6,16 +6,6 @@ const SELECT = `
   distribution_event_items ( event_item_id, commodity_id, quantity_allocated, commodities ( name, category, unit ) )
 `;
 
-// beneficiary_status: "not_tagged" | "pending" | "partial" | "complete" — see
-// distribution_beneficiary_summary (Phase 1). Old records with no tagged
-// farmers stay "not_tagged" and fall back to the legacy beneficiaries_count.
-const BENEFICIARY_STATUS_LABEL = {
-  not_tagged: "Not Tagged",
-  pending: "Pending",
-  partial: "Partial",
-  complete: "Complete",
-};
-
 function mapDistribution(row, summary) {
   const items = (row.distribution_event_items ?? []).map((i) => ({
     itemId: i.event_item_id,
@@ -32,7 +22,9 @@ function mapDistribution(row, summary) {
     barangay: row.barangay,
     beneficiaries: row.beneficiaries_count,
     taggedBeneficiaryCount: taggedCount,
-    beneficiaryStatus: BENEFICIARY_STATUS_LABEL[summary?.beneficiary_status ?? "not_tagged"],
+    // Acknowledgement is a single distribution-level value (the dropdown
+    // below, dbStatusToLabel(row.acknowledgement_status)) — there's no more
+    // separate per-farmer Pending/Partial/Complete computation.
     status: dbStatusToLabel(row.status),
     venue: row.venue ?? "",
     program: row.program_name,
