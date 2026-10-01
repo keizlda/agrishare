@@ -11,6 +11,9 @@ web-build/
 .env.*
 !.env.example
 
+# One-off handoff prompt (contains live deploy tokens, never committed)
+HANDOFF_PROMPT.md
+
 # Supabase local dev state
 backend/supabase/.branches/
 backend/supabase/.temp/
