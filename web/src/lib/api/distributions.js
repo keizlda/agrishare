@@ -107,25 +107,31 @@ export async function listDistributionBeneficiaries(eventId) {
 // no rows here (same "not tagged" gap shown on the Distributions page).
 // ---------------------------------------------------------------------------
 const BENEFICIARY_REPORT_SELECT = `
-  claim_id, farmer_id, quantity_received, acknowledgement_status,
+  claim_id, farmer_id, event_id, quantity_received,
   farmers ( rsbsa_no, first_name, surname, addresses ( barangay ) ),
   commodities ( name ),
-  distribution_events ( event_id, event_date, program_name, is_deleted )
+  distribution_events ( event_id, event_date, program_name, status, acknowledgement_status, is_deleted )
 `;
 
+// Acknowledgement Status is one value per distribution (the dropdown on the
+// event, not the unused per-claim column) — every row from the same
+// distribution reports the same value.
 function mapBeneficiaryReportRow(row) {
+  const event = row.distribution_events;
   return {
     claimId: row.claim_id,
     farmerId: row.farmer_id,
+    eventId: row.event_id,
     firstName: row.farmers?.first_name ?? "",
     lastName: row.farmers?.surname ?? "",
     rsbsaNo: row.farmers?.rsbsa_no ?? "",
     barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
     commodity: row.commodities?.name ?? "",
     quantity: Number(row.quantity_received),
-    acknowledgementStatus: row.acknowledgement_status === "received" ? "Received" : "Pending",
-    eventDate: row.distribution_events?.event_date,
-    program: row.distribution_events?.program_name,
+    acknowledgementStatus: event?.acknowledgement_status === "acknowledged" ? "Acknowledged" : "Pending",
+    eventDate: event?.event_date,
+    program: event?.program_name,
+    status: dbStatusToLabel(event?.status ?? "scheduled"),
   };
 }
 

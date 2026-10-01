@@ -1,23 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, Eye } from "lucide-react";
 import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import { usePersistedState } from "../hooks/usePersistedState.js";
 import { barangays, reportTypes } from "../data/mockData.js";
+import { listCommodities } from "../lib/api/commodities.js";
+
+const STATUS_OPTIONS = ["All Status", "Scheduled", "Ongoing", "Completed", "Cancelled"];
 
 // Generated-report history is a session convenience log (what got downloaded,
 // when) rather than domain data from the paper's ERD, so it stays local —
 // there's no tbl_Reports to persist it to server-side.
 export default function Reports() {
   const [reports, setReports] = usePersistedState("agrishare_reports", []);
+  const [commodityOptions, setCommodityOptions] = useState([]);
 
   const [reportType, setReportType] = useState(reportTypes[0]);
-  const [dateFrom, setDateFrom] = useState("2024-05-01");
-  const [dateTo, setDateTo] = useState("2024-05-31");
+  // No default date range — reports show everything unless the admin
+  // narrows it. A hardcoded "2024-05" window here used to silently hide
+  // every distribution recorded since (Part 2 fix).
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [status, setStatus] = useState("All Status");
   const [commodity, setCommodity] = useState("All Commodities");
   const [barangay, setBarangay] = useState("All Barangays");
 
-  function printUrl({ type, dateFrom, dateTo, commodity, barangay }, autoPrint) {
-    const params = new URLSearchParams({ type, dateFrom, dateTo, commodity, barangay });
+  useEffect(() => {
+    listCommodities()
+      .then((rows) => setCommodityOptions(rows.filter((c) => c.status === "Active").map((c) => c.name)))
+      .catch(() => {});
+  }, []);
+
+  function printUrl({ type, dateFrom, dateTo, status, commodity, barangay }, autoPrint) {
+    const params = new URLSearchParams({ type, dateFrom, dateTo, status, commodity, barangay });
     if (autoPrint) params.set("autoPrint", "1");
     return `/print/reports?${params.toString()}`;
   }
@@ -33,20 +47,21 @@ export default function Reports() {
         dateGenerated: new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }),
         dateFrom,
         dateTo,
+        status,
         commodity,
         barangay,
       },
       ...prev,
     ]);
-    window.open(printUrl({ type: reportType, dateFrom, dateTo, commodity, barangay }, true), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: reportType, dateFrom, dateTo, status, commodity, barangay }, true), "_blank", "noopener,noreferrer");
   }
 
   function handlePreview(r) {
-    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, commodity: r.commodity, barangay: r.barangay }, false), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay }, false), "_blank", "noopener,noreferrer");
   }
 
   function handleDownload(r) {
-    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, commodity: r.commodity, barangay: r.barangay }, true), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay }, true), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -64,12 +79,18 @@ export default function Reports() {
               <label className="agri-form-label">Commodity</label>
               <select className="form-select mb-3" value={commodity} onChange={(e) => setCommodity(e.target.value)}>
                 <option>All Commodities</option>
-                <option>Rice</option><option>Corn</option><option>Vegetables</option><option>Fertilizer</option>
+                {commodityOptions.map((c) => <option key={c}>{c}</option>)}
+              </select>
+
+              <label className="agri-form-label">Status</label>
+              <select className="form-select mb-3" value={status} onChange={(e) => setStatus(e.target.value)}>
+                {STATUS_OPTIONS.map((s) => <option key={s}>{s}</option>)}
               </select>
             </div>
 
             <div>
               <label className="agri-form-label">Date Range</label>
+              <div className="agri-muted" style={{ fontSize: "0.72rem", marginBottom: 4 }}>Leave blank to include every date.</div>
               <div className="d-flex gap-2 mb-3">
                 <input type="date" className="form-control" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
                 <input type="date" className="form-control" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
@@ -98,7 +119,7 @@ export default function Reports() {
                   <td>{r.name}</td>
                   <td>{r.type}</td>
                   <td>{r.dateGenerated}</td>
-                  <td>{r.dateFrom} – {r.dateTo}</td>
+                  <td>{r.dateFrom || "Any date"} – {r.dateTo || "Any date"}</td>
                   <td>
                     <RowActionsMenu
                       label={`Actions for ${r.name}`}
