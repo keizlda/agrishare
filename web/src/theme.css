@@ -11,7 +11,15 @@
 
   --agri-bg: #f4f7f4;
   --agri-card: #ffffff;
-  --agri-border: #e4eae4;
+  /* Card/table/divider lines. Was #e4eae4 (~1.2:1 on white), which washed
+     out to invisible on bright screens. */
+  --agri-border: #cdd6cf;
+  /* Input/select outlines — kept at ~3:1 on white so form fields are
+     findable (WCAG non-text contrast). */
+  --agri-border-strong: #87938a;
+  /* Light fill for small count chips; deliberately stays pale so the muted
+     text on it remains readable. */
+  --agri-chip-bg: #e4eae4;
   --agri-text: #1f2a24;
   --agri-text-muted: #6b7a70;
 
@@ -26,6 +34,18 @@
 
   --agri-radius: 12px;
   --agri-shadow: 0 1px 2px rgba(20, 40, 25, 0.06), 0 1px 8px rgba(20, 40, 25, 0.04);
+
+  /* Route Bootstrap's own lines (tables, hr, list groups) through the theme
+     instead of its paler #dee2e6 default. */
+  --bs-border-color: var(--agri-border);
+}
+
+/* Bootstrap inputs default to the same pale line as dividers; give them the
+   stronger outline. :focus / .is-invalid rules are more specific, so their
+   colors still win. */
+.form-control,
+.form-select {
+  border-color: var(--agri-border-strong);
 }
 
 * {
@@ -574,7 +594,7 @@ table.agri-table tbody tr.selected {
 }
 
 .agri-tab .agri-tab-count {
-  background: var(--agri-border);
+  background: var(--agri-chip-bg);
   color: var(--agri-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
@@ -1933,7 +1953,7 @@ input[type="number"] {
   gap: 6px;
   min-height: 42px;
   padding: 6px 8px;
-  border: 1px solid var(--agri-border);
+  border: 1px solid var(--agri-border-strong);
   border-radius: 8px;
   background: #fff;
   cursor: text;
@@ -2066,7 +2086,7 @@ input[type="number"] {
   width: 90px;
   padding: 4px 6px;
   font-size: 0.8rem;
-  border: 1px solid var(--agri-border);
+  border: 1px solid var(--agri-border-strong);
   border-radius: 6px;
 }
 .agri-beneficiary-ack-toggle {
