@@ -16,7 +16,7 @@
 import fs from "node:fs";
 import {
   BATCH, DATA_FILE, AUDITED, StopError,
-  adminClient, loadLedger, saveLedger, emptyLedger, must, chunk,
+  adminClient, loadLedger, saveLedger, emptyLedger, must, chunk, listAllUsers,
 } from "./test-data-common.mjs";
 
 const DRY = process.argv.includes("--dry-run");
@@ -62,14 +62,18 @@ async function main() {
   }
   const farmerIds = farmerRows.map((r) => r.farmer_id);
 
+  // One paged list of every account (fast and authoritative) instead of a
+  // lookup per user: a slow or failed lookup must never be mistaken for
+  // "already deleted". If the list itself fails, the run stops here.
+  const allUsers = new Map((await listAllUsers(sb)).map((u) => [u.id, u]));
   const users = [];
   for (const u of ledger.authUsers) {
-    const { data: got, error } = await sb.auth.admin.getUserById(u.id);
-    if (error || !got?.user) continue; // already gone
-    if (got.user.app_metadata?.seed_batch !== BATCH || got.user.email !== u.email) {
+    const got = allUsers.get(u.id);
+    if (!got) continue; // already gone
+    if (got.app_metadata?.seed_batch !== BATCH || got.email !== u.email) {
       throw new StopError(`Account ${u.email} (${u.id}) is not tagged as seed ${BATCH}. Not deleting it.`);
     }
-    users.push(got.user);
+    users.push(got);
   }
   const profileIds = users.map((u) => u.id);
 
@@ -206,11 +210,26 @@ async function main() {
   }
   await deleteIn("audit_logs", "log_id", [...auditIds]);
 
-  // Accounts last (their profiles, notifications and reads cascade).
+  // Accounts last (their profiles, notifications and reads cascade). A
+  // timed-out delete may still have gone through, so each one is confirmed
+  // against the account list and retried only if the account is still there.
   if (!DRY) {
-    for (const u of users) {
-      const { error } = await sb.auth.admin.deleteUser(u.id);
-      if (error) throw new Error(`delete account ${u.email}: ${error.message}`);
+    const failed = [];
+    const removeAccount = async (u) => {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const { error } = await sb.auth.admin.deleteUser(u.id);
+        if (!error || /not.?found/i.test(error.message)) return;
+        const stillThere = (await listAllUsers(sb)).some((x) => x.id === u.id);
+        if (!stillThere) return;
+        if (attempt === 3) failed.push(`${u.email}: ${error.message}`);
+      }
+    };
+    const queue = [...users];
+    await Promise.all(Array.from({ length: 4 }, async () => {
+      while (queue.length) await removeAccount(queue.shift());
+    }));
+    if (failed.length) {
+      throw new Error(`Everything else was removed, but these accounts couldn't be deleted yet (re-run cleanup to finish):\n  - ${failed.join("\n  - ")}`);
     }
   }
   count("auth accounts (+ profiles, their notifications)", users.length);

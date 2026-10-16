@@ -44,13 +44,17 @@ export function adminClient() {
 
 // A stalled connection must not hang the run forever: every request gets a
 // timeout, and reads (GET/HEAD) are retried. Writes are not retried here —
-// the scripts are idempotent, so a failed write is simply re-run.
+// the scripts are idempotent, so a failed write is simply re-run. Auth admin
+// calls on a single user can take well over 10s when the Auth service is
+// busy, so they get a longer window.
 async function fetchWithTimeout(input, init = {}) {
   const method = (init.method ?? "GET").toUpperCase();
   const attempts = method === "GET" || method === "HEAD" ? 3 : 1;
+  const url = typeof input === "string" ? input : input.url;
+  const timeout = /\/auth\/v1\/admin\/users\/[^/?]+/.test(url) ? 120_000 : 30_000;
   for (let i = 1; ; i++) {
     try {
-      return await fetch(input, { ...init, signal: AbortSignal.timeout(30_000) });
+      return await fetch(input, { ...init, signal: AbortSignal.timeout(timeout) });
     } catch (err) {
       if (i >= attempts) throw err;
     }
