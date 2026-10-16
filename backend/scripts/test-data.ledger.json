@@ -1,20 +1,1163 @@
 {
   "batch": "test-2026-10",
   "note": "Rows/accounts/files created by backend/scripts/seed-test-data.mjs. Removed by cleanup-test-data.mjs.",
-  "authUsers": [],
-  "farmers": [],
-  "addresses": [],
-  "farmParcels": [],
-  "crops": [],
-  "commodities": [],
-  "events": [],
-  "eventItems": [],
-  "claims": [],
-  "cropValidations": [],
-  "requests": [],
-  "announcements": [],
-  "notifications": [],
-  "auditLogs": [],
-  "storage": [],
+  "authUsers": [
+    {
+      "id": "9ebdf90c-cd88-4109-95f9-ad1690dde782",
+      "email": "fapresident@agrishare.test"
+    },
+    {
+      "id": "00cf1fd2-3b9e-4e8c-b055-a2009337ae87",
+      "email": "000201@farmers.agrishare.ph"
+    },
+    {
+      "id": "baaece0a-3acc-43d4-9215-5857b666edbf",
+      "email": "000202@farmers.agrishare.ph"
+    },
+    {
+      "id": "95c45800-6705-46f6-b709-353aa4fd996c",
+      "email": "000203@farmers.agrishare.ph"
+    },
+    {
+      "id": "23e24e22-ee73-4e00-8fa9-a2f1c1a7e04a",
+      "email": "000204@farmers.agrishare.ph"
+    },
+    {
+      "id": "0a7cdeae-2ff9-4ca1-a28f-62bf2a8a32b4",
+      "email": "000205@farmers.agrishare.ph"
+    },
+    {
+      "id": "d2760723-724d-4b29-86a1-f09f7bf6d689",
+      "email": "000206@farmers.agrishare.ph"
+    },
+    {
+      "id": "26a871b7-b1f7-4e54-b1d6-56041e095583",
+      "email": "000207@farmers.agrishare.ph"
+    },
+    {
+      "id": "c8a4d17d-9a8f-4642-a18f-a1eb0e88c387",
+      "email": "000208@farmers.agrishare.ph"
+    },
+    {
+      "id": "ce964afd-8ac7-4f56-bb18-6bea01e442bb",
+      "email": "000209@farmers.agrishare.ph"
+    },
+    {
+      "id": "b19d82a5-6d7e-4eeb-92ae-be53ca3b9a37",
+      "email": "000210@farmers.agrishare.ph"
+    },
+    {
+      "id": "7f101f5a-38bc-4a6b-bf72-37923a412676",
+      "email": "000211@farmers.agrishare.ph"
+    },
+    {
+      "id": "1291728a-2cae-413c-a997-9f0839309326",
+      "email": "000212@farmers.agrishare.ph"
+    },
+    {
+      "id": "fece11d2-3747-407f-881c-524019503a2f",
+      "email": "000213@farmers.agrishare.ph"
+    },
+    {
+      "id": "9ed42339-5c0f-4f88-9f08-3e2d2fbc038c",
+      "email": "000214@farmers.agrishare.ph"
+    },
+    {
+      "id": "5efff50a-b7be-498e-8f53-e9d94015ff3e",
+      "email": "000215@farmers.agrishare.ph"
+    },
+    {
+      "id": "ec03987f-a7ba-4fc3-b3b7-43cc82f43b58",
+      "email": "000216@farmers.agrishare.ph"
+    },
+    {
+      "id": "6c64b84e-4ce0-4241-9ef6-3847c1dfb6ad",
+      "email": "000217@farmers.agrishare.ph"
+    },
+    {
+      "id": "3ecdd38b-6ffa-4645-942a-d95fcf8b4fca",
+      "email": "000218@farmers.agrishare.ph"
+    },
+    {
+      "id": "fde64bfb-f839-4e3a-bda1-1966e747233c",
+      "email": "000219@farmers.agrishare.ph"
+    },
+    {
+      "id": "2939a89e-cae9-4835-816d-ad0f74d7f202",
+      "email": "000220@farmers.agrishare.ph"
+    },
+    {
+      "id": "4412ad90-92b1-45c6-9758-e8b8f8ca66a3",
+      "email": "000221@farmers.agrishare.ph"
+    },
+    {
+      "id": "6f06bc59-85f7-4de5-bc20-211307b1a834",
+      "email": "000222@farmers.agrishare.ph"
+    },
+    {
+      "id": "52e09d05-d25c-4012-9d57-a0a40de15e7e",
+      "email": "000223@farmers.agrishare.ph"
+    },
+    {
+      "id": "89243f03-dc94-418d-b1d1-5c8e96c0fb7f",
+      "email": "000224@farmers.agrishare.ph"
+    },
+    {
+      "id": "c36ea7f2-220b-4911-8b62-90209c4017bb",
+      "email": "000225@farmers.agrishare.ph"
+    }
+  ],
+  "farmers": [
+    {
+      "farmer_id": 42,
+      "rsbsa_no": "09-73-00-000-000201"
+    },
+    {
+      "farmer_id": 43,
+      "rsbsa_no": "09-73-00-000-000202"
+    },
+    {
+      "farmer_id": 44,
+      "rsbsa_no": "09-73-00-000-000203"
+    },
+    {
+      "farmer_id": 45,
+      "rsbsa_no": "09-73-00-000-000204"
+    },
+    {
+      "farmer_id": 46,
+      "rsbsa_no": "09-73-00-000-000205"
+    },
+    {
+      "farmer_id": 47,
+      "rsbsa_no": "09-73-00-000-000206"
+    },
+    {
+      "farmer_id": 48,
+      "rsbsa_no": "09-73-00-000-000207"
+    },
+    {
+      "farmer_id": 49,
+      "rsbsa_no": "09-73-00-000-000208"
+    },
+    {
+      "farmer_id": 50,
+      "rsbsa_no": "09-73-00-000-000209"
+    },
+    {
+      "farmer_id": 51,
+      "rsbsa_no": "09-73-00-000-000210"
+    },
+    {
+      "farmer_id": 52,
+      "rsbsa_no": "09-73-00-000-000211"
+    },
+    {
+      "farmer_id": 53,
+      "rsbsa_no": "09-73-00-000-000212"
+    },
+    {
+      "farmer_id": 54,
+      "rsbsa_no": "09-73-00-000-000213"
+    },
+    {
+      "farmer_id": 55,
+      "rsbsa_no": "09-73-00-000-000214"
+    },
+    {
+      "farmer_id": 56,
+      "rsbsa_no": "09-73-00-000-000215"
+    },
+    {
+      "farmer_id": 57,
+      "rsbsa_no": "09-73-00-000-000216"
+    },
+    {
+      "farmer_id": 58,
+      "rsbsa_no": "09-73-00-000-000217"
+    },
+    {
+      "farmer_id": 59,
+      "rsbsa_no": "09-73-00-000-000218"
+    },
+    {
+      "farmer_id": 60,
+      "rsbsa_no": "09-73-00-000-000219"
+    },
+    {
+      "farmer_id": 61,
+      "rsbsa_no": "09-73-00-000-000220"
+    },
+    {
+      "farmer_id": 62,
+      "rsbsa_no": "09-73-00-000-000221"
+    },
+    {
+      "farmer_id": 63,
+      "rsbsa_no": "09-73-00-000-000222"
+    },
+    {
+      "farmer_id": 64,
+      "rsbsa_no": "09-73-00-000-000223"
+    },
+    {
+      "farmer_id": 65,
+      "rsbsa_no": "09-73-00-000-000224"
+    },
+    {
+      "farmer_id": 66,
+      "rsbsa_no": "09-73-00-000-000225"
+    }
+  ],
+  "addresses": [
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66
+  ],
+  "farmParcels": [
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66
+  ],
+  "crops": [
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66
+  ],
+  "commodities": [
+    {
+      "commodity_id": 35,
+      "name": "Urea Fertilizer (46-0-0)"
+    },
+    {
+      "commodity_id": 36,
+      "name": "Bio Plant Activator"
+    },
+    {
+      "commodity_id": 37,
+      "name": "Farm Tools Set"
+    },
+    {
+      "commodity_id": 38,
+      "name": "Livestock Assistance (Native Chicken)"
+    }
+  ],
+  "events": [
+    {
+      "event_id": 21,
+      "program_name": "RCEF Seed Distribution - Dry Season",
+      "event_date": "2026-03-12"
+    },
+    {
+      "event_id": 22,
+      "program_name": "Corn Program Seed Assistance",
+      "event_date": "2026-04-08"
+    },
+    {
+      "event_id": 23,
+      "program_name": "HVCDP Vegetable Seed Distribution",
+      "event_date": "2026-05-20"
+    },
+    {
+      "event_id": 24,
+      "program_name": "Organic Fertilizer Assistance",
+      "event_date": "2026-06-15"
+    },
+    {
+      "event_id": 25,
+      "program_name": "Farm Tools Distribution",
+      "event_date": "2026-08-26"
+    },
+    {
+      "event_id": 26,
+      "program_name": "RCEF Seed Distribution - Wet Season",
+      "event_date": "2026-10-02"
+    },
+    {
+      "event_id": 27,
+      "program_name": "Urea Fertilizer Assistance",
+      "event_date": "2026-10-23"
+    }
+  ],
+  "eventItems": [
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31
+  ],
+  "claims": [
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121,
+    122,
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135
+  ],
+  "cropValidations": [
+    {
+      "validation_id": 41,
+      "farmer_id": 15
+    },
+    {
+      "validation_id": 42,
+      "farmer_id": 13
+    },
+    {
+      "validation_id": 43,
+      "farmer_id": 14
+    },
+    {
+      "validation_id": 44,
+      "farmer_id": 42
+    },
+    {
+      "validation_id": 45,
+      "farmer_id": 43
+    },
+    {
+      "validation_id": 46,
+      "farmer_id": 44
+    },
+    {
+      "validation_id": 47,
+      "farmer_id": 45
+    },
+    {
+      "validation_id": 48,
+      "farmer_id": 47
+    },
+    {
+      "validation_id": 49,
+      "farmer_id": 48
+    },
+    {
+      "validation_id": 50,
+      "farmer_id": 49
+    },
+    {
+      "validation_id": 51,
+      "farmer_id": 50
+    },
+    {
+      "validation_id": 52,
+      "farmer_id": 51
+    },
+    {
+      "validation_id": 53,
+      "farmer_id": 52
+    },
+    {
+      "validation_id": 54,
+      "farmer_id": 53
+    },
+    {
+      "validation_id": 55,
+      "farmer_id": 54
+    },
+    {
+      "validation_id": 56,
+      "farmer_id": 55
+    }
+  ],
+  "requests": [
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "announcements": [
+    {
+      "announcement_id": 29,
+      "title": "RCEF wet season seed distribution on October 2"
+    },
+    {
+      "announcement_id": 30,
+      "title": "Urea fertilizer distribution on October 23"
+    },
+    {
+      "announcement_id": 31,
+      "title": "Submit proof of planting for the wet season"
+    },
+    {
+      "announcement_id": 32,
+      "title": "FA meeting with the MAO"
+    }
+  ],
+  "notifications": [
+    281,
+    282,
+    283,
+    284,
+    285,
+    286,
+    287,
+    288,
+    289,
+    290,
+    291,
+    292,
+    293,
+    294,
+    295,
+    296,
+    297,
+    298,
+    299,
+    300,
+    301,
+    302,
+    303,
+    304,
+    305,
+    306,
+    307,
+    308,
+    309,
+    310,
+    311,
+    312,
+    313,
+    314,
+    315,
+    316,
+    317,
+    318,
+    319,
+    320,
+    321,
+    322,
+    323,
+    324,
+    325,
+    326,
+    327,
+    328,
+    329,
+    330,
+    331,
+    332,
+    333,
+    334,
+    335,
+    336,
+    337,
+    338,
+    339,
+    340,
+    341,
+    342,
+    343,
+    344,
+    345,
+    346,
+    347,
+    348,
+    349,
+    350,
+    351,
+    352,
+    353,
+    354,
+    355,
+    356,
+    357,
+    358,
+    359,
+    360,
+    361,
+    362,
+    363,
+    364,
+    365,
+    366,
+    367,
+    368,
+    369,
+    370,
+    371,
+    372,
+    373,
+    374,
+    375,
+    376,
+    377,
+    378,
+    379,
+    380,
+    381,
+    382,
+    383,
+    384,
+    385,
+    386,
+    387,
+    388,
+    389,
+    390,
+    391,
+    392,
+    393,
+    394,
+    395,
+    396,
+    397,
+    398,
+    399,
+    400,
+    401,
+    402,
+    403,
+    404,
+    405,
+    406,
+    407,
+    408,
+    409,
+    410,
+    411,
+    412,
+    413,
+    414,
+    415,
+    416,
+    417,
+    418,
+    419,
+    420,
+    421,
+    422,
+    423,
+    424,
+    425,
+    426,
+    427,
+    428,
+    429,
+    430,
+    431,
+    432,
+    433,
+    434,
+    435,
+    436,
+    437,
+    438,
+    439,
+    440,
+    441,
+    442,
+    443,
+    444,
+    445,
+    446,
+    447,
+    448,
+    449,
+    450,
+    451,
+    452,
+    453,
+    454,
+    455,
+    456,
+    457,
+    458,
+    459,
+    460,
+    461,
+    462,
+    463,
+    464,
+    465,
+    466,
+    467,
+    468,
+    469,
+    470,
+    471,
+    472,
+    473,
+    474,
+    475,
+    476,
+    477,
+    478,
+    479,
+    480,
+    481,
+    482,
+    483,
+    484,
+    485,
+    486,
+    487,
+    488,
+    489,
+    490,
+    491,
+    492,
+    493,
+    494,
+    495,
+    496,
+    497,
+    498,
+    499,
+    500,
+    501,
+    502,
+    503,
+    504,
+    505,
+    506
+  ],
+  "auditLogs": [
+    564,
+    565,
+    566,
+    567,
+    568,
+    569,
+    570,
+    571,
+    572,
+    573,
+    574,
+    575,
+    576,
+    577,
+    578,
+    579,
+    580,
+    581,
+    582,
+    583,
+    584,
+    585,
+    586,
+    587,
+    588,
+    589,
+    590,
+    591,
+    592,
+    593,
+    594,
+    595,
+    596,
+    597,
+    598,
+    599,
+    600,
+    601,
+    602,
+    603,
+    604,
+    605,
+    606,
+    607,
+    608,
+    609,
+    610,
+    611,
+    612,
+    613,
+    560,
+    561,
+    562,
+    563,
+    614,
+    640,
+    657,
+    674,
+    703,
+    735,
+    776,
+    615,
+    641,
+    658,
+    675,
+    704,
+    736,
+    777,
+    616,
+    617,
+    618,
+    619,
+    620,
+    621,
+    622,
+    623,
+    624,
+    625,
+    626,
+    627,
+    628,
+    629,
+    630,
+    631,
+    632,
+    633,
+    634,
+    635,
+    636,
+    637,
+    638,
+    639,
+    642,
+    643,
+    644,
+    645,
+    646,
+    647,
+    648,
+    649,
+    650,
+    651,
+    652,
+    653,
+    654,
+    655,
+    656,
+    659,
+    660,
+    661,
+    662,
+    663,
+    664,
+    665,
+    666,
+    667,
+    668,
+    669,
+    670,
+    671,
+    672,
+    673,
+    676,
+    677,
+    678,
+    679,
+    680,
+    681,
+    682,
+    683,
+    684,
+    685,
+    686,
+    687,
+    688,
+    689,
+    690,
+    691,
+    692,
+    693,
+    694,
+    695,
+    696,
+    697,
+    698,
+    699,
+    700,
+    701,
+    702,
+    705,
+    706,
+    707,
+    708,
+    709,
+    710,
+    711,
+    712,
+    713,
+    714,
+    715,
+    716,
+    717,
+    718,
+    719,
+    720,
+    721,
+    722,
+    723,
+    724,
+    725,
+    726,
+    727,
+    728,
+    729,
+    730,
+    731,
+    732,
+    733,
+    734,
+    737,
+    738,
+    739,
+    740,
+    741,
+    742,
+    743,
+    744,
+    745,
+    746,
+    747,
+    748,
+    749,
+    750,
+    751,
+    752,
+    753,
+    754,
+    755,
+    756,
+    757,
+    758,
+    759,
+    760,
+    761,
+    762,
+    763,
+    764,
+    765,
+    766,
+    767,
+    768,
+    769,
+    770,
+    771,
+    772,
+    773,
+    774,
+    775,
+    778,
+    779,
+    780,
+    781,
+    782,
+    783,
+    784,
+    785,
+    786,
+    787,
+    788,
+    789,
+    790,
+    791,
+    792,
+    793,
+    794,
+    795,
+    796,
+    797,
+    798,
+    799,
+    800,
+    801,
+    802,
+    803,
+    804,
+    805,
+    806,
+    807,
+    808,
+    809,
+    810,
+    811,
+    812,
+    813,
+    814,
+    815,
+    816,
+    817,
+    818,
+    819,
+    820,
+    821,
+    822,
+    823,
+    824,
+    825,
+    826,
+    827,
+    828,
+    829,
+    830,
+    832,
+    831,
+    833,
+    834,
+    836,
+    835,
+    837
+  ],
+  "storage": [
+    {
+      "bucket": "avatars",
+      "path": "00cf1fd2-3b9e-4e8c-b055-a2009337ae87/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "baaece0a-3acc-43d4-9215-5857b666edbf/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "95c45800-6705-46f6-b709-353aa4fd996c/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "23e24e22-ee73-4e00-8fa9-a2f1c1a7e04a/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "d2760723-724d-4b29-86a1-f09f7bf6d689/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "26a871b7-b1f7-4e54-b1d6-56041e095583/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "c8a4d17d-9a8f-4642-a18f-a1eb0e88c387/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "ce964afd-8ac7-4f56-bb18-6bea01e442bb/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "7f101f5a-38bc-4a6b-bf72-37923a412676/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "1291728a-2cae-413c-a997-9f0839309326/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "fece11d2-3747-407f-881c-524019503a2f/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "9ed42339-5c0f-4f88-9f08-3e2d2fbc038c/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "ec03987f-a7ba-4fc3-b3b7-43cc82f43b58/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "6c64b84e-4ce0-4241-9ef6-3847c1dfb6ad/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "3ecdd38b-6ffa-4645-942a-d95fcf8b4fca/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "fde64bfb-f839-4e3a-bda1-1966e747233c/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "4412ad90-92b1-45c6-9758-e8b8f8ca66a3/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "6f06bc59-85f7-4de5-bc20-211307b1a834/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "52e09d05-d25c-4012-9d57-a0a40de15e7e/avatar.jpg"
+    },
+    {
+      "bucket": "avatars",
+      "path": "89243f03-dc94-418d-b1d1-5c8e96c0fb7f/avatar.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "15/test-2026-10-000537.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "13/test-2026-10-000612.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "14/test-2026-10-000389.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "42/test-2026-10-000201.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "43/test-2026-10-000202.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "44/test-2026-10-000203.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "45/test-2026-10-000204.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "47/test-2026-10-000206.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "48/test-2026-10-000207.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "49/test-2026-10-000208.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "50/test-2026-10-000209.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "51/test-2026-10-000210.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "52/test-2026-10-000211.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "53/test-2026-10-000212.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "54/test-2026-10-000213.jpg"
+    },
+    {
+      "bucket": "crop-validation-photos",
+      "path": "55/test-2026-10-000214.jpg"
+    }
+  ],
   "lastCleanup": "2026-10-16T12:15:22.509Z"
 }
