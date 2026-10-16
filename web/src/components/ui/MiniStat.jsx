@@ -7,13 +7,12 @@ const MINI_STAT_COLORS = {
 
 // Icon chip + label / value / sub — the dashboard's stat-card style, shared
 // so other pages (e.g. the Distributions summary strip) match it exactly.
-// size="lg" is the Dashboard's top stat row (bigger chip and number).
-export default function MiniStat({ icon: Icon, label, value, sub, color = "green", size }) {
+export default function MiniStat({ icon: Icon, label, value, sub, color = "green" }) {
   const c = MINI_STAT_COLORS[color] ?? MINI_STAT_COLORS.green;
   return (
-    <div className={`agri-mini-stat${size === "lg" ? " agri-mini-stat-lg" : ""}`}>
+    <div className="agri-mini-stat">
       <div className="agri-mini-stat-icon" style={{ background: c.bg, color: c.fg }}>
-        <Icon size={size === "lg" ? 21 : 18} />
+        <Icon size={18} />
       </div>
       <div>
         <div className="agri-mini-stat-label">{label}</div>

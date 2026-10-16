@@ -317,82 +317,83 @@ textarea:focus-visible,
 }
 
 /* ---------- Dashboard ---------- */
-/* One 12-column grid so card edges line up row to row: four stat cards (3
-   cols each), chart (8) + validation (4), then three 4-col cards. Below
-   1024px it's a normal scrolling stack. On desktop "/" is a FILL_ROUTE, so
-   the rows split the viewport height instead (see the full-height section
-   near the end of this file). */
+/* Two rows: Distribution Overview + Validation Status (~50/50), then Recent
+   Distributions / Top Commodities / Quick Actions in thirds. Below 1024px
+   it's a normal scrolling stack. On desktop "/" is a FILL_ROUTE and the two
+   rows split the viewport height (see the full-height section near the end
+   of this file). */
 .agri-dash {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
-.agri-dash > * {
-  grid-column: span 12;
-  min-width: 0;
-  min-height: 0;
+.agri-dash-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
 }
 
 @media (min-width: 640px) {
-  .agri-dash > .agri-dash-stat,
-  .agri-dash > .agri-dash-recent,
-  .agri-dash > .agri-dash-commodities {
-    grid-column: span 6;
+  .agri-dash-row-bottom {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .agri-dash-row-bottom > .agri-dash-actions {
+    grid-column: 1 / -1;
   }
 }
 
 @media (min-width: 1024px) {
-  .agri-dash > .agri-dash-stat {
-    grid-column: span 3;
+  /* Validation Status never gets narrower than its donut + stats need, so
+     on ~1366px screens it takes a little over half. */
+  .agri-dash-row-top {
+    grid-template-columns: minmax(0, 1fr) minmax(min-content, 1fr);
   }
-  .agri-dash > .agri-dash-chart {
-    grid-column: span 8;
+  .agri-dash-row-bottom {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .agri-dash > .agri-dash-validation,
-  .agri-dash > .agri-dash-recent,
-  .agri-dash > .agri-dash-commodities,
-  .agri-dash > .agri-dash-actions {
-    grid-column: span 4;
+  .agri-dash-row-bottom > .agri-dash-actions {
+    grid-column: auto;
   }
-}
-
-.agri-dash-stat {
-  padding: 16px 18px;
-  display: flex;
-  align-items: center;
 }
 
 .agri-dash-card {
-  padding: 16px 18px;
+  min-width: 0;
+  padding: 18px;
   display: flex;
   flex-direction: column;
 }
 
 .agri-dash-card > .agri-panel-header {
   flex-shrink: 0;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
-/* Natural heights when stacked; fill mode flexes these to the card. */
 .agri-dash-chart-plot {
-  height: 240px;
+  height: 230px;
   min-width: 0;
 }
 
-.agri-dash-body {
+/* Validation Status: donut + one-line legend on the left, the 2x2 stats
+   filling the rest of the card (as in the original card). */
+.agri-dash-validation-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px 32px;
+}
+
+.agri-dash-donut-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .agri-dash-donut {
   position: relative;
-  width: 100%;
-  height: 200px;
-  min-width: 0;
+  width: 160px;
+  height: 160px;
 }
 
 .agri-dash-donut-center {
@@ -406,33 +407,43 @@ textarea:focus-visible,
 }
 
 .agri-dash-donut-pct {
-  font-size: 1.6rem;
+  font-size: 1.2rem;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.2;
   color: var(--agri-primary-dark);
 }
 
 .agri-dash-legend {
-  flex-shrink: 0;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  column-gap: 20px;
-  row-gap: 4px;
+  gap: 14px;
   font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .agri-dash-legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .agri-dash-legend-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.agri-dash-stats {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(max-content, 1fr));
+  gap: 20px 24px;
+}
+
+@media (max-width: 479.98px) {
+  .agri-dash-stats {
+    grid-template-columns: 1fr;
+  }
 }
 
 .agri-dash-list,
@@ -446,7 +457,7 @@ textarea:focus-visible,
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
+  padding: 9px 0;
   border-bottom: 1px solid var(--agri-divider);
 }
 
@@ -455,7 +466,7 @@ textarea:focus-visible,
 }
 
 .agri-dash-commodity {
-  padding: 5px 0;
+  padding: 6px 0;
 }
 
 .agri-dash-commodity-label {
@@ -463,7 +474,6 @@ textarea:focus-visible,
   justify-content: space-between;
   gap: 10px;
   font-size: 0.82rem;
-  line-height: 1.25;
   margin-bottom: 4px;
 }
 
@@ -479,10 +489,12 @@ textarea:focus-visible,
   border-radius: 6px;
 }
 
+/* Pinned to the bottom of the Top Commodities card. */
 .agri-dash-card-note {
   flex-shrink: 0;
-  margin-top: 10px;
-  font-size: 0.74rem;
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 0.72rem;
 }
 
 .agri-dash-empty {
@@ -494,6 +506,7 @@ textarea:focus-visible,
 .agri-dash-tiles {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 84px;
   gap: 10px;
 }
 
@@ -502,7 +515,6 @@ textarea:focus-visible,
 }
 
 .agri-dash-tile {
-  min-height: 76px;
   padding: 10px 8px;
   display: flex;
   flex-direction: column;
@@ -510,14 +522,17 @@ textarea:focus-visible,
   justify-content: center;
   gap: 8px;
   border: 1px solid var(--agri-border);
-  border-radius: 10px;
+  border-radius: var(--agri-radius);
   background: var(--agri-primary-soft);
   box-shadow: var(--agri-shadow);
   color: var(--agri-primary-dark);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   text-align: center;
+  /* Narrow desktop tiles (~1024px) can't fit "Announcements" on one line. */
+  overflow-wrap: anywhere;
+  hyphens: auto;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
@@ -559,30 +574,6 @@ textarea:focus-visible,
   font-size: 0.66rem;
   color: var(--agri-text-muted);
   margin-top: 1px;
-}
-
-.agri-mini-stat-lg {
-  align-items: center;
-  gap: 14px;
-}
-
-.agri-mini-stat-lg .agri-mini-stat-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-}
-
-.agri-mini-stat-lg .agri-mini-stat-label {
-  font-size: 0.78rem;
-}
-
-.agri-mini-stat-lg .agri-mini-stat-value {
-  font-size: 1.65rem;
-  line-height: 1.15;
-}
-
-.agri-mini-stat-lg .agri-mini-stat-sub {
-  font-size: 0.72rem;
 }
 
 /* ---------- Reports: centered Generate Report card ---------- */
@@ -2131,104 +2122,76 @@ table.agri-table thead th {
     height: auto;
   }
 
-  /* Dashboard: stat row at its natural height, chart row ~45% of what's
-     left, list/actions row the rest. Card bodies flex to the card height;
-     rows and tiles stretch (capped) and center when there's spare room. */
+  /* Dashboard: the two rows split the height equally. The chart grows to
+     fill its card, the lists show as many rows as fit (useFitCount), and
+     the donut/stats and the action tiles center in any spare room. */
   .agri-app-fill .agri-dash {
     flex: 1;
     min-height: 0;
-    grid-template-rows: auto minmax(0, 45fr) minmax(0, 55fr);
   }
-  .agri-app-fill .agri-dash-chart-plot,
-  .agri-app-fill .agri-dash-body,
-  .agri-app-fill .agri-dash-donut {
+  .agri-app-fill .agri-dash-row {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .agri-app-fill .agri-dash-card {
+    min-height: 0;
+  }
+  .agri-app-fill .agri-dash-chart-plot {
     flex: 1 1 0;
     min-height: 0;
     height: auto;
   }
-  .agri-app-fill .agri-dash-list {
+  .agri-app-fill .agri-dash-validation-body {
     flex: 1 1 0;
     min-height: 0;
-    overflow: hidden;
-    justify-content: safe center;
+    flex-wrap: nowrap;
   }
-  .agri-app-fill .agri-dash-list-row {
-    flex: 1 1 auto;
-    max-height: 80px;
-  }
+  .agri-app-fill .agri-dash-list,
   .agri-app-fill .agri-dash-commodity-list {
     flex: 1 1 0;
     min-height: 0;
-    overflow-y: auto;
-    justify-content: safe center;
-  }
-  .agri-app-fill .agri-dash-commodity {
-    flex: 1 1 auto;
-    max-height: 64px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    overflow: hidden;
   }
   .agri-app-fill .agri-dash-tiles {
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
-    grid-auto-rows: minmax(0, 1fr);
-  }
-  .agri-app-fill .agri-dash-tile {
-    min-height: 0;
+    align-content: center;
   }
 }
 
-/* Short desktop viewports (a 1366x768 laptop leaves ~650px under the
-   browser chrome): tighten the Dashboard's spacing so all five commodities
-   and two list rows still fit without inner scrolling. */
-@media (min-width: 1024px) and (max-height: 760px) {
-  .agri-app-fill .agri-dash {
+/* Short desktop viewports (a 1366x768 screen leaves ~610-650px under the
+   browser tabs/address/bookmarks bars): tighter card padding and a slightly
+   smaller donut/tiles so both rows fit without clipping. Text and icon
+   sizes are unchanged. */
+@media (min-width: 1024px) and (max-height: 700px) {
+  .agri-app-fill .agri-dash,
+  .agri-app-fill .agri-dash-row {
     gap: 12px;
   }
-  .agri-app-fill .agri-dash-stat,
   .agri-app-fill .agri-dash-card {
-    padding: 12px 16px;
+    padding: 14px 16px;
   }
   .agri-app-fill .agri-dash-card > .agri-panel-header {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
-  .agri-app-fill .agri-mini-stat-lg .agri-mini-stat-icon {
-    width: 40px;
-    height: 40px;
+  .agri-app-fill .agri-dash-donut {
+    width: 150px;
+    height: 150px;
   }
-  .agri-app-fill .agri-mini-stat-lg .agri-mini-stat-value {
-    font-size: 1.4rem;
-  }
-  .agri-app-fill .agri-dash-commodity {
-    padding: 2px 0;
-  }
-  .agri-app-fill .agri-dash-commodity-label {
-    line-height: 1.2;
-    margin-bottom: 3px;
-  }
-  .agri-app-fill .agri-dash-commodity-track {
-    height: 6px;
-  }
-  .agri-app-fill .agri-dash-card-note {
-    margin-top: 6px;
-  }
-  .agri-app-fill .agri-dash-tile {
-    gap: 4px;
-    padding: 6px;
+  .agri-app-fill .agri-dash-tiles {
+    grid-auto-rows: 78px;
+    gap: 8px;
   }
 }
 
-/* Tall viewports: the stretched action tiles get a larger icon and label so
-   they don't read as empty boxes. */
-@media (min-width: 1024px) and (min-height: 900px) {
-  .agri-app-fill .agri-dash-tile {
-    gap: 12px;
-    font-size: 0.9rem;
+/* Tall desktop viewports: full-size donut and tiles. */
+@media (min-width: 1024px) and (min-height: 860px) {
+  .agri-app-fill .agri-dash-donut {
+    width: 170px;
+    height: 170px;
   }
-  .agri-app-fill .agri-dash-tile svg {
-    width: 30px;
-    height: 30px;
+  .agri-app-fill .agri-dash-tiles {
+    grid-auto-rows: 88px;
   }
 }
 
