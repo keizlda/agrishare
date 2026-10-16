@@ -5,17 +5,18 @@ const DESKTOP = "(min-width: 1024px)";
 // How many rows fit in `ref` — a list container whose height comes from the
 // layout (a flex:1 card body on a full-height page), not from its rows.
 // Divides the container height by the first row's *natural* height (its
-// content + padding + border, ignoring any flex-grow stretch), so rows can
-// grow to fill the card without the count getting stuck. Recomputes on
-// resize; below 1024px the page scrolls normally and this returns `max`.
-// `remeasureKey` should change when rows first appear.
-export function useFitCount(ref, { max, min = 1, remeasureKey } = {}) {
+// content + padding + border, ignoring any flex-grow stretch), and
+// recomputes whenever the container resizes (ResizeObserver) or `query`
+// starts/stops matching. While `query` doesn't match, the page scrolls with
+// natural heights and this returns `max`. `remeasureKey` should change when
+// rows first appear.
+export function useFitCount(ref, { max, min = 1, query = DESKTOP, remeasureKey } = {}) {
   const [count, setCount] = useState(max);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
-    const mq = window.matchMedia(DESKTOP);
+    const mq = window.matchMedia(query);
 
     function measure() {
       if (!mq.matches) {
@@ -40,7 +41,7 @@ export function useFitCount(ref, { max, min = 1, remeasureKey } = {}) {
       observer.disconnect();
       mq.removeEventListener("change", measure);
     };
-  }, [ref, max, min, remeasureKey]);
+  }, [ref, max, min, query, remeasureKey]);
 
   return count;
 }

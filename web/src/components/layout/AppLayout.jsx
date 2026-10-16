@@ -15,7 +15,9 @@ const MAO_ONLY_ROUTES = ["/validation", "/reports", "/commodities", "/activity-l
 
 // Pages that fill the viewport height below the navbar (desktop only — the
 // CSS is scoped to >=1024px). Everything else keeps normal page scrolling.
-const FILL_ROUTES = ["/", "/farmers", "/validation", "/commodities", "/distributions", "/announcements", "/activity-log"];
+// The Dashboard has its own height-aware fill rules (.agri-app-dash), since
+// it falls back to scrolling on short screens rather than always filling.
+const FILL_ROUTES = ["/farmers", "/validation", "/commodities", "/distributions", "/announcements", "/activity-log"];
 
 export default function AppLayout() {
   const { isAuthenticated, initializing, user } = useAuth();
@@ -46,7 +48,9 @@ export default function AppLayout() {
   }
 
   return (
-    <div className={`agri-app${FILL_ROUTES.includes(location.pathname) ? " agri-app-fill" : ""}`}>
+    <div
+      className={`agri-app${FILL_ROUTES.includes(location.pathname) ? " agri-app-fill" : ""}${location.pathname === "/" ? " agri-app-dash" : ""}`}
+    >
       <Topbar />
       <div className="agri-content">
         <Outlet />

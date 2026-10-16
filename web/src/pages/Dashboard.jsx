@@ -32,6 +32,9 @@ const PIE_COLORS = ["var(--agri-primary)", "var(--agri-red-soft)"];
 const AXIS_TICK = { fontSize: 12, fill: "var(--agri-text-muted)" };
 const TOOLTIP_STYLE = { borderRadius: 10, border: "1px solid var(--agri-border)", background: "var(--agri-card)", fontSize: 13 };
 const MAX_ROWS = 5;
+// When the Dashboard fills the viewport instead of scrolling — must match the
+// fill-mode @media block in theme.css's Dashboard section.
+const FILL_QUERY = "(min-width: 1280px) and (min-height: 620px), (min-width: 1024px) and (min-height: 800px)";
 
 // Full-height layout (desktop): chart + validation, then the three
 // list/action cards — see the "Dashboard" section of theme.css.
@@ -63,8 +66,8 @@ export default function Dashboard() {
   const maxCommodity = rankedCommodities[0]?.value ?? 1;
 
   // Each list shows as many rows as its card has room for (up to 5).
-  const recentFit = useFitCount(recentListRef, { max: MAX_ROWS, remeasureKey: Math.min(distributions.length, MAX_ROWS) });
-  const commodityFit = useFitCount(commodityListRef, { max: MAX_ROWS, remeasureKey: Math.min(rankedCommodities.length, MAX_ROWS) });
+  const recentFit = useFitCount(recentListRef, { max: MAX_ROWS, query: FILL_QUERY, remeasureKey: Math.min(distributions.length, MAX_ROWS) });
+  const commodityFit = useFitCount(commodityListRef, { max: MAX_ROWS, query: FILL_QUERY, remeasureKey: Math.min(rankedCommodities.length, MAX_ROWS) });
   const recent = distributions.slice(0, recentFit);
   const topCommodities = rankedCommodities.slice(0, commodityFit);
 
@@ -80,16 +83,21 @@ export default function Dashboard() {
               <div style={{ fontWeight: 700 }}>Distribution Overview</div>
               <div className="agri-muted" style={{ fontSize: "0.8rem" }}>Quantity distributed (kg), {trendYear}</div>
             </div>
+            {/* The inner wrapper is absolutely positioned so the plot's size
+                comes only from the card, letting the chart shrink as well as
+                grow when the window resizes. */}
             <div className="agri-dash-chart-plot">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={distributionTrend} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
-                  <CartesianGrid vertical={false} stroke="var(--agri-border)" />
-                  <XAxis dataKey="month" tick={AXIS_TICK} axisLine={false} tickLine={false} />
-                  <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v.toLocaleString()} kg`, "Quantity"]} />
-                  <Bar dataKey="quantity" fill="var(--agri-primary)" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="agri-dash-chart-inner">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={distributionTrend} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
+                    <CartesianGrid vertical={false} stroke="var(--agri-border)" />
+                    <XAxis dataKey="month" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                    <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v.toLocaleString()} kg`, "Quantity"]} />
+                    <Bar dataKey="quantity" fill="var(--agri-primary)" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
@@ -120,7 +128,7 @@ export default function Dashboard() {
                   </ResponsiveContainer>
                   <div className="agri-dash-donut-center">
                     <div className="agri-dash-donut-pct">{validatedPct}%</div>
-                    <div className="agri-muted" style={{ fontSize: "0.68rem" }}>Validated</div>
+                    <div className="agri-muted agri-dash-donut-caption">Validated</div>
                   </div>
                 </div>
                 <div className="agri-dash-legend">
@@ -155,8 +163,8 @@ export default function Dashboard() {
                 return (
                   <div key={d.id} className="agri-dash-list-row">
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 600 }}>{shortName}</div>
-                      <div className="agri-muted" style={{ fontSize: "0.72rem" }}>
+                      <div className="agri-dash-list-title">{shortName}</div>
+                      <div className="agri-muted agri-dash-list-sub">
                         {distributionTotalQty(d).toLocaleString()} {primaryItem.unit} · {d.date}
                       </div>
                     </div>
