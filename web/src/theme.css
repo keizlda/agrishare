@@ -326,6 +326,7 @@ textarea:focus-visible,
    the page simply scrolls. */
 :root {
   --agri-dash-gap: clamp(12px, 1.5vw, 20px);
+  --agri-dash-page-pad: clamp(16px, 2vh, 24px);
   --agri-dash-pad: clamp(12px, 1.2vw, 20px);
   --agri-dash-head-gap: clamp(6px, 1vh, 12px);
   --agri-dash-donut: clamp(120px, 18vh, 180px);
@@ -335,8 +336,10 @@ textarea:focus-visible,
   --agri-dash-chart: clamp(200px, 32vh, 320px);
 }
 
+/* Same padding on every side, so the last row never meets the window's
+   bottom edge. */
 .agri-app-dash .agri-content {
-  padding: var(--agri-dash-gap);
+  padding: var(--agri-dash-page-pad);
 }
 
 .agri-dash {
@@ -643,8 +646,10 @@ textarea:focus-visible,
     min-height: 0;
     height: auto;
   }
+  /* Donut + stats group centered between the title and the card bottom. */
   .agri-app-dash .agri-dash-validation-body {
     flex: 1 1 auto;
+    align-items: center;
   }
   .agri-app-dash .agri-dash-list,
   .agri-app-dash .agri-dash-commodity-list {
@@ -652,9 +657,28 @@ textarea:focus-visible,
     min-height: 0;
     overflow: hidden;
   }
-  .agri-app-dash .agri-dash-tiles {
+  /* Rows share any leftover height evenly (content centered in each row)
+     instead of leaving it empty under the last one. */
+  .agri-app-dash .agri-dash-list-row {
     flex: 1 1 auto;
-    align-content: center;
+  }
+  .agri-app-dash .agri-dash-commodity {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  /* Tiles start right under the title and grow (up to 110px) into the
+     card's remaining height. The zero flex-basis + explicit minimum keep
+     the tiles' preferred size from making row 2 taller than row 1. */
+  .agri-app-dash .agri-dash-tiles {
+    flex: 1 1 0;
+    min-height: calc(2 * var(--agri-dash-tile) + var(--agri-dash-tile-gap));
+    align-content: start;
+    grid-auto-rows: minmax(var(--agri-dash-tile), 110px);
+  }
+  .agri-app-dash .agri-dash-tiles.two {
+    min-height: var(--agri-dash-tile);
   }
 }
 
@@ -666,6 +690,10 @@ textarea:focus-visible,
   }
   .agri-app-dash .agri-dash-row-bottom {
     grid-template-rows: minmax(min-content, 1fr) auto;
+  }
+  /* Six tiles in one row here. */
+  .agri-app-dash .agri-dash-tiles:not(.two) {
+    min-height: var(--agri-dash-tile);
   }
 }
 
