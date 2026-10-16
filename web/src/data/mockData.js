@@ -63,12 +63,19 @@ export function computeRequestStats(list) {
   return { total, pending, forwarded, approved, rejected };
 }
 
+// A farmer's own status is only Active/Inactive — validation belongs to
+// proof-of-planting submissions (see computeSubmissionStats).
 export function computeFarmerStats(list) {
   const total = list.length;
   const active = list.filter((f) => f.status === "Active").length;
   const inactive = total - active;
-  const validated = list.filter((f) => f.validationStatus === "Validated").length;
-  const pending = list.filter((f) => f.validationStatus === "Pending").length;
-  const notValidated = list.filter((f) => f.validationStatus === "Not Validated").length;
-  return { total, active, inactive, validated, pending, notValidated };
+  return { total, active, inactive };
+}
+
+export function computeSubmissionStats(submissions) {
+  const total = submissions.length;
+  const validated = submissions.filter((s) => s.status === "Validated").length;
+  const pending = submissions.filter((s) => s.status === "Pending").length;
+  const rejected = submissions.filter((s) => s.status === "Rejected").length;
+  return { total, validated, pending, rejected };
 }

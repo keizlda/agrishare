@@ -9,7 +9,6 @@ export const STATUS_COLOR = {
   Urgent: "red",
   Scheduled: "gray",
   Inactive: "red",
-  "Not Validated": "red",
   Rejected: "red",
   Cancelled: "red",
   Pending: "orange",

@@ -558,6 +558,12 @@ textarea:focus-visible,
   .agri-dash-stats {
     grid-template-columns: 1fr;
   }
+  /* Phones: the three-item legend wraps between items (each item stays whole). */
+  .agri-dash-legend {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 4px;
+  }
 }
 
 /* Readable minimums on the Dashboard: labels >= 12px, body text >= 14px. */
@@ -2380,6 +2386,27 @@ table.agri-table thead th {
     height: auto;
   }
 
+}
+
+/* ---------- Page title (e.g. Proof of Planting Validation) ---------- */
+.agri-page-title {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
+.agri-page-title h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* Sits on the page background with the leaf art behind it, so it uses the
+   full body-text color (>=4.5:1 even over the darkest leaf pixels). */
+.agri-page-title p {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--agri-text);
 }
 
 /* ---------- Side drawer (Farmer Profile) ---------- */

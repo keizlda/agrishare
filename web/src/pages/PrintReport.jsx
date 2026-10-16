@@ -6,6 +6,7 @@ import { computeCommodityStats, distributionTotalQty } from "../data/mockData.js
 import { listFarmers } from "../lib/api/farmers.js";
 import { listBeneficiaryReport, listDistributions } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
+import { listSubmissions } from "../lib/api/cropValidation.js";
 import { friendlyError } from "../lib/friendlyError.js";
 
 export default function PrintReport() {
@@ -25,8 +26,10 @@ export default function PrintReport() {
     // per commodity, so a since-deleted commodity must still get its row —
     // AccomplishmentReport's "types available" count filters back down to
     // active ones itself.
-    Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true }), listBeneficiaryReport()])
-      .then(([farmers, distributions, commodities, beneficiaryClaims]) => setData({ farmers, distributions, commodities, beneficiaryClaims }))
+    Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true }), listBeneficiaryReport(), listSubmissions()])
+      .then(([farmers, distributions, commodities, beneficiaryClaims, submissions]) =>
+        setData({ farmers, distributions, commodities, beneficiaryClaims, submissions }),
+      )
       .catch((err) => setError(friendlyError(err, "Couldn't load this report.")));
   }, []);
 
@@ -243,14 +246,15 @@ function LiquidationReport({ commodities, distributions, filters }) {
   );
 }
 
-function AccomplishmentReport({ farmers, distributions, commodities, filters }) {
+function AccomplishmentReport({ farmers, distributions, commodities, submissions, filters }) {
   // Distribution-activity figures respect the report's date/status/barangay
   // filters (this is the period being reported on); the farmer roster and
   // commodity catalog are current-state counts, not scoped to a period.
   const scoped = filterDistributions(distributions, filters);
   const totalQty = scoped.reduce((sum, d) => sum + distributionTotalQty(d), 0);
   const active = farmers.filter((f) => f.status === "Active").length;
-  const validated = farmers.filter((f) => f.validationStatus === "Validated").length;
+  // Validation is per proof-of-planting submission, not per farmer.
+  const validatedSubmissions = submissions.filter((s) => s.status === "Validated").length;
 
   return (
     <div className="pr-section">
@@ -258,7 +262,7 @@ function AccomplishmentReport({ farmers, distributions, commodities, filters }) 
       <div className="pr-kv-grid">
         <KV label="Total Registered Farmers" value={farmers.length} />
         <KV label="Active Farmers" value={active} />
-        <KV label="Validated Farmers" value={`${validated} (${Math.round((validated / (farmers.length || 1)) * 100)}%)`} />
+        <KV label="Proof of Planting Validated" value={`${validatedSubmissions} of ${submissions.length} submissions`} />
         <KV label="Total Distribution Activities" value={scoped.length} />
         <KV label="Total Quantity Distributed" value={`${totalQty.toLocaleString()} kg`} />
         <KV label="Commodity Types Available" value={commodities.filter((c) => !c.deletedAt).length} />

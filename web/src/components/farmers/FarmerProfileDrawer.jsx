@@ -4,7 +4,7 @@ import Pill from "../ui/Pill.jsx";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { getFarmerProfileExtras } from "../../lib/api/farmers.js";
 import { listFarmerDistributionHistory } from "../../lib/api/distributions.js";
-import { getLatestSubmissionForFarmer } from "../../lib/api/cropValidation.js";
+import { listSubmissionsForFarmer } from "../../lib/api/cropValidation.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
 const DASH = "—";
@@ -24,14 +24,6 @@ function ageOn(birthDate, today = new Date()) {
   return age;
 }
 
-// farmers.validation_status has no "rejected" — that only exists on a crop
-// validation submission, so a not-validated farmer whose latest submission
-// was rejected shows "Rejected".
-function validationBadge(status, latest) {
-  if (status === "Validated" || status === "Pending") return status;
-  return latest?.status === "Rejected" ? "Rejected" : "Not Validated";
-}
-
 function totalsByUnit(rows) {
   const totals = {};
   for (const r of rows) totals[r.unit] = (totals[r.unit] ?? 0) + r.quantity;
@@ -46,7 +38,7 @@ function totalsByUnit(rows) {
 export default function FarmerProfileDrawer({ farmer, canEdit, showAccount, onEdit, onClose }) {
   const [extras, setExtras] = useState(null);
   const [history, setHistory] = useState(null);
-  const [latest, setLatest] = useState(null);
+  const [submissions, setSubmissions] = useState(null);
   const [error, setError] = useState("");
   const closeRef = useRef(null);
 
@@ -61,12 +53,12 @@ export default function FarmerProfileDrawer({ farmer, canEdit, showAccount, onEd
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getFarmerProfileExtras(farmer.id), listFarmerDistributionHistory(farmer.id), getLatestSubmissionForFarmer(farmer.id)])
-      .then(([x, h, v]) => {
+    Promise.all([getFarmerProfileExtras(farmer.id), listFarmerDistributionHistory(farmer.id), listSubmissionsForFarmer(farmer.id)])
+      .then(([x, h, subs]) => {
         if (cancelled) return;
         setExtras(x);
         setHistory(h);
-        setLatest(v);
+        setSubmissions(subs);
       })
       .catch((err) => !cancelled && setError(friendlyError(err, "Couldn't load this farmer's profile. Please try again.")));
     return () => {
@@ -99,9 +91,10 @@ export default function FarmerProfileDrawer({ farmer, canEdit, showAccount, onEd
             <div style={{ minWidth: 0 }}>
               <h2 id="farmer-profile-name" className="agri-profile-name">{fullName}</h2>
               <div className="agri-muted agri-profile-rsbsa">RSBSA No. {f.rsbsaNo}</div>
+              {/* A farmer's own status is only Active/Inactive; validation
+                  belongs to each proof-of-planting submission (below). */}
               <div className="agri-profile-badges">
                 <Pill status={f.status} />
-                {loaded && <Pill status={validationBadge(f.validationStatus, latest)} />}
               </div>
             </div>
           </div>
@@ -205,18 +198,34 @@ export default function FarmerProfileDrawer({ farmer, canEdit, showAccount, onEd
           </section>
 
           <section className="agri-profile-section">
-            <div className="agri-detail-section-title">Validation History</div>
-            {!loaded ? (
+            <div className="agri-detail-section-title">Proof of Planting Submissions</div>
+            {!submissions ? (
               <div className="agri-muted agri-profile-note">{error ? DASH : "Loading…"}</div>
-            ) : latest ? (
-              <div className="agri-kv-grid">
-                <Info label="Latest submission" value={<Pill status={latest.status} />} />
-                <Info label="Submitted" value={formatDate(latest.submittedAt)} />
-                <Info label="Reviewed" value={latest.reviewedAt ? `${formatDate(latest.reviewedAt)}${latest.reviewedBy ? ` by ${latest.reviewedBy}` : ""}` : null} />
-                <Info label="Remarks" value={latest.remarks} wide />
-              </div>
+            ) : submissions.length === 0 ? (
+              <div className="agri-muted agri-profile-note">No proof of planting submitted yet.</div>
             ) : (
-              <div className="agri-muted agri-profile-note">No crop validation submitted yet.</div>
+              <div className="agri-profile-table-wrap">
+                <table className="agri-table agri-profile-table">
+                  <thead>
+                    <tr>
+                      <th>Date submitted</th>
+                      <th>Crop</th>
+                      <th>Status</th>
+                      <th>Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {submissions.map((s) => (
+                      <tr key={s.id}>
+                        <td>{formatDate(s.submittedAt)}</td>
+                        <td className="agri-profile-wrap">{show(s.crop || f.commodity)}</td>
+                        <td><Pill status={s.status} /></td>
+                        <td className="agri-profile-wrap">{show(s.remarks)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         </div>

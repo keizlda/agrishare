@@ -548,7 +548,6 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
             rsbsaNo: r.rsbsaNo,
             barangay: r.barangay,
             status: "Active",
-            validationStatus: "Validated",
             farmerDeleted: r.farmerDeleted,
             quantity: r.quantity,
             acknowledgementStatus: r.acknowledgementStatus,
@@ -612,7 +611,6 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
         rsbsaNo: farmer.rsbsaNo,
         barangay: farmer.barangay,
         status: farmer.status,
-        validationStatus: farmer.validationStatus,
         quantity: 0,
         acknowledgementStatus: "Pending",
         overrideReason: "",
@@ -625,7 +623,9 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   }
 
   function handleAddFarmer(farmer) {
-    if (farmer.status !== "Active" || farmer.validationStatus !== "Validated") {
+    // Only Inactive farmers need a confirm step (validation is per
+    // proof-of-planting submission, never a farmer attribute).
+    if (farmer.status !== "Active") {
       setPendingFarmer(farmer);
       return;
     }
@@ -847,7 +847,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
           {pendingFarmer && (
             <ConfirmDialog
               title={`Add ${pendingFarmer.firstName} ${pendingFarmer.lastName}?`}
-              message={`This farmer is ${pendingFarmer.status !== "Active" ? "inactive" : "not yet validated"}. Add them to this distribution anyway?`}
+              message="This farmer is inactive. Add them to this distribution anyway?"
               confirmLabel="Add anyway"
               onConfirm={() => {
                 const farmer = pendingFarmer;

@@ -11,7 +11,6 @@ export const currentFarmer = {
   contactNo: "0917 129 4567",
   farmSize: "1.50 ha",
   primaryCommodity: "Rice",
-  validationStatus: "Validated",
 };
 
 export const homeOverview = {

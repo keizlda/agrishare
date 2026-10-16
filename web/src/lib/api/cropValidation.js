@@ -3,6 +3,7 @@ import { supabase } from "../supabaseClient.js";
 const SELECT = `
   validation_id, farmer_id, photo_url, latitude, longitude, gps_accuracy_meters,
   captured_at, status, remarks, reviewed_by, reviewed_at, created_at,
+  crop:crops ( crop_type ),
   farmers (
     farmer_id, rsbsa_no, surname, first_name, sex, birth_date, contact_no, status, deleted_at,
     addresses ( street, barangay, municipality, province ),
@@ -28,6 +29,9 @@ function mapSubmission(row) {
     capturedAt: row.captured_at,
     submittedAt: row.created_at,
     status: STATUS_LABELS[row.status] ?? row.status,
+    // The submission's own crop when it was linked to one, otherwise the
+    // farmer's recorded commodity (mobile submissions don't set crop_id).
+    crop: row.crop?.crop_type ?? parcel?.crops?.[0]?.crop_type ?? "",
     remarks: row.remarks ?? "",
     reviewedBy: row.reviewer?.full_name ?? null,
     reviewedAt: row.reviewed_at,
@@ -100,23 +104,22 @@ export function validateSubmission(validationId, remarks) {
 export function rejectSubmission(validationId, remarks) {
   return reviewSubmission(validationId, "rejected", remarks);
 }
-// Farmer Profile drawer: just the newest submission for one farmer.
-export async function getLatestSubmissionForFarmer(farmerId) {
+// Farmer Profile drawer: every proof-of-planting submission from one
+// farmer, newest first, each with its own status.
+export async function listSubmissionsForFarmer(farmerId) {
   const { data, error } = await supabase
     .from("crop_validations")
-    .select("validation_id, status, remarks, created_at, reviewed_at, reviewer:profiles!reviewed_by ( full_name )")
+    .select("validation_id, status, remarks, created_at, reviewed_at, crop:crops ( crop_type ), reviewer:profiles!reviewed_by ( full_name )")
     .eq("farmer_id", farmerId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: false });
   if (error) throw error;
-  if (!data) return null;
-  return {
-    id: data.validation_id,
-    status: STATUS_LABELS[data.status] ?? data.status,
-    submittedAt: data.created_at,
-    reviewedAt: data.reviewed_at,
-    reviewedBy: data.reviewer?.full_name ?? null,
-    remarks: data.remarks ?? "",
-  };
+  return data.map((row) => ({
+    id: row.validation_id,
+    status: STATUS_LABELS[row.status] ?? row.status,
+    crop: row.crop?.crop_type ?? "",
+    submittedAt: row.created_at,
+    reviewedAt: row.reviewed_at,
+    reviewedBy: row.reviewer?.full_name ?? null,
+    remarks: row.remarks ?? "",
+  }));
 }

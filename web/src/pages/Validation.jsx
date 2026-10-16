@@ -50,7 +50,8 @@ function relativeTime(iso) {
   if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  // Older than a week: the row already shows the full submitted date.
+  return "";
 }
 
 export default function Validation() {
@@ -61,7 +62,7 @@ export default function Validation() {
   const { data: submissions, setData: setSubmissions, loading, error: loadError } = useSupabaseList(listSubmissions);
   const [farmers, setFarmers] = useState([]);
   const [search, setSearch] = useState("");
-  // ?status= preselects a tab (the Dashboard's "pending validation" chip).
+  // ?status= preselects a tab (the Dashboard's "submissions to review" chip).
   const [searchParams] = useSearchParams();
   const [statusTab, setStatusTab] = useState(() => (STATUS_TABS.includes(searchParams.get("status")) ? searchParams.get("status") : "Pending"));
   const [sort, setSort] = useState("Newest first");
@@ -147,6 +148,13 @@ export default function Validation() {
 
   return (
     <div className="agri-fill-root">
+      {/* This page reviews proof-of-planting SUBMISSIONS; a farmer is never
+          validated as a person (their own status is only Active/Inactive). */}
+      <div className="agri-page-title">
+        <h1>Proof of Planting Validation</h1>
+        <p>Review farmers' proof-of-planting submissions. Tab counts are submissions.</p>
+      </div>
+
       <div className="agri-card agri-fill-card" style={{ padding: 0, overflow: "hidden" }}>
         {loadError && (
           <div className="agri-pill red" style={{ display: "block", margin: 16, padding: "8px 12px" }}>
@@ -263,8 +271,11 @@ function SubmissionRow({ submission, active, unread, flagged, onClick }) {
       </div>
       <div className="agri-submission-body">
         <div className="agri-submission-name">{submission.farmer?.fullName ?? "Unknown farmer"}</div>
-        <div className="agri-submission-sub">{submission.farmer?.commodity || "—"} · {submission.farmer?.barangay}</div>
-        <div className="agri-submission-time">{relativeTime(submission.submittedAt)}</div>
+        <div className="agri-submission-sub">{submission.crop || "—"}</div>
+        <div className="agri-submission-time">
+          Submitted {new Date(submission.submittedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          {relativeTime(submission.submittedAt) && ` · ${relativeTime(submission.submittedAt)}`}
+        </div>
       </div>
       <Pill status={submission.status} />
     </button>

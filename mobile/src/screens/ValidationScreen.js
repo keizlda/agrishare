@@ -46,7 +46,7 @@ export default function ValidationScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader title="Crop Validation" />
+      <ScreenHeader title="Proof of Planting" />
       <FlatList
         data={items}
         keyExtractor={(i) => String(i.id)}
@@ -55,7 +55,7 @@ export default function ValidationScreen({ navigation }) {
           <>
             <TouchableOpacity style={styles.newBtn} onPress={() => navigation.navigate("CropValidation")}>
               <ShieldCheck size={16} color="#fff" />
-              <Text style={styles.newBtnText}>New Validation</Text>
+              <Text style={styles.newBtnText}>New Submission</Text>
             </TouchableOpacity>
 
             <View style={styles.tileRow}>
@@ -118,7 +118,7 @@ export default function ValidationScreen({ navigation }) {
             )}
           </View>
         )}
-        ListEmptyComponent={<EmptyState icon={ShieldCheck} message="You haven't submitted any crop validations yet." />}
+        ListEmptyComponent={<EmptyState icon={ShieldCheck} message="You haven't submitted any proof of planting yet." />}
       />
 
       {/* The photo already has the geotag stamp (place/coords/date/accuracy)

@@ -6,7 +6,7 @@ import { searchFarmers } from "../../lib/api/farmers.js";
 // Gmail-style farmer tagging: type a name/RSBSA/@name, pick from a debounced
 // dropdown (avatar-less initial circle, name, RSBSA, barangay, status
 // badges), Enter/click to add, chip ✕ or Backspace-on-empty to remove.
-// Inactive/unvalidated farmers can still be added but need a confirm step —
+// Inactive farmers can still be added but need a confirm step —
 // handled by the parent via onRequestAdd's return value (see Distributions.jsx).
 export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFarmer, disabled }) {
   const [query, setQuery] = useState("");
@@ -128,7 +128,6 @@ export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFar
               </span>
               <span className="agri-tag-suggestion-badges">
                 <Pill status={f.status} />
-                <Pill status={f.validationStatus} />
               </span>
             </button>
           ))}

@@ -63,8 +63,7 @@ export default function HomeScreen({ navigation }) {
               <ChevronRight size={13} color={colors.primaryDark} />
             </View>
           </View>
-          <InfoRow label="Farmer ID" value={farmer?.farmerId} />
-          <InfoRow label="RSBSA Number" value={farmer?.rsbsaNo} badge={farmer?.validationStatus} />
+          <InfoRow label="RSBSA Number" value={farmer?.rsbsaNo} />
           <InfoRow label="Barangay" value={farmer?.barangay} />
           <InfoRow label="Contact Number" value={farmer?.contactNo} />
           <InfoRow label="Farm Size" value={farmer?.farmSize} />

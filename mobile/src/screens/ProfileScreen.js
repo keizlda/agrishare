@@ -130,9 +130,11 @@ export default function ProfileScreen({ navigation }) {
 
           <Text style={styles.name}>{farmer?.firstName} {farmer?.lastName}</Text>
           <Text style={styles.subtitle}>Farmer · {farmer?.barangay}</Text>
-          <View>
-            <Pill status={farmer?.validationStatus} />
-          </View>
+          {!!farmer?.status && (
+            <View>
+              <Pill status={farmer.status} />
+            </View>
+          )}
         </View>
 
         <Section title="Personal Information">

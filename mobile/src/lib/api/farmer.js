@@ -2,7 +2,7 @@ import { supabase } from "../supabaseClient";
 import { dbStatusToLabel } from "../status";
 
 const SELECT = `
-  farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status, validation_status,
+  farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status,
   addresses ( barangay ),
   farm_parcels ( farm_size_hectares, crops ( crop_type ) ),
   profiles!profile_id ( avatar_url, must_change_password )
@@ -23,8 +23,9 @@ function mapFarmer(row) {
     contactNo: row.contact_no ?? "",
     farmSize: parcel?.farm_size_hectares != null ? `${Number(parcel.farm_size_hectares).toFixed(2)} ha` : "—",
     primaryCommodity: parcel?.crops?.[0]?.crop_type ?? "—",
+    // A farmer's own status is only Active/Inactive — validation belongs to
+    // each proof-of-planting submission (see api/cropValidation).
     status: dbStatusToLabel(row.status),
-    validationStatus: dbStatusToLabel(row.validation_status),
     avatarUrl: row.profiles?.avatar_url ?? null,
     mustChangePassword: row.profiles?.must_change_password ?? false,
   };

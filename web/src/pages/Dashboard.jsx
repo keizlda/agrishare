@@ -18,6 +18,7 @@ import {
   computeDistributionByCommodity,
   computeDistributionTrend,
   computeFarmerStats,
+  computeSubmissionStats,
   distributionTotalQty,
 } from "../data/mockData.js";
 import { listFarmers } from "../lib/api/farmers.js";
@@ -30,7 +31,13 @@ import Toast from "../components/ui/Toast.jsx";
 import MiniStat from "../components/ui/MiniStat.jsx";
 import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx";
 
-const PIE_COLORS = ["var(--agri-primary)", "var(--agri-red-soft)"];
+// Proof-of-planting submission statuses (validation never applies to a
+// farmer as a person — a farmer is only Active or Inactive).
+const SUBMISSION_SEGMENTS = [
+  { key: "validated", label: "Validated", color: "var(--agri-primary)" },
+  { key: "pending", label: "Pending", color: "var(--agri-orange)" },
+  { key: "rejected", label: "Rejected", color: "var(--agri-red-soft)" },
+];
 const AXIS_TICK = { fontSize: 12, fill: "var(--agri-text-muted)" };
 const TOOLTIP_STYLE = { borderRadius: 10, border: "1px solid var(--agri-border)", background: "var(--agri-card)", fontSize: 13 };
 const MAX_ROWS = 5;
@@ -70,18 +77,21 @@ export default function Dashboard() {
     listCommodities().then(setCommodities).catch(() => {});
   }, []);
 
-  // Welcome-bar chip counts, from the same lists (and the same status rules)
-  // the Validation and Requests pages show. Validation is MAO-only; requests
-  // "to review" are Forwarded ones for the admin, Pending ones for the FA.
+  // Proof-of-planting submissions (the donut, for both roles — staff can read
+  // them) and the welcome-bar chips, from the same lists and status rules the
+  // Validation and Requests pages use. Reviewing submissions is MAO-only;
+  // requests "to review" are Forwarded ones for the admin, Pending for the FA.
   useEffect(() => {
-    if (isMAO) listSubmissions().then(setSubmissions).catch(() => {});
+    listSubmissions().then(setSubmissions).catch(() => {});
     (isMAO ? listRequestsForAdminReview : listRequests)().then(setRequests).catch(() => {});
   }, [isMAO]);
 
   const stats = computeFarmerStats(farmers);
-  const notValidated = stats.total - stats.validated;
-  const validatedPct = stats.total ? Math.round((stats.validated / stats.total) * 100) : 0;
-  const notValidatedPct = stats.total ? 100 - validatedPct : 0;
+  const subStats = computeSubmissionStats(submissions);
+  const pct = (n) => (subStats.total ? Math.round((n / subStats.total) * 100) : 0);
+  const donutData = subStats.total
+    ? SUBMISSION_SEGMENTS.map((seg) => ({ name: seg.label, value: subStats[seg.key], color: seg.color }))
+    : [{ name: "No submissions yet", value: 1, color: "var(--agri-divider)" }];
 
   const { year: trendYear, trend: distributionTrend } = computeDistributionTrend(distributions);
   const distributionByCommodity = computeDistributionByCommodity(commodities, distributions, MAX_ROWS);
@@ -94,11 +104,10 @@ export default function Dashboard() {
   const recent = distributions.slice(0, recentFit);
   const topCommodities = rankedCommodities.slice(0, commodityFit);
 
-  const pendingValidation = submissions.filter((sub) => sub.status === "Pending").length;
   const ongoing = distributions.filter((d) => d.status === "Ongoing").length;
   const toReview = requests.filter((r) => r.status === (isMAO ? "Forwarded" : "Pending")).length;
   const chips = [
-    isMAO && { count: pendingValidation, label: `${pendingValidation} pending validation`, to: "/validation?status=Pending", dot: "var(--agri-orange)" },
+    isMAO && { count: subStats.pending, label: plural(subStats.pending, "submission to review", "submissions to review"), to: "/validation?status=Pending", dot: "var(--agri-orange)" },
     { count: ongoing, label: plural(ongoing, "ongoing distribution", "ongoing distributions"), to: "/distributions?status=Ongoing", dot: "var(--agri-teal)" },
     { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: `/requests?tab=${isMAO ? "awaiting" : "pending"}`, dot: "var(--agri-blue)" },
   ].filter((c) => c && c.count > 0);
@@ -147,10 +156,11 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Validation status: donut + legend, with the farmer stats beside it */}
+          {/* Proof of planting: submission donut + legend, with the (Active/Inactive) farmer stats beside it */}
           <div className="agri-card agri-dash-card agri-dash-validation">
             <div className="agri-panel-header">
-              <div style={{ fontWeight: 700 }}>Validation Status</div>
+              <div style={{ fontWeight: 700 }}>Proof of Planting</div>
+              <div className="agri-muted" style={{ fontSize: "0.8rem" }}>{plural(subStats.total, "submission", "submissions")}</div>
             </div>
             <div className="agri-dash-validation-body">
               <div className="agri-dash-donut-col">
@@ -158,28 +168,29 @@ export default function Dashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={[{ name: "Validated", value: stats.validated }, { name: "Not Validated", value: notValidated }]}
+                        data={donutData}
                         dataKey="value"
                         innerRadius="66%"
                         outerRadius="96%"
                         paddingAngle={2}
                         stroke="none"
                       >
-                        {PIE_COLORS.map((color) => (
-                          <Cell key={color} fill={color} />
+                        {donutData.map((d) => (
+                          <Cell key={d.name} fill={d.color} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      {subStats.total > 0 && <Tooltip contentStyle={TOOLTIP_STYLE} />}
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="agri-dash-donut-center">
-                    <div className="agri-dash-donut-pct">{validatedPct}%</div>
+                    <div className="agri-dash-donut-pct">{pct(subStats.validated)}%</div>
                     <div className="agri-muted agri-dash-donut-caption">Validated</div>
                   </div>
                 </div>
                 <div className="agri-dash-legend">
-                  <LegendItem color={PIE_COLORS[0]} label="Validated" count={stats.validated} pct={validatedPct} />
-                  <LegendItem color={PIE_COLORS[1]} label="Not Validated" count={notValidated} pct={notValidatedPct} />
+                  {SUBMISSION_SEGMENTS.map((seg) => (
+                    <LegendItem key={seg.key} color={seg.color} label={seg.label} count={subStats[seg.key]} pct={pct(subStats[seg.key])} />
+                  ))}
                 </div>
               </div>
 
@@ -256,7 +267,7 @@ export default function Dashboard() {
             <div className={`agri-dash-tiles${isMAO ? "" : " two"}`}>
               {isMAO ? (
                 <>
-                  <QuickAction icon={ShieldCheck} color="green" label="Validate Farmers" onClick={() => navigate("/validation")} />
+                  <QuickAction icon={ShieldCheck} color="green" label="Review Proof of Planting" onClick={() => navigate("/validation")} />
                   <QuickAction icon={FilePlus} color="blue" label="Generate Report" onClick={() => navigate("/reports")} />
                   <QuickAction icon={UserPlus} color="purple" label="Add Farmer" onClick={() => navigate("/farmers")} />
                   <QuickAction icon={ClipboardList} color="orange" label="Record Distribution" onClick={() => navigate("/distributions")} />
