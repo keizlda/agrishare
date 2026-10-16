@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ChevronDown, Pencil, Plus, Printer, Trash2, Truck, X } from "lucide-react";
 import Pill, { STATUS_COLOR } from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
@@ -80,7 +81,11 @@ export default function Distributions() {
   const isMAO = user?.role !== "FA President";
   const { data: distributions, setData: setDistributions, loading, error: loadError } = useSupabaseList(listDistributions);
   const [commodities, setCommodities] = useState([]);
-  const [statusFilter, setStatusFilter] = useState("All");
+  // ?status= preselects the status filter (the Dashboard's "ongoing" chip).
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(() =>
+    ["Completed", "Ongoing", "Scheduled"].includes(searchParams.get("status")) ? searchParams.get("status") : "All",
+  );
   const [programFilter, setProgramFilter] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
   const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", distribution }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, History, Inbox, Search, Send, ShieldAlert } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Toast from "../components/ui/Toast.jsx";
@@ -54,7 +55,9 @@ function faTabRows(requests, key, currentUserId) {
 
 function FARequestsView({ currentUserId }) {
   const { data: requests, setData: setRequests, loading, error: loadError } = useSupabaseList(listRequests);
-  const [tab, setTab] = useState("pending");
+  // ?tab= preselects a tab (the Dashboard's "requests to review" chip).
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => (FA_TABS.some((t) => t.key === searchParams.get("tab")) ? searchParams.get("tab") : "pending"));
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [remarks, setRemarks] = useState("");
@@ -221,7 +224,8 @@ function adminTabRows(requests, key) {
 
 function AdminRequestsView() {
   const { data: requests, setData: setRequests, loading, error: loadError } = useSupabaseList(listRequestsForAdminReview);
-  const [tab, setTab] = useState("awaiting");
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => (ADMIN_TABS.some((t) => t.key === searchParams.get("tab")) ? searchParams.get("tab") : "awaiting"));
   const [selectedId, setSelectedId] = useState(null);
   const [remarks, setRemarks] = useState("");
   const [actionError, setActionError] = useState("");

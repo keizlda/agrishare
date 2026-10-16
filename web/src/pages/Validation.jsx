@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -61,7 +61,9 @@ export default function Validation() {
   const { data: submissions, setData: setSubmissions, loading, error: loadError } = useSupabaseList(listSubmissions);
   const [farmers, setFarmers] = useState([]);
   const [search, setSearch] = useState("");
-  const [statusTab, setStatusTab] = useState("Pending");
+  // ?status= preselects a tab (the Dashboard's "pending validation" chip).
+  const [searchParams] = useSearchParams();
+  const [statusTab, setStatusTab] = useState(() => (STATUS_TABS.includes(searchParams.get("status")) ? searchParams.get("status") : "Pending"));
   const [sort, setSort] = useState("Newest first");
   const [selectedId, setSelectedId] = useState(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);

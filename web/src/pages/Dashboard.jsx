@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -23,6 +23,8 @@ import {
 import { listFarmers } from "../lib/api/farmers.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
+import { listSubmissions } from "../lib/api/cropValidation.js";
+import { listRequests, listRequestsForAdminReview } from "../lib/api/requests.js";
 import { useFitCount } from "../hooks/useFitCount.js";
 import Toast from "../components/ui/Toast.jsx";
 import MiniStat from "../components/ui/MiniStat.jsx";
@@ -32,6 +34,15 @@ const PIE_COLORS = ["var(--agri-primary)", "var(--agri-red-soft)"];
 const AXIS_TICK = { fontSize: 12, fill: "var(--agri-text-muted)" };
 const TOOLTIP_STYLE = { borderRadius: 10, border: "1px solid var(--agri-border)", background: "var(--agri-card)", fontSize: 13 };
 const MAX_ROWS = 5;
+
+function greetingFor(date) {
+  const h = date.getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 // When the Dashboard fills the viewport instead of scrolling — must match the
 // fill-mode @media block in theme.css's Dashboard section.
 const FILL_QUERY = "(min-width: 1280px) and (min-height: 620px), (min-width: 1024px) and (min-height: 800px)";
@@ -44,16 +55,28 @@ export default function Dashboard() {
   const [farmers, setFarmers] = useState([]);
   const [distributions, setDistributions] = useState([]);
   const [commodities, setCommodities] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [toast, setToast] = useState(null);
   const recentListRef = useRef(null);
   const commodityListRef = useRef(null);
+
+  const isMAO = user?.role !== "FA President";
 
   useEffect(() => {
     listFarmers().then(setFarmers).catch(() => {});
     listDistributions().then(setDistributions).catch(() => {});
     listCommodities().then(setCommodities).catch(() => {});
   }, []);
+
+  // Welcome-bar chip counts, from the same lists (and the same status rules)
+  // the Validation and Requests pages show. Validation is MAO-only; requests
+  // "to review" are Forwarded ones for the admin, Pending ones for the FA.
+  useEffect(() => {
+    if (isMAO) listSubmissions().then(setSubmissions).catch(() => {});
+    (isMAO ? listRequestsForAdminReview : listRequests)().then(setRequests).catch(() => {});
+  }, [isMAO]);
 
   const stats = computeFarmerStats(farmers);
   const notValidated = stats.total - stats.validated;
@@ -71,11 +94,34 @@ export default function Dashboard() {
   const recent = distributions.slice(0, recentFit);
   const topCommodities = rankedCommodities.slice(0, commodityFit);
 
-  const isMAO = user?.role !== "FA President";
+  const pendingValidation = submissions.filter((sub) => sub.status === "Pending").length;
+  const ongoing = distributions.filter((d) => d.status === "Ongoing").length;
+  const toReview = requests.filter((r) => r.status === (isMAO ? "Forwarded" : "Pending")).length;
+  const chips = [
+    isMAO && { count: pendingValidation, label: `${pendingValidation} pending validation`, to: "/validation?status=Pending", dot: "var(--agri-orange)" },
+    { count: ongoing, label: plural(ongoing, "ongoing distribution", "ongoing distributions"), to: "/distributions?status=Ongoing", dot: "var(--agri-teal)" },
+    { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: `/requests?tab=${isMAO ? "awaiting" : "pending"}`, dot: "var(--agri-blue)" },
+  ].filter((c) => c && c.count > 0);
 
   return (
     <>
       <div className="agri-dash">
+        <div className="agri-dash-welcome">
+          <h1 className="agri-dash-greeting">
+            {greetingFor(new Date())}, {user?.name ?? "Admin"}
+          </h1>
+          {chips.length > 0 && (
+            <div className="agri-dash-chips">
+              {chips.map((c) => (
+                <Link key={c.to} to={c.to} className="agri-dash-chip">
+                  <span className="agri-dash-chip-dot" style={{ background: c.dot }} aria-hidden="true" />
+                  {c.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="agri-dash-row agri-dash-row-top">
           {/* Distribution overview chart */}
           <div className="agri-card agri-dash-card agri-dash-chart">
@@ -210,17 +256,17 @@ export default function Dashboard() {
             <div className={`agri-dash-tiles${isMAO ? "" : " two"}`}>
               {isMAO ? (
                 <>
-                  <QuickAction icon={ShieldCheck} label="Validate Farmers" onClick={() => navigate("/validation")} />
-                  <QuickAction icon={FilePlus} label="Generate Report" onClick={() => navigate("/reports")} />
-                  <QuickAction icon={UserPlus} label="Add Farmer" onClick={() => navigate("/farmers")} />
-                  <QuickAction icon={ClipboardList} label="Record Distribution" onClick={() => navigate("/distributions")} />
-                  <QuickAction icon={Megaphone} label="Post Announcement" onClick={() => setShowAnnouncement(true)} />
-                  <QuickAction icon={Newspaper} label="View Announcements" onClick={() => navigate("/announcements")} />
+                  <QuickAction icon={ShieldCheck} color="green" label="Validate Farmers" onClick={() => navigate("/validation")} />
+                  <QuickAction icon={FilePlus} color="blue" label="Generate Report" onClick={() => navigate("/reports")} />
+                  <QuickAction icon={UserPlus} color="purple" label="Add Farmer" onClick={() => navigate("/farmers")} />
+                  <QuickAction icon={ClipboardList} color="orange" label="Record Distribution" onClick={() => navigate("/distributions")} />
+                  <QuickAction icon={Megaphone} color="teal" label="Post Announcement" onClick={() => setShowAnnouncement(true)} />
+                  <QuickAction icon={Newspaper} color="red" label="View Announcements" onClick={() => navigate("/announcements")} />
                 </>
               ) : (
                 <>
-                  <QuickAction icon={Users} label="View Farmers" onClick={() => navigate("/farmers")} />
-                  <QuickAction icon={Eye} label="View Distributions" onClick={() => navigate("/distributions")} />
+                  <QuickAction icon={Users} color="blue" label="View Farmers" onClick={() => navigate("/farmers")} />
+                  <QuickAction icon={Eye} color="orange" label="View Distributions" onClick={() => navigate("/distributions")} />
                 </>
               )}
             </div>
@@ -253,10 +299,12 @@ function LegendItem({ color, label, count, pct }) {
   );
 }
 
-function QuickAction({ icon: Icon, label, onClick }) {
+function QuickAction({ icon: Icon, color, label, onClick }) {
   return (
     <button type="button" onClick={onClick} className="agri-dash-tile">
-      <Icon size={20} />
+      <span className={`agri-dash-tile-icon ${color}`} aria-hidden="true">
+        <Icon size={18} />
+      </span>
       {label}
     </button>
   );
