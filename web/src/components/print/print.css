@@ -233,6 +233,7 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
   margin-top: 28px;
+  break-inside: avoid;
   page-break-inside: avoid;
 }
 
@@ -292,19 +293,26 @@
    from .pr-items-table) and rows never split (break-inside: avoid). */
 .pr-beneficiary-table {
   table-layout: fixed;
-  font-size: 8.5pt;
+  font-size: 10px;
   line-height: 1.1;
 }
 
 .pr-beneficiary-table th,
 .pr-beneficiary-table td {
   border: 1px solid #c9d3cb;
-  padding: 2px 5px;
+  padding: 2px 4px;
   vertical-align: middle;
 }
 
-/* Long names/commodities may wrap between words; a two-line cell still
-   fits the 8mm row. */
+/* No. / Sex / Unit hold 1–4 characters: tighter padding, centered. */
+.pr-beneficiary-table .pr-bnarrow {
+  padding-left: 2px;
+  padding-right: 2px;
+  text-align: center;
+}
+
+/* Names and commodities stay on one line when the column allows; anything
+   longer wraps between words and a two-line cell still fits the row. */
 .pr-beneficiary-table td {
   overflow-wrap: break-word;
 }
@@ -317,8 +325,9 @@
   line-height: 1.2;
 }
 
+/* 32px rows leave room for a handwritten signature. */
 .pr-beneficiary-table tbody td {
-  height: 8mm;
+  height: 32px;
 }
 
 .pr-beneficiary-table .pr-nowrap {
@@ -331,15 +340,15 @@
   height: auto;
 }
 
-.pr-beneficiary-table .pr-bcol-no { width: 5%; }
-.pr-beneficiary-table .pr-bcol-name { width: 18%; }
-.pr-beneficiary-table .pr-bcol-rsbsa { width: 20%; }
-.pr-beneficiary-table .pr-bcol-sex { width: 5%; }
-.pr-beneficiary-table .pr-bcol-commodity { width: 13%; }
-.pr-beneficiary-table .pr-bcol-qty { width: 8%; }
-.pr-beneficiary-table .pr-bcol-unit { width: 5%; }
-.pr-beneficiary-table .pr-bcol-date { width: 10%; }
-.pr-beneficiary-table .pr-bcol-sign { width: 16%; }
+.pr-beneficiary-table .pr-bcol-no { width: 3.5%; }
+.pr-beneficiary-table .pr-bcol-name { width: 16.25%; }
+.pr-beneficiary-table .pr-bcol-rsbsa { width: 16%; }
+.pr-beneficiary-table .pr-bcol-sex { width: 3.5%; }
+.pr-beneficiary-table .pr-bcol-commodity { width: 17.75%; }
+.pr-beneficiary-table .pr-bcol-qty { width: 7.5%; }
+.pr-beneficiary-table .pr-bcol-unit { width: 4.5%; }
+.pr-beneficiary-table .pr-bcol-date { width: 9%; }
+.pr-beneficiary-table .pr-bcol-sign { width: 22%; }
 
 .pr-no-beneficiaries {
   margin: 8px 0 0;

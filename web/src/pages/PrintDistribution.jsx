@@ -93,13 +93,22 @@ export default function PrintDistribution() {
         </table>
       </div>
 
-      <Signatures />
-
       <BeneficiaryList distribution={d} beneficiaries={beneficiaries} eventDateLong={eventDateLong} />
     </PrintLayout>
   );
 }
 
+// "09/30/2026": event_date is a plain YYYY-MM-DD string, so reformat it
+// directly instead of going through Date (no time-zone day shifts).
+function shortDate(isoDate) {
+  const [y, m, d] = String(isoDate).split("-");
+  return y && m && d ? `${m}/${d}/${y}` : "";
+}
+
+// The report's only signature block. It sits at the very end of the
+// document (after the beneficiary list, or after the "no tagged
+// beneficiaries" note) and never splits across pages — if it doesn't fit
+// under the last row it moves to the next page whole.
 function Signatures() {
   return (
     <div className="pr-signatures">
@@ -115,11 +124,12 @@ function Signatures() {
 // table's own header row repeats on every page it continues onto, and rows
 // never split across pages. Date Received is the distribution date once the
 // distribution is acknowledged, otherwise blank to be filled in by hand.
+// The signature block follows the Total row (or the empty-list note).
 function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
   const farmerCount = new Set(beneficiaries.map((b) => b.farmerId)).size;
   const totalQty = beneficiaries.reduce((sum, b) => sum + b.quantity, 0);
   const sameUnit = beneficiaries.length > 0 && beneficiaries.every((b) => b.unit === beneficiaries[0].unit);
-  const received = d.acknowledgementStatus === "Acknowledged" ? new Date(d.date).toLocaleDateString("en-US") : "";
+  const received = d.acknowledgementStatus === "Acknowledged" ? shortDate(d.date) : "";
 
   return (
     <section className="pr-beneficiaries">
@@ -143,13 +153,13 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
           </colgroup>
           <thead>
             <tr>
-              <th>No.</th>
+              <th className="pr-bnarrow">No.</th>
               <th>Name of Beneficiary</th>
               <th>RSBSA No.</th>
-              <th>Sex</th>
+              <th className="pr-bnarrow">Sex</th>
               <th>Commodity</th>
               <th className="pr-num">Qty Received</th>
-              <th>Unit</th>
+              <th className="pr-bnarrow">Unit</th>
               <th>Date Received</th>
               <th>Signature</th>
             </tr>
@@ -157,13 +167,13 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
           <tbody>
             {beneficiaries.map((b, i) => (
               <tr key={b.claimId}>
-                <td>{i + 1}</td>
+                <td className="pr-bnarrow">{i + 1}</td>
                 <td>{b.name}</td>
                 <td className="pr-nowrap">{b.rsbsaNo}</td>
-                <td>{b.sex}</td>
+                <td className="pr-bnarrow">{b.sex}</td>
                 <td>{b.commodity}</td>
                 <td className="pr-num">{b.quantity.toLocaleString()}</td>
-                <td>{b.unit}</td>
+                <td className="pr-bnarrow">{b.unit}</td>
                 <td className="pr-nowrap">{received}</td>
                 <td />
               </tr>
@@ -171,7 +181,7 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
             <tr className="pr-items-total">
               <td colSpan={5}>Total: {farmerCount} {farmerCount === 1 ? "farmer" : "farmers"}</td>
               <td className="pr-num">{totalQty.toLocaleString()}</td>
-              <td>{sameUnit ? beneficiaries[0].unit : ""}</td>
+              <td className="pr-bnarrow">{sameUnit ? beneficiaries[0].unit : ""}</td>
               <td colSpan={2} />
             </tr>
           </tbody>
