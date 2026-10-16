@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Copy, Eye, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
+import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
@@ -325,7 +326,12 @@ export default function Farmers() {
               {pageItems.map((f) => (
                 <tr key={f.id} onClick={() => setViewing(f)}>
                   <td>{f.rsbsaNo}</td>
-                  <td>{f.firstName} {f.lastName}</td>
+                  <td>
+                    <span className="agri-farmer-cell">
+                      <FarmerAvatar url={f.avatarUrl} firstName={f.firstName} lastName={f.lastName} size={28} />
+                      {f.firstName} {f.lastName}
+                    </span>
+                  </td>
                   <td>{f.sex}</td>
                   <td>{f.birthDate}</td>
                   <td>{f.contactNo}</td>

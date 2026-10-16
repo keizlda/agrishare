@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import Pill from "../ui/Pill.jsx";
+import FarmerAvatar from "../ui/FarmerAvatar.jsx";
 import { searchFarmers } from "../../lib/api/farmers.js";
 
 // Gmail-style farmer tagging: type a name/RSBSA/@name, pick from a debounced
-// dropdown (avatar-less initial circle, name, RSBSA, barangay, status
-// badges), Enter/click to add, chip ✕ or Backspace-on-empty to remove.
+// dropdown (photo or initials, name, RSBSA, barangay, status badge),
+// Enter/click to add, chip ✕ or Backspace-on-empty to remove.
 // Inactive farmers can still be added but need a confirm step —
 // handled by the parent via onRequestAdd's return value (see Distributions.jsx).
 export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFarmer, disabled }) {
@@ -82,6 +83,7 @@ export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFar
       <div className="agri-tag-input" onClick={() => inputRef.current?.focus()}>
         {taggedFarmers.map((f) => (
           <span key={f.farmerId} className={`agri-tag-chip${f.duplicateWarning ? " warn" : ""}`}>
+            <FarmerAvatar url={f.avatarUrl} firstName={f.firstName} lastName={f.lastName} size={20} />
             {f.firstName} {f.lastName}
             <button
               type="button"
@@ -121,7 +123,7 @@ export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFar
               onMouseEnter={() => setActiveIndex(i)}
               onClick={() => selectFarmer(f)}
             >
-              <span className="agri-tag-suggestion-avatar">{f.firstName[0]}{f.lastName[0]}</span>
+              <FarmerAvatar url={f.avatarUrl} firstName={f.firstName} lastName={f.lastName} size={28} />
               <span className="agri-tag-suggestion-info">
                 <span className="agri-tag-suggestion-name">{f.firstName} {f.lastName}</span>
                 <span className="agri-tag-suggestion-meta">RSBSA {f.rsbsaNo} · {f.barangay}</span>

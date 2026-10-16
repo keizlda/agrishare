@@ -1,0 +1,198 @@
+{
+  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them.",
+  "accounts": {
+    "fa_president": { "name": "Pedro Lagunay", "email": "fapresident@agrishare.test", "password": "password123", "role": "fa_president" },
+    "farmers": "Created from 'farmers' below: email {login_id}@farmers.agrishare.ph, password password123"
+  },
+  "existing_farmers_used": [
+    { "rsbsa_number": "09-73-00-000-000537", "first_name": "Maui", "last_name": "Pelaez" },
+    { "rsbsa_number": "09-73-00-000-000612", "first_name": "Claude", "last_name": "Oclarit" },
+    { "rsbsa_number": "09-73-00-000-000389", "first_name": "Luna", "last_name": "Cuizon" }
+  ],
+  "farmers": [
+    { "rsbsa_number": "09-73-00-000-000201", "login_id": "000201", "first_name": "Rodel", "middle_name": "Ancheta", "last_name": "Bagas", "sex": "Male", "birth_date": "1968-03-14", "contact_number": "09526018159", "sitio_purok": "Purok 1", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 1.5, "farm_location": "Purok 1", "ownership": "Registered Owner", "pcic_insured": true, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000202", "login_id": "000202", "first_name": "Marites", "middle_name": "Lumbay", "last_name": "Cabahug", "sex": "Female", "birth_date": "1972-07-22", "contact_number": "09016613186", "sitio_purok": "Purok 1", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 1.2, "farm_location": "Purok 1", "ownership": "Registered Owner", "pcic_insured": true, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000203", "login_id": "000203", "first_name": "Arnel", "middle_name": "Sumagang", "last_name": "Dacalos", "sex": "Male", "birth_date": "1980-11-05", "contact_number": "09390996030", "sitio_purok": "Purok 2", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Corn", "farm_size_ha": 2.0, "farm_location": "Purok 2", "ownership": "Registered Owner", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000204", "login_id": "000204", "first_name": "Josefina", "middle_name": "Ebdane", "last_name": "Pacatang", "sex": "Female", "birth_date": "1965-01-30", "contact_number": "09628194821", "sitio_purok": "Purok 2", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 0.8, "farm_location": "Purok 2", "ownership": "Registered Owner", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000205", "login_id": "000205", "first_name": "Romeo", "middle_name": "Tayong", "last_name": "Lagura", "sex": "Male", "birth_date": "1959-09-18", "contact_number": "09181909378", "sitio_purok": "Purok 3", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 2.5, "farm_location": "Purok 3", "ownership": "Lessee", "pcic_insured": false, "status": "Inactive", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000206", "login_id": "000206", "first_name": "Gina", "middle_name": "Apdian", "last_name": "Salise", "sex": "Female", "birth_date": "1984-04-09", "contact_number": "09797543231", "sitio_purok": "Purok 3", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Vegetables", "farm_size_ha": 0.5, "farm_location": "Purok 3", "ownership": "Tenant", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000207", "login_id": "000207", "first_name": "Ernesto", "middle_name": "Bayno", "last_name": "Manlangit", "sex": "Male", "birth_date": "1970-12-02", "contact_number": "09574911862", "sitio_purok": "Purok 4", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Corn", "farm_size_ha": 1.75, "farm_location": "Purok 4", "ownership": "Tenant", "pcic_insured": true, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000208", "login_id": "000208", "first_name": "Leonora", "middle_name": "Gumapac", "last_name": "Taghoy", "sex": "Female", "birth_date": "1976-06-27", "contact_number": "09760189555", "sitio_purok": "Purok 4", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 1.0, "farm_location": "Purok 4", "ownership": "Lessee", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000209", "login_id": "000209", "first_name": "Dionisio", "middle_name": "Lacanaria", "last_name": "Omay", "sex": "Male", "birth_date": "1962-08-11", "contact_number": "09114710497", "sitio_purok": "Purok 5", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 3.0, "farm_location": "Purok 5", "ownership": "Tenant", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000210", "login_id": "000210", "first_name": "Rosalie", "middle_name": "Ampong", "last_name": "Baguio", "sex": "Female", "birth_date": "1988-02-16", "contact_number": "09507529170", "sitio_purok": "Purok 5", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Vegetables", "farm_size_ha": 0.6, "farm_location": "Purok 5", "ownership": "Registered Owner", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000211", "login_id": "000211", "first_name": "Jerry", "middle_name": "Saldo", "last_name": "Unabia", "sex": "Male", "birth_date": "1979-10-03", "contact_number": "09236671276", "sitio_purok": "Sitio Canitoan", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Corn", "farm_size_ha": 2.2, "farm_location": "Sitio Canitoan", "ownership": "Tenant", "pcic_insured": true, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000212", "login_id": "000212", "first_name": "Nenita", "middle_name": "Pagalan", "last_name": "Ladra", "sex": "Female", "birth_date": "1967-05-25", "contact_number": "09684656321", "sitio_purok": "Sitio Canitoan", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 1.4, "farm_location": "Sitio Canitoan", "ownership": "Registered Owner", "pcic_insured": true, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000213", "login_id": "000213", "first_name": "Ricardo", "middle_name": "Andoy", "last_name": "Gumanoy", "sex": "Male", "birth_date": "1974-03-08", "contact_number": "09330792440", "sitio_purok": "Sitio Balulang", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 1.8, "farm_location": "Sitio Balulang", "ownership": "Registered Owner", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000214", "login_id": "000214", "first_name": "Imelda", "middle_name": "Cabatingan", "last_name": "Sabado", "sex": "Female", "birth_date": "1981-09-14", "contact_number": "09859952890", "sitio_purok": "Sitio Balulang", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Vegetables", "farm_size_ha": 0.75, "farm_location": "Sitio Balulang", "ownership": "Lessee", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000215", "login_id": "000215", "first_name": "Feliciano", "middle_name": "Mabolo", "last_name": "Ranoco", "sex": "Male", "birth_date": "1958-11-29", "contact_number": "09666176031", "sitio_purok": "Sitio Macabalan", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 2.0, "farm_location": "Sitio Macabalan", "ownership": "Registered Owner", "pcic_insured": false, "status": "Inactive", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000216", "login_id": "000216", "first_name": "Cristina", "middle_name": "Dagatan", "last_name": "Lumayag", "sex": "Female", "birth_date": "1990-07-07", "contact_number": "09215901092", "sitio_purok": "Sitio Macabalan", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Corn", "farm_size_ha": 1.1, "farm_location": "Sitio Macabalan", "ownership": "Registered Owner", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000217", "login_id": "000217", "first_name": "Alfredo", "middle_name": "Tumulak", "last_name": "Inting", "sex": "Male", "birth_date": "1971-01-19", "contact_number": "09901396245", "sitio_purok": "Purok 1", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 1.3, "farm_location": "Purok 1", "ownership": "Tenant", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000218", "login_id": "000218", "first_name": "Teresita", "middle_name": "Bacus", "last_name": "Melendres", "sex": "Female", "birth_date": "1963-04-12", "contact_number": "09117777412", "sitio_purok": "Purok 2", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 0.9, "farm_location": "Purok 2", "ownership": "Registered Owner", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000219", "login_id": "000219", "first_name": "Danilo", "middle_name": "Pepito", "last_name": "Abellana", "sex": "Male", "birth_date": "1985-08-21", "contact_number": "09472803852", "sitio_purok": "Purok 3", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Corn", "farm_size_ha": 1.6, "farm_location": "Purok 3", "ownership": "Registered Owner", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000220", "login_id": "000220", "first_name": "Evangeline", "middle_name": "Sarno", "last_name": "Cuyos", "sex": "Female", "birth_date": "1977-12-15", "contact_number": "09148525388", "sitio_purok": "Purok 4", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Vegetables", "farm_size_ha": 0.4, "farm_location": "Purok 4", "ownership": "Tenant", "pcic_insured": true, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000221", "login_id": "000221", "first_name": "Wilfredo", "middle_name": "Ompad", "last_name": "Generalao", "sex": "Male", "birth_date": "1969-06-02", "contact_number": "09933633875", "sitio_purok": "Purok 5", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 2.3, "farm_location": "Purok 5", "ownership": "Registered Owner", "pcic_insured": true, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000222", "login_id": "000222", "first_name": "Analyn", "middle_name": "Tabanao", "last_name": "Caburnay", "sex": "Female", "birth_date": "1993-03-28", "contact_number": "09474395755", "sitio_purok": "Sitio Canitoan", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 0.7, "farm_location": "Sitio Canitoan", "ownership": "Registered Owner", "pcic_insured": true, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000223", "login_id": "000223", "first_name": "Benjamin", "middle_name": "Alimbon", "last_name": "Pasilan", "sex": "Male", "birth_date": "1960-10-10", "contact_number": "09137353799", "sitio_purok": "Sitio Balulang", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Corn", "farm_size_ha": 2.8, "farm_location": "Sitio Balulang", "ownership": "Registered Owner", "pcic_insured": false, "status": "Inactive", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000224", "login_id": "000224", "first_name": "Lorna", "middle_name": "Wapano", "last_name": "Sumampong", "sex": "Female", "birth_date": "1975-02-04", "contact_number": "09511637265", "sitio_purok": "Sitio Macabalan", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Rice", "farm_size_ha": 1.25, "farm_location": "Sitio Macabalan", "ownership": "Registered Owner", "pcic_insured": false, "status": "Active", "password": "password123" },
+    { "rsbsa_number": "09-73-00-000-000225", "login_id": "000225", "first_name": "Edgar", "middle_name": "Calibo", "last_name": "Paglinawan", "sex": "Male", "birth_date": "1982-05-17", "contact_number": "09761222029", "sitio_purok": "Purok 3", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Vegetables", "farm_size_ha": 0.55, "farm_location": "Purok 3", "ownership": "Lessee", "pcic_insured": true, "status": "Active", "password": "password123" }
+  ],
+  "commodities": [
+    { "name": "Rice Seeds (NSIC Rc222)", "category": "Rice", "unit": "kg", "status": "Active" },
+    { "name": "Corn Seeds", "category": "Corn", "unit": "kg", "status": "Active" },
+    { "name": "Vegetable Seeds", "category": "Vegetables", "unit": "kg", "status": "Active" },
+    { "name": "Organic Fertilizer", "category": "Fertilizer", "unit": "kg", "status": "Active" },
+    { "name": "Urea Fertilizer (46-0-0)", "category": "Fertilizer", "unit": "kg", "status": "Active" },
+    { "name": "Bio Plant Activator", "category": "Fertilizer", "unit": "L", "status": "Active" },
+    { "name": "Farm Tools Set", "category": "Farm Tools", "unit": "set", "status": "Active" },
+    { "name": "Livestock Assistance (Native Chicken)", "category": "Livestock", "unit": "head", "status": "Inactive" }
+  ],
+  "distributions": [
+    {
+      "date": "2026-03-12", "program_name": "RCEF Seed Distribution - Dry Season", "crop_type": "Rice", "commodity": "Rice Seeds (NSIC Rc222)",
+      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA-RCEF", "status": "Completed", "acknowledgement_status": "Acknowledged", "total_quantity": 160,
+      "beneficiaries": [
+        { "rsbsa_number": "09-73-00-000-000537", "name": "Maui Pelaez", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000612", "name": "Claude Oclarit", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000389", "name": "Luna Cuizon", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000201", "name": "Rodel Bagas", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000202", "name": "Marites Cabahug", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000204", "name": "Josefina Pacatang", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000208", "name": "Leonora Taghoy", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000209", "name": "Dionisio Omay", "quantity_received": 20 }
+      ]
+    },
+    {
+      "date": "2026-04-08", "program_name": "Corn Program Seed Assistance", "crop_type": "Corn", "commodity": "Corn Seeds",
+      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA Corn Program", "status": "Completed", "acknowledgement_status": "Acknowledged", "total_quantity": 90,
+      "beneficiaries": [
+        { "rsbsa_number": "09-73-00-000-000203", "name": "Arnel Dacalos", "quantity_received": 18 },
+        { "rsbsa_number": "09-73-00-000-000207", "name": "Ernesto Manlangit", "quantity_received": 18 },
+        { "rsbsa_number": "09-73-00-000-000211", "name": "Jerry Unabia", "quantity_received": 18 },
+        { "rsbsa_number": "09-73-00-000-000216", "name": "Cristina Lumayag", "quantity_received": 18 },
+        { "rsbsa_number": "09-73-00-000-000219", "name": "Danilo Abellana", "quantity_received": 18 }
+      ]
+    },
+    {
+      "date": "2026-05-20", "program_name": "HVCDP Vegetable Seed Distribution", "crop_type": "Vegetables", "commodity": "Vegetable Seeds",
+      "venue": "Langapud Covered Court", "barangay": "Langapud", "funding_source": "DA-HVCDP", "status": "Completed", "acknowledgement_status": "Acknowledged", "total_quantity": 10,
+      "beneficiaries": [
+        { "rsbsa_number": "09-73-00-000-000206", "name": "Gina Salise", "quantity_received": 2 },
+        { "rsbsa_number": "09-73-00-000-000210", "name": "Rosalie Baguio", "quantity_received": 2 },
+        { "rsbsa_number": "09-73-00-000-000214", "name": "Imelda Sabado", "quantity_received": 2 },
+        { "rsbsa_number": "09-73-00-000-000220", "name": "Evangeline Cuyos", "quantity_received": 2 },
+        { "rsbsa_number": "09-73-00-000-000225", "name": "Edgar Paglinawan", "quantity_received": 2 }
+      ]
+    },
+    {
+      "date": "2026-06-15", "program_name": "Organic Fertilizer Assistance", "crop_type": "Fertilizer", "commodity": "Organic Fertilizer",
+      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "LGU Labangan", "status": "Completed", "acknowledgement_status": "Pending", "total_quantity": 450,
+      "beneficiaries": [
+        { "rsbsa_number": "09-73-00-000-000537", "name": "Maui Pelaez", "quantity_received": 50 },
+        { "rsbsa_number": "09-73-00-000-000612", "name": "Claude Oclarit", "quantity_received": 50 },
+        { "rsbsa_number": "09-73-00-000-000389", "name": "Luna Cuizon", "quantity_received": 50 },
+        { "rsbsa_number": "09-73-00-000-000201", "name": "Rodel Bagas", "quantity_received": 50 },
+        { "rsbsa_number": "09-73-00-000-000202", "name": "Marites Cabahug", "quantity_received": 50 },
+        { "rsbsa_number": "09-73-00-000-000204", "name": "Josefina Pacatang", "quantity_received": 50 },
+        { "rsbsa_number": "09-73-00-000-000203", "name": "Arnel Dacalos", "quantity_received": 50 },
+        { "rsbsa_number": "09-73-00-000-000207", "name": "Ernesto Manlangit", "quantity_received": 50 },
+        { "rsbsa_number": "09-73-00-000-000211", "name": "Jerry Unabia", "quantity_received": 50 }
+      ]
+    },
+    {
+      "date": "2026-08-26", "program_name": "Farm Tools Distribution", "crop_type": "Farm Tools", "commodity": "Farm Tools Set",
+      "venue": "MAO Labangan Office", "barangay": "Langapud", "funding_source": "LGU Labangan", "status": "Completed", "acknowledgement_status": "Acknowledged", "total_quantity": 10,
+      "beneficiaries": [
+        { "rsbsa_number": "09-73-00-000-000537", "name": "Maui Pelaez", "quantity_received": 1 },
+        { "rsbsa_number": "09-73-00-000-000612", "name": "Claude Oclarit", "quantity_received": 1 },
+        { "rsbsa_number": "09-73-00-000-000389", "name": "Luna Cuizon", "quantity_received": 1 },
+        { "rsbsa_number": "09-73-00-000-000201", "name": "Rodel Bagas", "quantity_received": 1 },
+        { "rsbsa_number": "09-73-00-000-000202", "name": "Marites Cabahug", "quantity_received": 1 },
+        { "rsbsa_number": "09-73-00-000-000203", "name": "Arnel Dacalos", "quantity_received": 1 },
+        { "rsbsa_number": "09-73-00-000-000204", "name": "Josefina Pacatang", "quantity_received": 1 },
+        { "rsbsa_number": "09-73-00-000-000206", "name": "Gina Salise", "quantity_received": 1 },
+        { "rsbsa_number": "09-73-00-000-000207", "name": "Ernesto Manlangit", "quantity_received": 1 },
+        { "rsbsa_number": "09-73-00-000-000208", "name": "Leonora Taghoy", "quantity_received": 1 }
+      ]
+    },
+    {
+      "date": "2026-10-02", "program_name": "RCEF Seed Distribution - Wet Season", "crop_type": "Rice", "commodity": "Rice Seeds (NSIC Rc222)",
+      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA-RCEF", "status": "Completed", "acknowledgement_status": "Pending", "total_quantity": 260,
+      "beneficiaries": [
+        { "rsbsa_number": "09-73-00-000-000389", "name": "Luna Cuizon", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000201", "name": "Rodel Bagas", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000202", "name": "Marites Cabahug", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000204", "name": "Josefina Pacatang", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000208", "name": "Leonora Taghoy", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000209", "name": "Dionisio Omay", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000212", "name": "Nenita Ladra", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000213", "name": "Ricardo Gumanoy", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000217", "name": "Alfredo Inting", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000218", "name": "Teresita Melendres", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000221", "name": "Wilfredo Generalao", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000222", "name": "Analyn Caburnay", "quantity_received": 20 },
+        { "rsbsa_number": "09-73-00-000-000224", "name": "Lorna Sumampong", "quantity_received": 20 }
+      ]
+    },
+    {
+      "date": "2026-10-23", "program_name": "Urea Fertilizer Assistance", "crop_type": "Fertilizer", "commodity": "Urea Fertilizer (46-0-0)",
+      "venue": "Langapud Covered Court", "barangay": "Langapud", "funding_source": "DA Rice Program", "status": "Ongoing", "acknowledgement_status": "Pending", "total_quantity": 175,
+      "beneficiaries": [
+        { "rsbsa_number": "09-73-00-000-000537", "name": "Maui Pelaez", "quantity_received": 25 },
+        { "rsbsa_number": "09-73-00-000-000612", "name": "Claude Oclarit", "quantity_received": 25 },
+        { "rsbsa_number": "09-73-00-000-000389", "name": "Luna Cuizon", "quantity_received": 25 },
+        { "rsbsa_number": "09-73-00-000-000201", "name": "Rodel Bagas", "quantity_received": 25 },
+        { "rsbsa_number": "09-73-00-000-000202", "name": "Marites Cabahug", "quantity_received": 25 },
+        { "rsbsa_number": "09-73-00-000-000204", "name": "Josefina Pacatang", "quantity_received": 25 },
+        { "rsbsa_number": "09-73-00-000-000208", "name": "Leonora Taghoy", "quantity_received": 25 }
+      ]
+    }
+  ],
+  "proof_of_planting_submissions": [
+    { "rsbsa_number": "09-73-00-000-000537", "farmer": "Maui Pelaez", "crop_type": "Rice", "area_planted_ha": 65.0, "planting_date": "2026-09-22", "submitted_at": "2026-10-15T12:09:00+08:00", "latitude": 7.86746, "longitude": 123.50593, "status": "Validated", "remarks": "Crop verified." },
+    { "rsbsa_number": "09-73-00-000-000612", "farmer": "Claude Oclarit", "crop_type": "Rice", "area_planted_ha": 2.4, "planting_date": "2026-08-17", "submitted_at": "2026-10-12T09:27:00+08:00", "latitude": 7.880596, "longitude": 123.507844, "status": "Validated", "remarks": "Crop verified." },
+    { "rsbsa_number": "09-73-00-000-000389", "farmer": "Luna Cuizon", "crop_type": "Rice", "area_planted_ha": 7.2, "planting_date": "2026-08-09", "submitted_at": "2026-10-04T11:32:00+08:00", "latitude": 7.858216, "longitude": 123.519593, "status": "Pending", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000201", "farmer": "Rodel Bagas", "crop_type": "Rice", "area_planted_ha": 1.2, "planting_date": "2026-09-27", "submitted_at": "2026-10-03T07:58:00+08:00", "latitude": 7.873198, "longitude": 123.528931, "status": "Validated", "remarks": "Crop verified." },
+    { "rsbsa_number": "09-73-00-000-000202", "farmer": "Marites Cabahug", "crop_type": "Rice", "area_planted_ha": 1.2, "planting_date": "2026-09-27", "submitted_at": "2026-10-15T15:08:00+08:00", "latitude": 7.866955, "longitude": 123.517705, "status": "Validated", "remarks": "Crop verified." },
+    { "rsbsa_number": "09-73-00-000-000203", "farmer": "Arnel Dacalos", "crop_type": "Corn", "area_planted_ha": 1.2, "planting_date": "2026-09-25", "submitted_at": "2026-10-03T16:00:00+08:00", "latitude": 7.874281, "longitude": 123.506494, "status": "Validated", "remarks": "Crop verified." },
+    { "rsbsa_number": "09-73-00-000-000204", "farmer": "Josefina Pacatang", "crop_type": "Rice", "area_planted_ha": 0.48, "planting_date": "2026-09-20", "submitted_at": "2026-10-12T08:35:00+08:00", "latitude": 7.852853, "longitude": 123.52247, "status": "Validated", "remarks": "Crop verified." },
+    { "rsbsa_number": "09-73-00-000-000206", "farmer": "Gina Salise", "crop_type": "Vegetables", "area_planted_ha": 0.5, "planting_date": "2026-09-26", "submitted_at": "2026-10-13T08:56:00+08:00", "latitude": 7.867809, "longitude": 123.509455, "status": "Validated", "remarks": "Crop verified." },
+    { "rsbsa_number": "09-73-00-000-000207", "farmer": "Ernesto Manlangit", "crop_type": "Corn", "area_planted_ha": 1.4, "planting_date": "2026-08-25", "submitted_at": "2026-10-02T15:28:00+08:00", "latitude": 7.867852, "longitude": 123.5248, "status": "Validated", "remarks": "Crop verified." },
+    { "rsbsa_number": "09-73-00-000-000208", "farmer": "Leonora Taghoy", "crop_type": "Rice", "area_planted_ha": 0.6, "planting_date": "2026-09-11", "submitted_at": "2026-10-10T15:38:00+08:00", "latitude": 7.866365, "longitude": 123.522782, "status": "Validated", "remarks": "Crop verified." },
+    { "rsbsa_number": "09-73-00-000-000209", "farmer": "Dionisio Omay", "crop_type": "Rice", "area_planted_ha": 2.4, "planting_date": "2026-09-17", "submitted_at": "2026-10-04T15:56:00+08:00", "latitude": 7.877279, "longitude": 123.529834, "status": "Pending", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000210", "farmer": "Rosalie Baguio", "crop_type": "Vegetables", "area_planted_ha": 0.6, "planting_date": "2026-08-27", "submitted_at": "2026-10-08T09:26:00+08:00", "latitude": 7.854649, "longitude": 123.515264, "status": "Pending", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000211", "farmer": "Jerry Unabia", "crop_type": "Corn", "area_planted_ha": 1.32, "planting_date": "2026-08-14", "submitted_at": "2026-10-02T10:42:00+08:00", "latitude": 7.860083, "longitude": 123.50567, "status": "Pending", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000212", "farmer": "Nenita Ladra", "crop_type": "Rice", "area_planted_ha": 0.84, "planting_date": "2026-09-05", "submitted_at": "2026-10-05T09:29:00+08:00", "latitude": 7.857588, "longitude": 123.530575, "status": "Pending", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000213", "farmer": "Ricardo Gumanoy", "crop_type": "Rice", "area_planted_ha": 1.44, "planting_date": "2026-09-06", "submitted_at": "2026-10-11T10:10:00+08:00", "latitude": 7.87219, "longitude": 123.531822, "status": "Rejected", "remarks": "Photo is blurry; please retake in daylight." },
+    { "rsbsa_number": "09-73-00-000-000214", "farmer": "Imelda Sabado", "crop_type": "Vegetables", "area_planted_ha": 0.6, "planting_date": "2026-09-14", "submitted_at": "2026-10-04T12:20:00+08:00", "latitude": 7.853766, "longitude": 123.512979, "status": "Rejected", "remarks": "Location is outside the declared farm parcel." }
+  ],
+  "commodity_requests": [
+    { "rsbsa_number": "09-73-00-000-000537", "farmer": "Maui Pelaez", "commodity": "Rice Seeds (NSIC Rc222)", "quantity": 20, "request_date": "2026-10-03", "status": "Pending FA review", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000612", "farmer": "Claude Oclarit", "commodity": "Organic Fertilizer", "quantity": 50, "request_date": "2026-10-05", "status": "Forwarded to MAO", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000389", "farmer": "Luna Cuizon", "commodity": "Corn Seeds", "quantity": 18, "request_date": "2026-10-07", "status": "Approved", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000201", "farmer": "Rodel Bagas", "commodity": "Vegetable Seeds", "quantity": 2, "request_date": "2026-10-09", "status": "Rejected", "remarks": "Not enough supply this season." },
+    { "rsbsa_number": "09-73-00-000-000202", "farmer": "Marites Cabahug", "commodity": "Farm Tools Set", "quantity": 1, "request_date": "2026-10-11", "status": "Pending FA review", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000203", "farmer": "Arnel Dacalos", "commodity": "Urea Fertilizer (46-0-0)", "quantity": 25, "request_date": "2026-10-13", "status": "Forwarded to MAO", "remarks": "" }
+  ],
+  "announcements": [
+    {
+      "title": "RCEF wet season seed distribution on October 2", "distribution_date": "2026-10-02", "time": "08:00", "venue": "Langapud Barangay Hall",
+      "assistance_type": "Rice Seeds (NSIC Rc222)", "requirements": "RSBSA stub and one valid ID", "linked_distribution": "RCEF Seed Distribution - Wet Season · 2026-10-02",
+      "recipients": ["All Registered Farmers", "Farmers' Association President"], "status": "Published", "pinned": false,
+      "details": "Please arrive early. Distribution is first come, first served per purok."
+    },
+    {
+      "title": "Urea fertilizer distribution on October 23", "distribution_date": "2026-10-23", "time": "09:00", "venue": "Langapud Covered Court",
+      "assistance_type": "Urea Fertilizer (46-0-0)", "requirements": "RSBSA stub, valid ID, and validated proof of planting", "linked_distribution": "Urea Fertilizer Assistance · 2026-10-23",
+      "recipients": ["All Registered Farmers", "Farmers' Association President"], "status": "Published", "pinned": true,
+      "details": "Only tagged beneficiaries will receive fertilizer. Check the app if you are included."
+    },
+    {
+      "title": "Submit proof of planting for the wet season", "general_notice": true, "recipients": ["All Registered Farmers"], "status": "Published", "pinned": false,
+      "details": "Upload a geotagged photo of your planted crop through the AgriShare app before October 31, 2026."
+    },
+    {
+      "title": "FA meeting with the MAO", "general_notice": true, "recipients": ["Farmers' Association President"], "status": "Draft", "pinned": false,
+      "details": "Coordination meeting on November 5, 2026, 2:00 PM at the MAO Labangan Office."
+    }
+  ]
+}

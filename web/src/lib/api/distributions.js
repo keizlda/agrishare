@@ -71,7 +71,7 @@ export async function getDistribution(eventId) {
 // ---------------------------------------------------------------------------
 const BENEFICIARY_SELECT = `
   claim_id, farmer_id, quantity_received, acknowledgement_status, acknowledged_at, duplicate_override_reason,
-  farmers ( rsbsa_no, first_name, surname, deleted_at, addresses ( barangay ) )
+  farmers ( rsbsa_no, first_name, surname, deleted_at, addresses ( barangay ), profiles!profile_id ( avatar_url ) )
 `;
 
 // A deleted farmer's past distribution record is kept (never hidden here —
@@ -86,6 +86,7 @@ function mapBeneficiary(row) {
     lastName: row.farmers?.surname ?? "",
     rsbsaNo: row.farmers?.rsbsa_no ?? "",
     barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
+    avatarUrl: row.farmers?.profiles?.avatar_url ?? null,
     farmerDeleted: !!row.farmers?.deleted_at,
     quantity: Number(row.quantity_received),
     acknowledgementStatus: row.acknowledgement_status === "received" ? "Received" : "Pending",

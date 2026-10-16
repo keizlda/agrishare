@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ChevronRight, Leaf, Package } from "lucide-react-native";
 import ScreenHeader from "../components/ScreenHeader";
+import Avatar from "../components/Avatar";
 import Pill from "../components/Pill";
 import ReminderBanner from "../components/ReminderBanner";
 import { colors, radius, shadows } from "../theme";
@@ -33,8 +34,14 @@ export default function HomeScreen({ navigation }) {
     <ImageBackground source={dashboardBanner} resizeMode="cover" style={styles.screen}>
       <ScreenHeader showLogo onBellPress={() => navigation.navigate("Announcements")} />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight }]}>
-        <Text style={styles.welcome}>Welcome Back, {farmer?.firstName}!</Text>
-        <Text style={styles.sub}>Here's your farm overview.</Text>
+        <View style={styles.welcomeRow}>
+          {/* Keyed by uri so a new upload shows immediately (see Avatar.js). */}
+          <Avatar uri={farmer?.avatarUrl} size={48} key={farmer?.avatarUrl ?? "none"} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.welcome}>Welcome Back, {farmer?.firstName}!</Text>
+            <Text style={styles.sub}>Here's your farm overview.</Text>
+          </View>
+        </View>
 
         {farmer?.mustChangePassword && (
           <ReminderBanner
@@ -124,8 +131,9 @@ function InfoRow({ label, value, badge, last }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 32 },
+  welcomeRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 },
   welcome: { fontSize: 19, fontWeight: "800", color: colors.text },
-  sub: { fontSize: 12.5, color: colors.textMuted, marginTop: 2, marginBottom: 14 },
+  sub: { fontSize: 12.5, color: colors.textMuted, marginTop: 2 },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: colors.text, marginBottom: 8, marginTop: 4 },
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4, marginBottom: 8 },
   viewAllRow: { flexDirection: "row", alignItems: "center", gap: 2 },

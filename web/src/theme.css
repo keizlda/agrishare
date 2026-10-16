@@ -2649,7 +2649,7 @@ input[type="number"] {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 6px 4px 10px;
+  padding: 3px 6px 3px 3px;
   border-radius: 999px;
   background: var(--agri-primary-soft);
   color: var(--agri-primary-dark);
@@ -2711,19 +2711,26 @@ input[type="number"] {
 .agri-tag-suggestion.active {
   background: var(--agri-primary-soft);
 }
-.agri-tag-suggestion-avatar {
+/* Farmer photo or initials (FarmerAvatar.jsx): Farmers table, beneficiary
+   suggestions and chips. */
+.agri-farmer-avatar {
   flex: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+  object-fit: cover;
   background: var(--agri-primary-light);
   color: var(--agri-primary-dark);
-  font-size: 0.7rem;
   font-weight: 700;
-  text-transform: uppercase;
+  line-height: 1;
+}
+/* Block-level flex so the name centers on the photo exactly (an inline box
+   would sit on the image's baseline instead). */
+.agri-farmer-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .agri-tag-suggestion-info {
   flex: 1;

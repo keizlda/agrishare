@@ -13,6 +13,7 @@ export function isValidRsbsaFormat(rsbsaNo) {
 const SELECT = `
   farmer_id, profile_id, deleted_at, rsbsa_no, surname, first_name, middle_name, sex, birth_date, contact_no,
   household_head, household_members, org_affiliation, status, created_at,
+  profiles!profile_id ( avatar_url ),
   addresses ( street, barangay, municipality, province ),
   farm_parcels ( farm_location, farm_size_hectares, ownership_type, is_pcic_insured, livestock_details, crops ( crop_type ) )
 `;
@@ -67,6 +68,7 @@ function mapFarmer(row) {
     deletedAt: row.deleted_at ?? null,
     rsbsaNo: row.rsbsa_no,
     rsbsaValid: isValidRsbsaFormat(row.rsbsa_no),
+    avatarUrl: row.profiles?.avatar_url ?? null,
     firstName: row.first_name,
     middleName: row.middle_name ?? "",
     lastName: row.surname,
@@ -338,7 +340,7 @@ export async function setFarmerStatus(farmerId, statusLabel) {
 // Debounced typeahead for the beneficiary-tagging field (Distributions).
 // Matches on name or RSBSA number; deliberately not the full listFarmers()
 // select — this only needs to render a compact suggestion row.
-const SEARCH_SELECT = "farmer_id, rsbsa_no, first_name, surname, status, addresses ( barangay )";
+const SEARCH_SELECT = "farmer_id, rsbsa_no, first_name, surname, status, addresses ( barangay ), profiles!profile_id ( avatar_url )";
 
 function mapFarmerBrief(row) {
   return {
@@ -348,6 +350,7 @@ function mapFarmerBrief(row) {
     lastName: row.surname,
     barangay: row.addresses?.[0]?.barangay ?? "Langapud",
     status: dbStatusToLabel(row.status),
+    avatarUrl: row.profiles?.avatar_url ?? null,
   };
 }
 
