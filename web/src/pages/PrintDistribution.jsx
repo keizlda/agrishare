@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import PrintLayout, { KV } from "../components/print/PrintLayout.jsx";
 import { useAutoPrint } from "../hooks/useAutoPrint.js";
-import { getDistribution } from "../lib/api/distributions.js";
+import { getDistribution, listPrintBeneficiaries } from "../lib/api/distributions.js";
 import { friendlyError } from "../lib/friendlyError.js";
 
 const STATUS_DOT = {
@@ -15,20 +15,24 @@ export default function PrintDistribution() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const [distribution, setDistribution] = useState(null);
+  const [beneficiaries, setBeneficiaries] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getDistribution(id)
-      .then(setDistribution)
+    Promise.all([getDistribution(id), listPrintBeneficiaries(id)])
+      .then(([dist, list]) => {
+        setDistribution(dist);
+        setBeneficiaries(list);
+      })
       .catch((err) => setError(friendlyError(err, "Couldn't load this distribution.")));
   }, [id]);
 
-  useAutoPrint(!!distribution, searchParams.get("autoPrint") === "1");
+  useAutoPrint(!!distribution && !!beneficiaries, searchParams.get("autoPrint") === "1");
 
   if (error) {
     return <div className="pr-page">Could not load this distribution: {error}</div>;
   }
-  if (!distribution) {
+  if (!distribution || !beneficiaries) {
     return <div className="pr-page">Loading…</div>;
   }
 
@@ -89,12 +93,99 @@ export default function PrintDistribution() {
         </table>
       </div>
 
-      <div className="pr-signatures">
-        <SignatureCol label="Prepared by" role="Administrative Staff" />
-        <SignatureCol label="Checked by" role="Agricultural Extension Worker" />
-        <SignatureCol label="Approved by" role="Municipal Agriculture Officer" />
-      </div>
+      <Signatures />
+
+      <BeneficiaryList distribution={d} beneficiaries={beneficiaries} eventDateLong={eventDateLong} />
     </PrintLayout>
+  );
+}
+
+function Signatures() {
+  return (
+    <div className="pr-signatures">
+      <SignatureCol label="Prepared by" role="Administrative Staff" />
+      <SignatureCol label="Checked by" role="Agricultural Extension Worker" />
+      <SignatureCol label="Approved by" role="Municipal Agriculture Officer" />
+    </div>
+  );
+}
+
+// Page 2 onward: the masterlist of tagged farmers. Always starts on a new
+// page (the shared print header repeats there via PrintLayout's thead); the
+// table's own header row repeats on every page it continues onto, and rows
+// never split across pages. Date Received is the distribution date once the
+// distribution is acknowledged, otherwise blank to be filled in by hand.
+function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
+  const farmerCount = new Set(beneficiaries.map((b) => b.farmerId)).size;
+  const totalQty = beneficiaries.reduce((sum, b) => sum + b.quantity, 0);
+  const sameUnit = beneficiaries.length > 0 && beneficiaries.every((b) => b.unit === beneficiaries[0].unit);
+  const received = d.acknowledgementStatus === "Acknowledged" ? new Date(d.date).toLocaleDateString("en-US") : "";
+
+  return (
+    <section className="pr-beneficiaries">
+      <div className="pr-title-block">
+        <div className="pr-title">List of Beneficiaries</div>
+        <div className="pr-subtitle">{`Distribution No. ${d.id} · ${d.program} · ${eventDateLong}`}</div>
+      </div>
+
+      {beneficiaries.length > 0 ? (
+        <table className="pr-items-table pr-beneficiary-table">
+          <colgroup>
+            <col className="pr-bcol-no" />
+            <col className="pr-bcol-name" />
+            <col className="pr-bcol-rsbsa" />
+            <col className="pr-bcol-sex" />
+            <col className="pr-bcol-commodity" />
+            <col className="pr-bcol-qty" />
+            <col className="pr-bcol-unit" />
+            <col className="pr-bcol-date" />
+            <col className="pr-bcol-sign" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>No.</th>
+              <th>Name of Beneficiary</th>
+              <th>RSBSA No.</th>
+              <th>Sex</th>
+              <th>Commodity</th>
+              <th className="pr-num">Qty Received</th>
+              <th>Unit</th>
+              <th>Date Received</th>
+              <th>Signature</th>
+            </tr>
+          </thead>
+          <tbody>
+            {beneficiaries.map((b, i) => (
+              <tr key={b.claimId}>
+                <td>{i + 1}</td>
+                <td>{b.name}</td>
+                <td className="pr-nowrap">{b.rsbsaNo}</td>
+                <td>{b.sex}</td>
+                <td>{b.commodity}</td>
+                <td className="pr-num">{b.quantity.toLocaleString()}</td>
+                <td>{b.unit}</td>
+                <td className="pr-nowrap">{received}</td>
+                <td />
+              </tr>
+            ))}
+            <tr className="pr-items-total">
+              <td colSpan={5}>Total: {farmerCount} {farmerCount === 1 ? "farmer" : "farmers"}</td>
+              <td className="pr-num">{totalQty.toLocaleString()}</td>
+              <td>{sameUnit ? beneficiaries[0].unit : ""}</td>
+              <td colSpan={2} />
+            </tr>
+          </tbody>
+        </table>
+      ) : (
+        <p className="pr-no-beneficiaries">
+          {d.beneficiaries > 0
+            ? `No tagged beneficiaries. This record has ${d.beneficiaries} ${d.beneficiaries === 1 ? "farmer" : "farmers"} recorded without names.`
+            : "No tagged beneficiaries for this distribution."}
+        </p>
+      )}
+
+      <Signatures />
+    </section>
   );
 }
 

@@ -100,6 +100,68 @@ export async function listDistributionBeneficiaries(eventId) {
   return data.map(mapBeneficiary);
 }
 
+// Farmer Profile drawer: every (non-deleted) distribution this farmer was
+// tagged in, newest first.
+const FARMER_HISTORY_SELECT = `
+  claim_id, quantity_received,
+  commodities ( name, unit ),
+  distribution_events ( event_id, event_date, program_name, status, is_deleted )
+`;
+
+export async function listFarmerDistributionHistory(farmerId) {
+  const { data, error } = await supabase.from("distribution_claims").select(FARMER_HISTORY_SELECT).eq("farmer_id", farmerId);
+  if (error) throw error;
+  return data
+    .filter((row) => row.distribution_events && !row.distribution_events.is_deleted)
+    .map((row) => ({
+      claimId: row.claim_id,
+      eventId: row.distribution_events.event_id,
+      date: row.distribution_events.event_date,
+      program: row.distribution_events.program_name ?? "",
+      status: dbStatusToLabel(row.distribution_events.status ?? "scheduled"),
+      commodity: row.commodities?.name ?? "",
+      unit: row.commodities?.unit ?? "kg",
+      quantity: Number(row.quantity_received),
+    }))
+    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || String(b.eventId).localeCompare(String(a.eventId)));
+}
+
+// Distribution Report page 2+ (List of Beneficiaries): one row per tagged
+// farmer per commodity, masterlist-style "Surname, First M." names sorted by
+// surname. Deleted farmers are deliberately included, since this is a record
+// of who received what.
+const PRINT_BENEFICIARY_SELECT = `
+  claim_id, farmer_id, quantity_received,
+  farmers ( rsbsa_no, first_name, middle_name, surname, extension_name, sex ),
+  commodities ( name, unit )
+`;
+
+function masterlistName(f) {
+  if (!f) return "";
+  const middle = f.middle_name ? ` ${f.middle_name.trim()[0]}.` : "";
+  const ext = f.extension_name ? ` ${f.extension_name.trim()}` : "";
+  return `${f.surname}, ${f.first_name}${middle}${ext}`;
+}
+
+export async function listPrintBeneficiaries(eventId) {
+  const { data, error } = await supabase.from("distribution_claims").select(PRINT_BENEFICIARY_SELECT).eq("event_id", eventId);
+  if (error) throw error;
+  return data
+    .map((row) => ({
+      claimId: row.claim_id,
+      farmerId: row.farmer_id,
+      surname: row.farmers?.surname ?? "",
+      firstName: row.farmers?.first_name ?? "",
+      name: masterlistName(row.farmers),
+      rsbsaNo: row.farmers?.rsbsa_no ?? "",
+      sex: row.farmers?.sex === "male" ? "M" : row.farmers?.sex === "female" ? "F" : "",
+      commodity: row.commodities?.name ?? "",
+      unit: row.commodities?.unit ?? "kg",
+      quantity: Number(row.quantity_received),
+    }))
+    .sort((a, b) => a.surname.localeCompare(b.surname) || a.firstName.localeCompare(b.firstName) || a.commodity.localeCompare(b.commodity));
+}
+
 // ---------------------------------------------------------------------------
 // Reports (Phase 4) — Beneficiary List / Distribution Summary / Attendance
 // Sheet all read from actual tagged claims rather than the farmers table or

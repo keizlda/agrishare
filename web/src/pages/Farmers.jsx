@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Copy, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
+import { Copy, Eye, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
+import FarmerProfileDrawer from "../components/farmers/FarmerProfileDrawer.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
@@ -203,6 +204,7 @@ export default function Farmers() {
   }, [search]);
 
   const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", farmer }
+  const [viewing, setViewing] = useState(null); // farmer row shown in the read-only profile drawer
   const [pendingDelete, setPendingDelete] = useState(null);
   const [pendingReset, setPendingReset] = useState(null);
   const [resetting, setResetting] = useState(false);
@@ -321,7 +323,7 @@ export default function Farmers() {
             </thead>
             <tbody>
               {pageItems.map((f) => (
-                <tr key={f.id}>
+                <tr key={f.id} onClick={() => setViewing(f)}>
                   <td>{f.rsbsaNo}</td>
                   <td>{f.firstName} {f.lastName}</td>
                   <td>{f.sex}</td>
@@ -332,10 +334,12 @@ export default function Farmers() {
                   <td>{f.farmSize} ha</td>
                   <td>{f.farmLocation}</td>
                   <td><Pill status={f.status} /></td>
-                  <td>
+                  {/* The ⋯ menu must not also trigger the row's "open profile" click. */}
+                  <td onClick={(e) => e.stopPropagation()}>
                     <RowActionsMenu
                       label={`Actions for ${f.firstName} ${f.lastName}`}
                       actions={[
+                        { key: "view", label: "View", icon: Eye, onClick: () => setViewing(f) },
                         isMAO && { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ mode: "edit", farmer: f }) },
                         isMAO &&
                           f.profileId && { key: "reset-password", label: "Reset Password", icon: KeyRound, onClick: () => setPendingReset(f) },
@@ -369,6 +373,19 @@ export default function Farmers() {
         </div>
         <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       </div>
+
+      {viewing && (
+        <FarmerProfileDrawer
+          farmer={viewing}
+          canEdit={isMAO}
+          showAccount={isMAO}
+          onEdit={() => {
+            setModal({ mode: "edit", farmer: viewing });
+            setViewing(null);
+          }}
+          onClose={() => setViewing(null)}
+        />
+      )}
 
       {modal && (
         <FarmerModal

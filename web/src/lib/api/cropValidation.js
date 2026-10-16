@@ -100,3 +100,23 @@ export function validateSubmission(validationId, remarks) {
 export function rejectSubmission(validationId, remarks) {
   return reviewSubmission(validationId, "rejected", remarks);
 }
+// Farmer Profile drawer: just the newest submission for one farmer.
+export async function getLatestSubmissionForFarmer(farmerId) {
+  const { data, error } = await supabase
+    .from("crop_validations")
+    .select("validation_id, status, remarks, created_at, reviewed_at, reviewer:profiles!reviewed_by ( full_name )")
+    .eq("farmer_id", farmerId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: data.validation_id,
+    status: STATUS_LABELS[data.status] ?? data.status,
+    submittedAt: data.created_at,
+    reviewedAt: data.reviewed_at,
+    reviewedBy: data.reviewer?.full_name ?? null,
+    remarks: data.remarks ?? "",
+  };
+}

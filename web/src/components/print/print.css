@@ -270,6 +270,87 @@
   color: #56645a;
 }
 
+/* ---------- Distribution Report: List of Beneficiaries (page 2+) ---------- */
+/* Always starts on a new page; the shared header (seal + lines + rule)
+   repeats there through .pr-shell's thead. */
+.pr-beneficiaries {
+  break-before: page;
+  page-break-before: always;
+}
+
+/* On screen there are no pages, so mark where page 2 begins. */
+@media screen {
+  .pr-beneficiaries {
+    margin-top: 36px;
+    padding-top: 30px;
+    border-top: 2px dashed #c9d3cb;
+  }
+}
+
+/* Masterlist grid: full cell borders and rows tall enough to sign by hand.
+   Header row repeats on every page (thead = table-header-group, inherited
+   from .pr-items-table) and rows never split (break-inside: avoid). */
+.pr-beneficiary-table {
+  table-layout: fixed;
+  font-size: 8.5pt;
+  line-height: 1.1;
+}
+
+.pr-beneficiary-table th,
+.pr-beneficiary-table td {
+  border: 1px solid #c9d3cb;
+  padding: 2px 5px;
+  vertical-align: middle;
+}
+
+/* Long names/commodities may wrap between words; a two-line cell still
+   fits the 8mm row. */
+.pr-beneficiary-table td {
+  overflow-wrap: break-word;
+}
+
+.pr-beneficiary-table th {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  font-size: 7pt;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
+.pr-beneficiary-table tbody td {
+  height: 8mm;
+}
+
+.pr-beneficiary-table .pr-nowrap {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.pr-beneficiary-table .pr-items-total td {
+  border-top: 1.5px solid #14251a;
+  height: auto;
+}
+
+.pr-beneficiary-table .pr-bcol-no { width: 5%; }
+.pr-beneficiary-table .pr-bcol-name { width: 18%; }
+.pr-beneficiary-table .pr-bcol-rsbsa { width: 20%; }
+.pr-beneficiary-table .pr-bcol-sex { width: 5%; }
+.pr-beneficiary-table .pr-bcol-commodity { width: 13%; }
+.pr-beneficiary-table .pr-bcol-qty { width: 8%; }
+.pr-beneficiary-table .pr-bcol-unit { width: 5%; }
+.pr-beneficiary-table .pr-bcol-date { width: 10%; }
+.pr-beneficiary-table .pr-bcol-sign { width: 16%; }
+
+.pr-no-beneficiaries {
+  margin: 8px 0 0;
+  padding: 14px 16px;
+  border: 1px solid #c9d3cb;
+  border-radius: 6px;
+  font-size: 10.5pt;
+  color: #1a1f1c;
+  text-align: center;
+}
+
 @page {
   size: A4;
   margin: 20mm 18mm;

@@ -2382,6 +2382,178 @@ table.agri-table thead th {
 
 }
 
+/* ---------- Side drawer (Farmer Profile) ---------- */
+.agri-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(20, 40, 25, 0.35);
+}
+
+.agri-drawer {
+  width: min(520px, 100vw);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--agri-card);
+  border-left: 1px solid var(--agri-border);
+  box-shadow: -12px 0 32px rgba(20, 40, 25, 0.16);
+  animation: agri-drawer-in 0.18s ease-out;
+}
+
+@keyframes agri-drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agri-drawer {
+    animation: none;
+  }
+}
+
+.agri-drawer-header {
+  flex-shrink: 0;
+  padding: 14px 20px 16px;
+  border-bottom: 1px solid var(--agri-divider);
+}
+
+.agri-drawer-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agri-drawer-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--agri-text-muted);
+}
+
+.agri-drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 20px 8px;
+}
+
+.agri-drawer-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--agri-divider);
+}
+
+.agri-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.agri-profile-avatar {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--agri-primary-light);
+  color: var(--agri-primary-dark);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.agri-profile-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.agri-profile-rsbsa {
+  font-size: 0.82rem;
+}
+
+.agri-profile-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.agri-profile-section {
+  padding-top: 18px;
+}
+
+.agri-profile-parcel {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border: 1px solid var(--agri-divider);
+  border-radius: 10px;
+}
+
+.agri-profile-parcel-title {
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--agri-text-secondary);
+}
+
+.agri-profile-note {
+  font-size: 0.85rem;
+}
+
+.agri-profile-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--agri-divider);
+  border-radius: 10px;
+}
+
+/* Compact, non-interactive variant of the app table. */
+.agri-profile-table {
+  font-size: 0.8rem;
+}
+
+.agri-profile-table th,
+.agri-profile-table td {
+  padding: 8px 10px;
+}
+
+.agri-profile-table tbody tr:hover {
+  background: transparent;
+  cursor: default;
+}
+
+.agri-profile-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.agri-profile-table .agri-profile-wrap {
+  white-space: normal;
+  min-width: 90px;
+}
+
+.agri-profile-total {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: var(--agri-text-secondary);
+}
+
 /* ---------- Number inputs: no spinner arrows ---------- */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
