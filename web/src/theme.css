@@ -2500,21 +2500,9 @@ table.agri-table thead th {
   padding-top: 18px;
 }
 
-.agri-profile-parcel {
-  grid-column: 1 / -1;
-  padding: 10px 12px;
-  border: 1px solid var(--agri-divider);
-  border-radius: 10px;
-}
-
-.agri-profile-parcel-title {
-  margin-bottom: 8px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--agri-text-secondary);
-}
-
+/* Empty/loading notes span the whole field grid when they sit inside one. */
 .agri-profile-note {
+  grid-column: 1 / -1;
   font-size: 0.85rem;
 }
 

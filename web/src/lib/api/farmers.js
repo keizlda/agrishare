@@ -99,91 +99,26 @@ export async function listFarmers() {
 }
 
 // ---------------------------------------------------------------------------
-// Read-only Farmer Profile (Farmers page "View" drawer): every stored RSBSA
-// field, all parcels/crops, and the linked mobile account's photo and
-// default-password flag (staff can read profiles; the password itself is
-// never stored anywhere readable).
+// Farmer Profile ("View" drawer) extras. The drawer's fields come straight
+// from the listFarmers() row (the same object the Add/Edit form is filled
+// from), so this only adds what that row lacks: the header's name suffix and
+// the linked mobile account's photo + default-password flag (staff can read
+// profiles; the password itself is never stored anywhere readable).
 // ---------------------------------------------------------------------------
-const PROFILE_SELECT = `
-  farmer_id, profile_id, deleted_at, rsbsa_no, surname, first_name, middle_name, extension_name, sex, birth_date,
-  birth_place, contact_no, civil_status, religion, indigenous_group, household_head, household_members,
-  female_members, is_4ps_beneficiary, org_affiliation, status, validation_status, last_validation_date, created_at,
-  addresses ( house_no, street, barangay, municipality, province, zipcode ),
-  farm_parcels (
-    parcel_no, farm_location, farm_size_hectares, ownership_type, is_organic_practitioner,
-    is_agrarian_reform_beneficiary, is_pcic_insured, livestock_details,
-    crops ( crop_type, commodity_category, area_planted, cropping_schedule )
-  ),
-  profiles!profile_id ( avatar_url, must_change_password )
-`;
-
-const yesNo = (v) => (v == null ? null : v ? "Yes" : "No");
-const num = (v) => (v == null ? null : Number(v));
-
-function mapFarmerProfile(row) {
-  const address = row.addresses?.[0] ?? {};
-  return {
-    id: row.farmer_id,
-    profileId: row.profile_id,
-    deletedAt: row.deleted_at ?? null,
-    rsbsaNo: row.rsbsa_no,
-    firstName: row.first_name,
-    middleName: row.middle_name ?? "",
-    lastName: row.surname,
-    extensionName: row.extension_name ?? "",
-    sex: row.sex === "male" ? "Male" : "Female",
-    birthDate: row.birth_date,
-    birthPlace: row.birth_place ?? "",
-    contactNo: row.contact_no ?? "",
-    civilStatus: row.civil_status ?? "",
-    religion: row.religion ?? "",
-    indigenousGroup: row.indigenous_group ?? "",
-    householdHead: yesNo(row.household_head),
-    householdMembers: num(row.household_members),
-    femaleMembers: num(row.female_members),
-    is4psBeneficiary: yesNo(row.is_4ps_beneficiary),
-    orgAffiliation: row.org_affiliation ?? "",
-    status: dbStatusToLabel(row.status),
-    validationStatus: dbStatusToLabel(row.validation_status),
-    lastValidationDate: row.last_validation_date ?? null,
-    dateRegistered: row.created_at?.slice(0, 10) ?? null,
-    address: {
-      houseNo: address.house_no ?? "",
-      street: address.street ?? "",
-      barangay: address.barangay ?? "",
-      municipality: address.municipality ?? "",
-      province: address.province ?? "",
-      zipcode: address.zipcode ?? "",
-    },
-    parcels: [...(row.farm_parcels ?? [])]
-      .sort((a, b) => (a.parcel_no ?? 0) - (b.parcel_no ?? 0))
-      .map((p) => ({
-        parcelNo: p.parcel_no ?? 1,
-        farmLocation: p.farm_location ?? "",
-        farmSize: num(p.farm_size_hectares),
-        ownershipType: p.ownership_type ?? "",
-        organicPractitioner: yesNo(p.is_organic_practitioner),
-        agrarianReformBeneficiary: yesNo(p.is_agrarian_reform_beneficiary),
-        pcicInsured: pcicLabel(p.is_pcic_insured),
-        livestockDetails: p.livestock_details ?? "",
-        crops: (p.crops ?? []).map((c) => ({
-          cropType: c.crop_type,
-          category: c.commodity_category ?? "",
-          areaPlanted: num(c.area_planted),
-          croppingSchedule: c.cropping_schedule ?? "",
-        })),
-      })),
-    avatarUrl: row.profiles?.avatar_url ?? null,
-    hasMobileAccount: !!row.profile_id,
-    // null when there's no linked account to ask about.
-    usingDefaultPassword: row.profile_id ? (row.profiles?.must_change_password ?? null) : null,
-  };
-}
-
-export async function getFarmerProfile(farmerId) {
-  const { data, error } = await supabase.from("farmers").select(PROFILE_SELECT).eq("farmer_id", farmerId).single();
+export async function getFarmerProfileExtras(farmerId) {
+  const { data, error } = await supabase
+    .from("farmers")
+    .select("profile_id, extension_name, profiles!profile_id ( avatar_url, must_change_password )")
+    .eq("farmer_id", farmerId)
+    .single();
   if (error) throw error;
-  return mapFarmerProfile(data);
+  return {
+    extensionName: data.extension_name ?? "",
+    avatarUrl: data.profiles?.avatar_url ?? null,
+    hasMobileAccount: !!data.profile_id,
+    // null when there's no linked account to ask about.
+    usingDefaultPassword: data.profile_id ? (data.profiles?.must_change_password ?? null) : null,
+  };
 }
 
 // Duplicate-check helper: a deleted farmer's RSBSA number is free to be
