@@ -15,7 +15,7 @@ const MAO_ONLY_ROUTES = ["/validation", "/reports", "/commodities", "/activity-l
 
 // Pages that fill the viewport height below the navbar (desktop only — the
 // CSS is scoped to >=1024px). Everything else keeps normal page scrolling.
-const FILL_ROUTES = ["/farmers", "/validation", "/commodities", "/distributions", "/announcements", "/activity-log"];
+const FILL_ROUTES = ["/", "/farmers", "/validation", "/commodities", "/distributions", "/announcements", "/activity-log"];
 
 export default function AppLayout() {
   const { isAuthenticated, initializing, user } = useAuth();

@@ -9,35 +9,61 @@
   --agri-primary-light: #e8f6ea;
   --agri-primary-soft: #eef8ef;
 
-  --agri-bg: #f4f7f4;
-  --agri-card: #ffffff;
-  /* Card/table/divider lines. Was #e4eae4 (~1.2:1 on white), which washed
-     out to invisible on bright screens. */
-  --agri-border: #cdd6cf;
-  /* Input/select outlines — kept at ~3:1 on white so form fields are
-     findable (WCAG non-text contrast). */
+  /* Surfaces are softly tinted rather than pure white, so large areas don't
+     glare on bright screens. Text tokens are all WCAG AA (>=4.5:1) on both
+     --agri-card and --agri-bg. */
+  --agri-bg: #f2f5f1;
+  --agri-card: #fcfdfb;
+  /* Card / popover outlines — light, since the card-vs-page tint and the
+     shadow already separate them. */
+  --agri-border: #e2e8e0;
+  /* Lines *inside* cards: table rows, list separators, section rules. */
+  --agri-divider: #c6cfc8;
+  /* Input/select outlines — ~3:1 on the card so form fields are findable
+     (WCAG non-text contrast). */
   --agri-border-strong: #87938a;
-  /* Light fill for small count chips; deliberately stays pale so the muted
-     text on it remains readable. */
-  --agri-chip-bg: #e4eae4;
-  --agri-text: #1f2a24;
-  --agri-text-muted: #6b7a70;
+  /* Light fill for small count chips; stays pale so muted text on it
+     remains readable. */
+  --agri-chip-bg: #e6ebe5;
+  --agri-text: #1f2a22;
+  /* Labels, icon buttons — between body text and muted. */
+  --agri-text-secondary: #45524a;
+  --agri-text-muted: #56645a;
+  /* Non-text icons: search/chevron glyphs (~3.5:1) and purely decorative
+     placeholders (empty-photo icons). */
+  --agri-icon-muted: #7b877f;
+  --agri-icon-faint: #b7c2ba;
 
+  /* Each status hue has a fill shade (icons, chart segments, dots) and a
+     text shade that stays AA on its tinted pill background. */
   --agri-blue: #3b82f6;
+  --agri-blue-text: #1f5fbf;
   --agri-blue-bg: #eaf2fe;
-  --agri-red: #e03131;
-  --agri-red-bg: #fdeeee;
+  /* Text-safe red (errors, Delete, badge text, white-on-red buttons). The
+     softer --agri-red-soft is for fills only — as text it would be ~3.7:1. */
+  --agri-red: #c23b36;
+  --agri-red-soft: #d85c57;
+  --agri-red-bg: #fbeeed;
   --agri-orange: #f08c00;
+  --agri-orange-text: #96590a;
   --agri-orange-bg: #fff4e0;
   --agri-purple: #7048e8;
   --agri-purple-bg: #f1ecfd;
 
   --agri-radius: 12px;
-  --agri-shadow: 0 1px 2px rgba(20, 40, 25, 0.06), 0 1px 8px rgba(20, 40, 25, 0.04);
+  --agri-shadow: 0 1px 2px rgba(31, 42, 34, 0.05), 0 2px 10px rgba(31, 42, 34, 0.04);
 
-  /* Route Bootstrap's own lines (tables, hr, list groups) through the theme
-     instead of its paler #dee2e6 default. */
-  --bs-border-color: var(--agri-border);
+  /* Route Bootstrap's own surfaces and text (inputs, modals, dropdowns,
+     .text-muted, tables, hr) through the theme instead of its pure-white /
+     #dee2e6 defaults. */
+  --bs-body-bg: var(--agri-card);
+  --bs-body-color: var(--agri-text);
+  --bs-secondary-color: var(--agri-text-muted);
+  --bs-border-color: var(--agri-divider);
+  /* Bootstrap's #0d6efd link blue is ~4.4:1 on the tinted card; one step
+     darker clears AA. */
+  --bs-link-color: #0b5ed7;
+  --bs-link-color-rgb: 11, 94, 215;
 }
 
 /* Bootstrap inputs default to the same pale line as dividers; give them the
@@ -76,15 +102,30 @@ textarea:focus-visible,
   outline-offset: 2px;
 }
 
+/* The leaf/farm illustration sits on its own layer so it can be toned down:
+   multiply turns the art's white canvas into the --agri-bg tint, and the
+   opacity keeps the leaves from competing with content. */
 .agri-app {
   min-height: 100vh;
-  background: url("./assets/dashboard-banner.png") center / cover no-repeat fixed;
+  background: var(--agri-bg);
+  isolation: isolate;
+}
+
+.agri-app::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url("./assets/dashboard-banner.png") center / cover no-repeat;
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 /* ---------- Topbar (logo + nav + user, all in one top row) ---------- */
 .agri-topbar {
   border-bottom: 1px solid var(--agri-border);
-  background: #ffffff;
+  background: var(--agri-card);
   padding: 14px 24px;
   position: sticky;
   top: 0;
@@ -127,7 +168,7 @@ textarea:focus-visible,
   gap: 6px;
   padding: 8px 14px;
   border-radius: 10px;
-  color: #5b6961;
+  color: var(--agri-text-muted);
   font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
@@ -161,7 +202,7 @@ textarea:focus-visible,
 
 .agri-bell {
   position: relative;
-  color: #45524a;
+  color: var(--agri-text-secondary);
 }
 
 .agri-bell .badge {
@@ -178,7 +219,7 @@ textarea:focus-visible,
   font-weight: 700;
   line-height: 17px;
   text-align: center;
-  border: 1.5px solid #fff;
+  border: 1.5px solid var(--agri-card);
   box-sizing: content-box;
 }
 
@@ -245,7 +286,7 @@ textarea:focus-visible,
     gap: 10px;
     padding: 11px 12px;
     border-radius: 10px;
-    color: #5b6961;
+    color: var(--agri-text-muted);
     font-size: 0.88rem;
     font-weight: 600;
     text-decoration: none;
@@ -275,25 +316,214 @@ textarea:focus-visible,
   box-shadow: var(--agri-shadow);
 }
 
-/* ---------- Dashboard: Validation Status card (donut + inline stats) ---------- */
-.agri-validation-body {
-  display: flex;
-  align-items: center;
-  gap: 56px;
+/* ---------- Dashboard ---------- */
+/* One 12-column grid so card edges line up row to row: four stat cards (3
+   cols each), chart (8) + validation (4), then three 4-col cards. Below
+   1024px it's a normal scrolling stack. On desktop "/" is a FILL_ROUTE, so
+   the rows split the viewport height instead (see the full-height section
+   near the end of this file). */
+.agri-dash {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
 }
 
-.agri-validation-donut {
-  width: 190px;
+.agri-dash > * {
+  grid-column: span 12;
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (min-width: 640px) {
+  .agri-dash > .agri-dash-stat,
+  .agri-dash > .agri-dash-recent,
+  .agri-dash > .agri-dash-commodities {
+    grid-column: span 6;
+  }
+}
+
+@media (min-width: 1024px) {
+  .agri-dash > .agri-dash-stat {
+    grid-column: span 3;
+  }
+  .agri-dash > .agri-dash-chart {
+    grid-column: span 8;
+  }
+  .agri-dash > .agri-dash-validation,
+  .agri-dash > .agri-dash-recent,
+  .agri-dash > .agri-dash-commodities,
+  .agri-dash > .agri-dash-actions {
+    grid-column: span 4;
+  }
+}
+
+.agri-dash-stat {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+}
+
+.agri-dash-card {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.agri-dash-card > .agri-panel-header {
+  flex-shrink: 0;
+  margin-bottom: 10px;
+}
+
+/* Natural heights when stacked; fill mode flexes these to the card. */
+.agri-dash-chart-plot {
+  height: 240px;
+  min-width: 0;
+}
+
+.agri-dash-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.agri-dash-donut {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  min-width: 0;
+}
+
+.agri-dash-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.agri-dash-donut-pct {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--agri-primary-dark);
+}
+
+.agri-dash-legend {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 20px;
+  row-gap: 4px;
+  font-size: 0.8rem;
+}
+
+.agri-dash-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agri-dash-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
-.agri-validation-stats {
-  flex: 1;
-  min-width: 0;
+.agri-dash-list,
+.agri-dash-commodity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.agri-dash-list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--agri-divider);
+}
+
+.agri-dash-list-row:last-child {
+  border-bottom: none;
+}
+
+.agri-dash-commodity {
+  padding: 5px 0;
+}
+
+.agri-dash-commodity-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  margin-bottom: 4px;
+}
+
+.agri-dash-commodity-track {
+  height: 7px;
+  background: var(--agri-primary-light);
+  border-radius: 6px;
+}
+
+.agri-dash-commodity-bar {
+  height: 100%;
+  background: var(--agri-primary);
+  border-radius: 6px;
+}
+
+.agri-dash-card-note {
+  flex-shrink: 0;
+  margin-top: 10px;
+  font-size: 0.74rem;
+}
+
+.agri-dash-empty {
+  padding: 18px 0;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.agri-dash-tiles {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  row-gap: 20px;
-  column-gap: 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.agri-dash-tiles.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agri-dash-tile {
+  min-height: 76px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--agri-border);
+  border-radius: 10px;
+  background: var(--agri-primary-soft);
+  box-shadow: var(--agri-shadow);
+  color: var(--agri-primary-dark);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.agri-dash-tile:hover {
+  background: var(--agri-primary-light);
+  border-color: var(--agri-primary);
 }
 
 .agri-mini-stat {
@@ -327,25 +557,32 @@ textarea:focus-visible,
 
 .agri-mini-stat-sub {
   font-size: 0.66rem;
-  color: #9aa89f;
+  color: var(--agri-text-muted);
   margin-top: 1px;
 }
 
-@media (max-width: 991.98px) {
-  .agri-validation-body {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 24px;
-  }
-  .agri-validation-donut {
-    width: 100%;
-  }
+.agri-mini-stat-lg {
+  align-items: center;
+  gap: 14px;
 }
 
-@media (max-width: 575.98px) {
-  .agri-validation-stats {
-    grid-template-columns: 1fr;
-  }
+.agri-mini-stat-lg .agri-mini-stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+}
+
+.agri-mini-stat-lg .agri-mini-stat-label {
+  font-size: 0.78rem;
+}
+
+.agri-mini-stat-lg .agri-mini-stat-value {
+  font-size: 1.65rem;
+  line-height: 1.15;
+}
+
+.agri-mini-stat-lg .agri-mini-stat-sub {
+  font-size: 0.72rem;
 }
 
 /* ---------- Reports: centered Generate Report card ---------- */
@@ -385,13 +622,13 @@ table.agri-table th {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
   white-space: nowrap;
 }
 
 table.agri-table td {
   padding: 12px 14px;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -425,10 +662,10 @@ table.agri-table tbody tr.selected {
 
 .agri-pill.green { background: var(--agri-primary-light); color: var(--agri-primary-dark); }
 .agri-pill.red { background: var(--agri-red-bg); color: var(--agri-red); }
-.agri-pill.orange { background: var(--agri-orange-bg); color: var(--agri-orange); }
-.agri-pill.blue { background: var(--agri-blue-bg); color: var(--agri-blue); }
+.agri-pill.orange { background: var(--agri-orange-bg); color: var(--agri-orange-text); }
+.agri-pill.blue { background: var(--agri-blue-bg); color: var(--agri-blue-text); }
 .agri-pill.purple { background: var(--agri-purple-bg); color: var(--agri-purple); }
-.agri-pill.gray { background: #f1f3f1; color: #667066; }
+.agri-pill.gray { background: var(--agri-chip-bg); color: var(--agri-text-muted); }
 
 /* ---------- Editable status pill (Distribution Details) ---------- */
 .agri-status-menu-wrap {
@@ -451,7 +688,7 @@ table.agri-table tbody tr.selected {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  background: #fff;
+  background: var(--agri-card);
   border: 1px solid var(--agri-border);
   border-radius: 10px;
   box-shadow: var(--agri-shadow), 0 8px 20px rgba(20, 40, 25, 0.12);
@@ -512,15 +749,15 @@ table.agri-table tbody tr.selected {
 }
 
 .agri-icon-btn {
-  border: 1px solid var(--agri-border);
-  background: #fff;
+  border: 1px solid var(--agri-divider);
+  background: var(--agri-card);
   border-radius: 8px;
   width: 34px;
   height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #45524a;
+  color: var(--agri-text-secondary);
 }
 .agri-icon-btn:hover {
   background: var(--agri-primary-soft);
@@ -539,7 +776,7 @@ table.agri-table tbody tr.selected {
   align-items: flex-start;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px dashed var(--agri-border);
+  border-bottom: 1px dashed var(--agri-divider);
   font-size: 0.85rem;
 }
 
@@ -559,7 +796,7 @@ table.agri-table tbody tr.selected {
   display: flex;
   gap: 4px;
   background: var(--agri-bg);
-  border: 1px solid var(--agri-border);
+  border: 1px solid var(--agri-divider);
   border-radius: 10px;
   padding: 4px;
   margin-bottom: 16px;
@@ -679,7 +916,7 @@ table.agri-table tbody tr.selected {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--agri-card);
   color: var(--agri-primary-dark);
   display: flex;
   align-items: center;
@@ -745,7 +982,7 @@ table.agri-table tbody tr.selected {
 .agri-form-label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #45524a;
+  color: var(--agri-text-secondary);
   margin-bottom: 4px;
   display: block;
   text-align: left;
@@ -766,7 +1003,7 @@ table.agri-table tbody tr.selected {
   width: 35%;
   min-width: 320px;
   flex-shrink: 0;
-  border-right: 1px solid var(--agri-border);
+  border-right: 1px solid var(--agri-divider);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -774,7 +1011,7 @@ table.agri-table tbody tr.selected {
 
 .agri-inbox-list-header {
   padding: 16px;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
   flex-shrink: 0;
 }
 
@@ -791,11 +1028,11 @@ table.agri-table tbody tr.selected {
   gap: 5px;
   padding: 5px 10px;
   border-radius: 999px;
-  border: 1px solid var(--agri-border);
-  background: #fff;
+  border: 1px solid var(--agri-divider);
+  background: var(--agri-card);
   font-size: 0.76rem;
   font-weight: 600;
-  color: #5b6961;
+  color: var(--agri-text-muted);
 }
 
 .agri-filter-pill.active {
@@ -828,7 +1065,7 @@ table.agri-table tbody tr.selected {
   gap: 12px;
   padding: 12px 16px;
   border: none;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
   border-left: 3px solid transparent;
   background: none;
   text-align: left;
@@ -887,7 +1124,7 @@ table.agri-table tbody tr.selected {
   height: 12px;
   border-radius: 50%;
   background: var(--agri-orange);
-  border: 2px solid #fff;
+  border: 2px solid var(--agri-card);
 }
 
 .agri-submission-body {
@@ -910,7 +1147,7 @@ table.agri-table tbody tr.selected {
 
 .agri-submission-time {
   font-size: 0.7rem;
-  color: #99a49c;
+  color: var(--agri-text-muted);
 }
 
 .agri-inbox-empty,
@@ -959,8 +1196,8 @@ table.agri-table tbody tr.selected {
 
 .agri-detail-footer {
   flex-shrink: 0;
-  background: #fff;
-  border-top: 1px solid var(--agri-border);
+  background: var(--agri-card);
+  border-top: 1px solid var(--agri-divider);
   box-shadow: 0 -6px 14px rgba(20, 40, 25, 0.06);
   padding: 14px 24px calc(14px + env(safe-area-inset-bottom, 0px));
 }
@@ -1042,7 +1279,7 @@ table.agri-table tbody tr.selected {
   letter-spacing: 0.03em;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
 }
 
 .agri-kv-grid {
@@ -1101,7 +1338,7 @@ table.agri-table tbody tr.selected {
   gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px dashed var(--agri-border);
+  border-top: 1px dashed var(--agri-divider);
   font-size: 0.82rem;
   color: var(--agri-text-muted);
 }
@@ -1224,9 +1461,9 @@ table.agri-table tbody tr.selected {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  border: 1px solid var(--agri-border);
-  background: #fff;
-  color: #45524a;
+  border: 1px solid var(--agri-divider);
+  background: var(--agri-card);
+  color: var(--agri-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1313,14 +1550,14 @@ table.agri-table tbody tr.selected {
   align-items: center;
   justify-content: space-between;
   padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
 }
 
 .agri-mshell-close {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid var(--agri-border);
+  border: 1px solid var(--agri-divider);
   background: none;
   display: flex;
   align-items: center;
@@ -1340,7 +1577,7 @@ table.agri-table tbody tr.selected {
   gap: 12px;
   padding-bottom: 16px;
   margin-bottom: 8px;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
 }
 
 .agri-mshell-avatar {
@@ -1367,7 +1604,7 @@ table.agri-table tbody tr.selected {
   align-items: center;
   gap: 12px;
   padding: 13px 4px;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
   color: var(--agri-text);
   text-decoration: none;
   font-size: 0.85rem;
@@ -1398,7 +1635,7 @@ table.agri-table tbody tr.selected {
   align-items: flex-start;
   gap: 8px;
   padding: 10px 0;
-  border-top: 1px solid var(--agri-border);
+  border-top: 1px solid var(--agri-divider);
 }
 .agri-mshell-notif:first-child {
   border-top: none;
@@ -1448,18 +1685,18 @@ table.agri-table tbody tr.selected {
   display: flex;
   gap: 6px;
   padding: 0 16px 10px;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
   flex-shrink: 0;
 }
 
 .agri-notif-tab {
-  border: 1px solid var(--agri-border);
-  background: #fff;
+  border: 1px solid var(--agri-divider);
+  background: var(--agri-card);
   border-radius: 999px;
   padding: 4px 12px;
   font-size: 0.76rem;
   font-weight: 600;
-  color: #5b6961;
+  color: var(--agri-text-muted);
 }
 .agri-notif-tab.active {
   background: var(--agri-primary-light);
@@ -1498,7 +1735,7 @@ table.agri-table tbody tr.selected {
 
 .agri-notif-item {
   position: relative;
-  border-bottom: 1px solid var(--agri-border);
+  border-bottom: 1px solid var(--agri-divider);
 }
 .agri-notif-item.unread {
   background: var(--agri-primary-soft);
@@ -1559,7 +1796,7 @@ table.agri-table tbody tr.selected {
 
 .agri-notif-time {
   font-size: 0.7rem;
-  color: #99a49c;
+  color: var(--agri-text-muted);
 }
 
 .agri-notif-dot {
@@ -1591,9 +1828,9 @@ table.agri-table tbody tr.selected {
   width: 26px;
   height: 26px;
   border-radius: 7px;
-  border: 1px solid var(--agri-border);
-  background: #fff;
-  color: #45524a;
+  border: 1px solid var(--agri-divider);
+  background: var(--agri-card);
+  color: var(--agri-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1616,7 +1853,7 @@ table.agri-table tbody tr.selected {
   border-radius: 8px;
   border: none;
   background: none;
-  color: #6b7a70;
+  color: var(--agri-text-muted);
   align-items: center;
   justify-content: center;
 }
@@ -1626,7 +1863,7 @@ table.agri-table tbody tr.selected {
   top: 38px;
   right: 10px;
   z-index: 3;
-  background: #fff;
+  background: var(--agri-card);
   border: 1px solid var(--agri-border);
   border-radius: 10px;
   box-shadow: var(--agri-shadow), 0 8px 20px rgba(20, 40, 25, 0.12);
@@ -1681,8 +1918,8 @@ table.agri-table tbody tr.selected {
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid var(--agri-border);
-  background: #fff;
+  border-top: 1px solid var(--agri-divider);
+  background: var(--agri-card);
 }
 
 /* ---------- Empty state (lists / tables) ---------- */
@@ -1725,7 +1962,7 @@ table.agri-table tbody tr.selected {
   justify-content: center;
   gap: 8px;
   padding: 14px;
-  border: 1.5px dashed var(--agri-border);
+  border: 1.5px dashed var(--agri-divider);
   border-radius: 12px;
   background: var(--agri-bg);
   color: var(--agri-primary-dark);
@@ -1776,7 +2013,7 @@ table.agri-table thead th {
   top: 0;
   z-index: 1;
   background: var(--agri-card);
-  box-shadow: inset 0 -1px 0 var(--agri-border);
+  box-shadow: inset 0 -1px 0 var(--agri-divider);
 }
 
 .agri-detail-actions {
@@ -1798,8 +2035,8 @@ table.agri-table thead th {
 }
 
 .agri-detail-btn-edit {
-  background: #fff;
-  border: 1px solid var(--agri-border);
+  background: var(--agri-card);
+  border: 1px solid var(--agri-divider);
   color: var(--agri-text);
 }
 .agri-detail-btn-edit svg {
@@ -1810,8 +2047,8 @@ table.agri-table thead th {
 }
 
 .agri-detail-btn-delete {
-  background: #fff;
-  border: 1px solid var(--agri-border);
+  background: var(--agri-card);
+  border: 1px solid var(--agri-divider);
   color: var(--agri-red);
 }
 .agri-detail-btn-delete:hover {
@@ -1881,7 +2118,7 @@ table.agri-table thead th {
     overflow-y: auto;
   }
   .agri-app-fill .agri-detail-actions {
-    border-top: 1px solid var(--agri-border);
+    border-top: 1px solid var(--agri-divider);
     padding-top: 12px;
   }
 
@@ -1892,6 +2129,106 @@ table.agri-table thead th {
     min-height: 0;
     max-height: none;
     height: auto;
+  }
+
+  /* Dashboard: stat row at its natural height, chart row ~45% of what's
+     left, list/actions row the rest. Card bodies flex to the card height;
+     rows and tiles stretch (capped) and center when there's spare room. */
+  .agri-app-fill .agri-dash {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 45fr) minmax(0, 55fr);
+  }
+  .agri-app-fill .agri-dash-chart-plot,
+  .agri-app-fill .agri-dash-body,
+  .agri-app-fill .agri-dash-donut {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+  }
+  .agri-app-fill .agri-dash-list {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+    justify-content: safe center;
+  }
+  .agri-app-fill .agri-dash-list-row {
+    flex: 1 1 auto;
+    max-height: 80px;
+  }
+  .agri-app-fill .agri-dash-commodity-list {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    justify-content: safe center;
+  }
+  .agri-app-fill .agri-dash-commodity {
+    flex: 1 1 auto;
+    max-height: 64px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .agri-app-fill .agri-dash-tiles {
+    flex: 1;
+    min-height: 0;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+  .agri-app-fill .agri-dash-tile {
+    min-height: 0;
+  }
+}
+
+/* Short desktop viewports (a 1366x768 laptop leaves ~650px under the
+   browser chrome): tighten the Dashboard's spacing so all five commodities
+   and two list rows still fit without inner scrolling. */
+@media (min-width: 1024px) and (max-height: 760px) {
+  .agri-app-fill .agri-dash {
+    gap: 12px;
+  }
+  .agri-app-fill .agri-dash-stat,
+  .agri-app-fill .agri-dash-card {
+    padding: 12px 16px;
+  }
+  .agri-app-fill .agri-dash-card > .agri-panel-header {
+    margin-bottom: 6px;
+  }
+  .agri-app-fill .agri-mini-stat-lg .agri-mini-stat-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .agri-app-fill .agri-mini-stat-lg .agri-mini-stat-value {
+    font-size: 1.4rem;
+  }
+  .agri-app-fill .agri-dash-commodity {
+    padding: 2px 0;
+  }
+  .agri-app-fill .agri-dash-commodity-label {
+    line-height: 1.2;
+    margin-bottom: 3px;
+  }
+  .agri-app-fill .agri-dash-commodity-track {
+    height: 6px;
+  }
+  .agri-app-fill .agri-dash-card-note {
+    margin-top: 6px;
+  }
+  .agri-app-fill .agri-dash-tile {
+    gap: 4px;
+    padding: 6px;
+  }
+}
+
+/* Tall viewports: the stretched action tiles get a larger icon and label so
+   they don't read as empty boxes. */
+@media (min-width: 1024px) and (min-height: 900px) {
+  .agri-app-fill .agri-dash-tile {
+    gap: 12px;
+    font-size: 0.9rem;
+  }
+  .agri-app-fill .agri-dash-tile svg {
+    width: 30px;
+    height: 30px;
   }
 }
 
@@ -1913,7 +2250,7 @@ input[type="number"] {
 .agri-row-menu {
   position: fixed;
   z-index: 80;
-  background: #fff;
+  background: var(--agri-card);
   border: 1px solid var(--agri-border);
   border-radius: 10px;
   box-shadow: var(--agri-shadow), 0 8px 20px rgba(20, 40, 25, 0.12);
@@ -1955,7 +2292,7 @@ input[type="number"] {
   padding: 6px 8px;
   border: 1px solid var(--agri-border-strong);
   border-radius: 8px;
-  background: #fff;
+  background: var(--agri-card);
   cursor: text;
 }
 .agri-tag-input:focus-within {
@@ -1985,7 +2322,7 @@ input[type="number"] {
 }
 .agri-tag-chip.warn {
   background: var(--agri-orange-bg);
-  color: #96590a;
+  color: var(--agri-orange-text);
 }
 .agri-tag-chip button {
   display: flex;
@@ -2011,7 +2348,7 @@ input[type="number"] {
   z-index: 60;
   max-height: 260px;
   overflow-y: auto;
-  background: #fff;
+  background: var(--agri-card);
   border: 1px solid var(--agri-border);
   border-radius: 10px;
   box-shadow: var(--agri-shadow), 0 8px 20px rgba(20, 40, 25, 0.12);
@@ -2075,7 +2412,7 @@ input[type="number"] {
 .agri-beneficiary-table-wrap {
   max-height: 220px;
   overflow-y: auto;
-  border: 1px solid var(--agri-border);
+  border: 1px solid var(--agri-divider);
   border-radius: 8px;
   margin-top: 10px;
 }
@@ -2090,13 +2427,13 @@ input[type="number"] {
   border-radius: 6px;
 }
 .agri-beneficiary-ack-toggle {
-  border: 1px solid var(--agri-border);
+  border: 1px solid var(--agri-divider);
   border-radius: 999px;
   padding: 3px 10px;
   font-size: 0.72rem;
   font-weight: 700;
   cursor: pointer;
-  background: #fff;
+  background: var(--agri-card);
   color: var(--agri-text-muted);
 }
 .agri-beneficiary-ack-toggle.received {
@@ -2106,6 +2443,6 @@ input[type="number"] {
 }
 .agri-beneficiary-duplicate-warning {
   font-size: 0.72rem;
-  color: #96590a;
+  color: var(--agri-orange-text);
   margin-top: 2px;
 }

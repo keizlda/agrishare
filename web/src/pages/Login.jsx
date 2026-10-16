@@ -76,7 +76,7 @@ export default function Login() {
             )}
 
             <div style={{ position: "relative", marginBottom: 14 }}>
-              <Mail size={16} style={{ position: "absolute", left: 12, top: 12, color: "#8b978f" }} />
+              <Mail size={16} style={{ position: "absolute", left: 12, top: 12, color: "var(--agri-icon-muted)" }} />
               <input
                 ref={emailRef}
                 id="email"
@@ -90,7 +90,7 @@ export default function Login() {
             </div>
 
             <div style={{ position: "relative", marginBottom: 22 }}>
-              <Lock size={16} style={{ position: "absolute", left: 12, top: 12, color: "#8b978f" }} />
+              <Lock size={16} style={{ position: "absolute", left: 12, top: 12, color: "var(--agri-icon-muted)" }} />
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -103,7 +103,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword((s) => !s)}
-                style={{ position: "absolute", right: 10, top: 9, background: "none", border: "none", color: "#8b978f" }}
+                style={{ position: "absolute", right: 10, top: 9, background: "none", border: "none", color: "var(--agri-icon-muted)" }}
                 aria-label="Toggle password visibility"
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}

@@ -157,7 +157,7 @@ export default function Validation() {
             <div className="agri-inbox-list-header">
               <div style={{ display: "flex", gap: 10 }}>
                 <div style={{ position: "relative", flex: 1 }}>
-                  <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "#8b978f" }} />
+                  <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--agri-icon-muted)" }} />
                   <input
                     className="form-control"
                     placeholder="Search by farmer name or RSBSA no."
@@ -192,7 +192,7 @@ export default function Validation() {
 
               {!loading && pageItems.length === 0 && (
                 <div className="agri-inbox-empty">
-                  <ImageIcon size={28} color="#b7c2ba" />
+                  <ImageIcon size={28} color="var(--agri-icon-faint)" />
                   <div>No submissions to review.</div>
                 </div>
               )}
@@ -232,7 +232,7 @@ export default function Validation() {
               />
             ) : (
               <div className="agri-detail-empty">
-                <ImageIcon size={32} color="#b7c2ba" />
+                <ImageIcon size={32} color="var(--agri-icon-faint)" />
                 <div>Select a submission to review.</div>
               </div>
             )}
@@ -256,7 +256,7 @@ function SubmissionRow({ submission, active, unread, flagged, onClick }) {
     >
       {unread && <span className="agri-submission-dot" />}
       <div className="agri-submission-thumb">
-        {avatarUrl ? <img src={avatarUrl} alt="" /> : <UserIcon size={16} color="#b7c2ba" />}
+        {avatarUrl ? <img src={avatarUrl} alt="" /> : <UserIcon size={16} color="var(--agri-icon-faint)" />}
         {flagged && <span className="agri-amber-marker" title="Inactive farmer with a validated submission — due for revalidation" />}
       </div>
       <div className="agri-submission-body">
@@ -359,7 +359,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
         {photoUrl ? (
           <img src={photoUrl} alt="Proof of planting" className="agri-proof-photo" onClick={() => setLightboxOpen(true)} />
         ) : (
-          <div className="agri-proof-photo agri-proof-photo-empty"><ImageIcon size={28} color="#b7c2ba" /></div>
+          <div className="agri-proof-photo agri-proof-photo-empty"><ImageIcon size={28} color="var(--agri-icon-faint)" /></div>
         )}
         <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>
           Captured {submission.capturedAt ? new Date(submission.capturedAt).toLocaleString() : "—"}
@@ -383,7 +383,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
               <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 2 }}>
                 ~{distanceKm.toFixed(1)} km from the Barangay Langapud reference point
                 {distanceKm > 5 && (
-                  <span style={{ color: "var(--agri-orange)", fontWeight: 600 }}> — far from the declared barangay, worth a closer look</span>
+                  <span style={{ color: "var(--agri-orange-text)", fontWeight: 600 }}> — far from the declared barangay, worth a closer look</span>
                 )}
                 <span title="Exact parcel coordinates aren't on file, so this compares against the barangay's approximate center."> ⓘ</span>
               </div>
@@ -487,7 +487,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
 
       {lightboxOpen && photoUrl && (
         <div className="agri-lightbox" onClick={() => setLightboxOpen(false)}>
-          <button type="button" className="agri-icon-btn" style={{ position: "absolute", top: 20, right: 20, background: "#fff" }} onClick={() => setLightboxOpen(false)}>
+          <button type="button" className="agri-icon-btn" style={{ position: "absolute", top: 20, right: 20, background: "var(--agri-card)" }} onClick={() => setLightboxOpen(false)}>
             <X size={16} />
           </button>
           <img src={photoUrl} alt="Proof of planting" onClick={(e) => e.stopPropagation()} />

@@ -62,7 +62,7 @@ const STATUS_DOT_COLOR = {
   orange: "var(--agri-orange)",
   blue: "var(--agri-blue)",
   purple: "var(--agri-purple)",
-  gray: "#667066",
+  gray: "var(--agri-text-muted)",
 };
 
 const EMPTY_FORM = {

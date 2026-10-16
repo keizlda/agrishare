@@ -63,7 +63,7 @@
 
 .pr-header-line {
   font-size: 8pt;
-  color: #6b7a70;
+  color: #56645a;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -107,7 +107,7 @@
 
 .pr-subtitle {
   font-size: 8.5pt;
-  color: #6b7a70;
+  color: #56645a;
   line-height: 1.3;
 }
 
@@ -124,7 +124,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #2f9e44;
+  color: #1e7233;
   border-bottom: 1px solid #e4eae4;
   padding-bottom: 6px;
   margin-bottom: 14px;
@@ -150,7 +150,7 @@
   font-size: 8pt;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6b7a70;
+  color: #56645a;
 }
 
 .pr-kv-value {
@@ -197,7 +197,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #6b7a70;
+  color: #56645a;
   padding: 8px 10px;
   background: #f4f7f4;
   border-bottom: 1px solid #c9d3cb;
@@ -256,7 +256,7 @@
 
 .pr-sig-role {
   font-size: 8.5pt;
-  color: #6b7a70;
+  color: #56645a;
 }
 
 .pr-footer {
@@ -267,7 +267,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 8pt;
-  color: #8b978f;
+  color: #56645a;
 }
 
 @page {
@@ -281,7 +281,7 @@
   @bottom-left {
     font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", Arial, sans-serif;
     font-size: 8pt;
-    color: #8b978f;
+    color: #56645a;
     border-top: 1px solid #e4eae4;
     vertical-align: top;
     padding-top: 4mm;
@@ -293,7 +293,7 @@
   @bottom-right {
     font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", Arial, sans-serif;
     font-size: 8pt;
-    color: #8b978f;
+    color: #56645a;
     border-top: 1px solid #e4eae4;
     vertical-align: top;
     padding-top: 4mm;

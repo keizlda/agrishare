@@ -113,7 +113,7 @@ export default function Announcements() {
             </button>
           )}
           <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "#8b978f" }} />
+            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--agri-icon-muted)" }} />
             <input className="form-control" placeholder="Search announcements" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <select className="form-select" style={{ width: 140 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">

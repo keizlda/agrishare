@@ -102,7 +102,7 @@ export default function Commodities() {
               <Plus size={16} /> Add Commodity
             </button>
             <div style={{ position: "relative", flex: 1 }}>
-              <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "#8b978f" }} />
+              <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--agri-icon-muted)" }} />
               <input className="form-control" placeholder="Search commodity" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <select className="form-select" style={{ width: 150 }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>

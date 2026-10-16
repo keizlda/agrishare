@@ -283,7 +283,7 @@ export default function Farmers() {
         )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 16 }}>
           <div style={{ position: "relative", flex: "1 1 220px" }}>
-            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "#8b978f" }} />
+            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--agri-icon-muted)" }} />
             <input
               className="form-control"
               placeholder="Search farmer by name or RSBSA no."
@@ -579,7 +579,7 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
         style={{ width: 640, maxWidth: "94vw", maxHeight: "88vh", display: "flex", flexDirection: "column" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="agri-panel-header" style={{ margin: 0, padding: "18px 22px", borderBottom: "1px solid var(--agri-border)" }}>
+        <div className="agri-panel-header" style={{ margin: 0, padding: "18px 22px", borderBottom: "1px solid var(--agri-divider)" }}>
           <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{mode === "edit" ? "Edit Farmer" : "Add Farmer"}</div>
           <button className="agri-icon-btn" onClick={onClose}><X size={16} /></button>
         </div>
@@ -695,7 +695,7 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
           </form>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "16px 22px", borderTop: "1px solid var(--agri-border)" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "16px 22px", borderTop: "1px solid var(--agri-divider)" }}>
           <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
           <button type="submit" form="farmer-form" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : "Save Farmer"}</button>
         </div>
@@ -710,7 +710,7 @@ function Section({ title, children, last }) {
       <div
         style={{
           fontWeight: 700, fontSize: "0.8rem", color: "var(--agri-primary-dark)", textTransform: "uppercase",
-          letterSpacing: "0.03em", marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid var(--agri-border)",
+          letterSpacing: "0.03em", marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid var(--agri-divider)",
         }}
       >
         {title}

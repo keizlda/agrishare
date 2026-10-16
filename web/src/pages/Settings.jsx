@@ -102,7 +102,7 @@ function GeneralInformation() {
         </form>
       )}
 
-      <hr style={{ margin: "24px 0", borderColor: "var(--agri-border)" }} />
+      <hr style={{ margin: "24px 0", borderColor: "var(--agri-divider)" }} />
 
       <div style={{ fontWeight: 700, marginBottom: 16 }}>System Preferences</div>
       <div className="row g-3">
@@ -241,7 +241,7 @@ function PasswordField({ label, placeholder, value, onChange, show, onToggleShow
         <button
           type="button"
           onClick={onToggleShow}
-          style={{ position: "absolute", right: 10, top: 9, background: "none", border: "none", color: "#8b978f" }}
+          style={{ position: "absolute", right: 10, top: 9, background: "none", border: "none", color: "var(--agri-icon-muted)" }}
           aria-label={show ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
           tabIndex={-1}
         >

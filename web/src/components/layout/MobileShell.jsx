@@ -120,7 +120,7 @@ export default function MobileShell() {
                 <Link key={to} to={to} className="agri-mshell-list-item" onClick={() => setPanel(null)}>
                   <Icon size={17} color="var(--agri-primary-dark)" />
                   <span style={{ flex: 1 }}>{label}</span>
-                  <ChevronRight size={15} color="#c3ccc5" />
+                  <ChevronRight size={15} color="var(--agri-icon-muted)" />
                 </Link>
               ))}
             </div>

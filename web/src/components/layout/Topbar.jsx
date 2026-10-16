@@ -136,14 +136,14 @@ export default function Topbar() {
                 <UserIcon size={18} />
               </div>
               <span className="agri-avatar-name" style={{ fontSize: "0.85rem", fontWeight: 600 }}>{user?.name ?? "Admin"}</span>
-              <ChevronDown size={15} color="#899489" />
+              <ChevronDown size={15} color="var(--agri-icon-muted)" />
             </button>
             {openMenu === "avatar" && (
               <div
                 className="agri-card"
                 style={{ position: "absolute", right: 0, top: 44, width: 190, padding: 6, zIndex: 20 }}
               >
-                <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--agri-border)" }}>
+                <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--agri-divider)" }}>
                   <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>{user?.name ?? "Admin"}</div>
                   <div className="agri-muted" style={{ fontSize: "0.72rem" }}>{user?.role ?? "MAO Admin"}</div>
                 </div>

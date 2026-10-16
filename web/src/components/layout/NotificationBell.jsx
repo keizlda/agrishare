@@ -23,7 +23,7 @@ const TYPE_ICON = {
   validation: { Icon: ShieldCheck, color: "var(--agri-blue)", bg: "var(--agri-blue-bg)" },
   request: { Icon: Inbox, color: "var(--agri-purple)", bg: "var(--agri-purple-bg)" },
   distribution: { Icon: Package, color: "var(--agri-orange)", bg: "var(--agri-orange-bg)" },
-  system: { Icon: Bell, color: "#667066", bg: "#f1f3f1" },
+  system: { Icon: Bell, color: "var(--agri-text-muted)", bg: "var(--agri-chip-bg)" },
 };
 
 function relativeTime(iso) {
@@ -274,7 +274,7 @@ export default function NotificationBell({ open, onToggle, onClose, variant = "d
 
             {!loading && visible.length === 0 && (
               <div className="agri-notif-empty">
-                <BellOff size={30} color="#b7c2ba" />
+                <BellOff size={30} color="var(--agri-icon-faint)" />
                 <div style={{ fontWeight: 600, marginTop: 8 }}>You're all caught up</div>
                 <div className="agri-muted" style={{ fontSize: "0.78rem" }}>{tab === "unread" ? "No unread notifications." : "New activity will show up here."}</div>
               </div>

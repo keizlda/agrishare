@@ -114,7 +114,7 @@ function FARequestsView({ currentUserId }) {
             </div>
           )}
           <div style={{ position: "relative", marginBottom: 14 }}>
-            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "#8b978f" }} />
+            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--agri-icon-muted)" }} />
             <input className="form-control" placeholder="Search farmer or commodity" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
 
