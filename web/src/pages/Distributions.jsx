@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, Pencil, Plus, Printer, Trash2, Truck, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
-import Pagination from "../components/ui/Pagination.jsx";
+import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import FarmerTagInput from "../components/distributions/FarmerTagInput.jsx";
@@ -234,10 +234,7 @@ export default function Distributions() {
             )}
           </div>
 
-          <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 10 }}>
-            Showing {pageItems.length} of {filtered.length} distributions
-          </div>
-          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+          <TableFooter page={page} pageSize={pageSize} total={filtered.length} totalPages={totalPages} onPageChange={setPage} noun={["distribution", "distributions"]} />
         </div>
 
         {selected && (

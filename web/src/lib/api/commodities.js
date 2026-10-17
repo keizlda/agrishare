@@ -40,10 +40,15 @@ export async function setCommodityStatus(commodityId, statusLabel) {
   if (error) throw error;
 }
 
-export async function updateCommodity(commodityId, { name, category }) {
+// unit and status are optional (the Commodity Details card's inline edit
+// sends them; anything left out is unchanged).
+export async function updateCommodity(commodityId, { name, category, unit, status }) {
+  const patch = { name, category };
+  if (unit !== undefined) patch.unit = unit;
+  if (status !== undefined) patch.status = labelToDbStatus(status);
   const { data, error } = await supabase
     .from("commodities")
-    .update({ name, category })
+    .update(patch)
     .eq("commodity_id", commodityId)
     .select("*")
     .single();

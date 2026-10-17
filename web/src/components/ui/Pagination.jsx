@@ -10,7 +10,7 @@ export default function Pagination({ page, totalPages, onChange }) {
   const pageNumbers = getPageNumbers(page, totalPages);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 14 }}>
+    <div className="agri-pagination">
       <button className="agri-icon-btn" disabled={page === 1} onClick={() => onChange(page - 1)} aria-label="Previous page">
         <ChevronLeft size={15} />
       </button>

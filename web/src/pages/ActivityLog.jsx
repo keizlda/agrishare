@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { History } from "lucide-react";
-import Pagination from "../components/ui/Pagination.jsx";
+import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Pill from "../components/ui/Pill.jsx";
 import { ACTION_LABELS, ACTION_TYPES, ENTITY_LABELS, ENTITY_TYPES, listAuditLogs } from "../lib/api/auditLogs.js";
 import { friendlyError } from "../lib/friendlyError.js";
+import { useFitPageSize } from "../hooks/useFitPageSize.js";
 
 const ACTION_PILL = { insert: "Published", update: "Ongoing", delete: "Rejected" };
 
@@ -17,24 +18,30 @@ export default function ActivityLog() {
   const [dateTo, setDateTo] = useState("");
   const [action, setAction] = useState("All");
   const [entityType, setEntityType] = useState("All");
-  const [page, setPage] = useState(1);
 
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
-  const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Rows per page = however many fit in the full-height table area (min 5),
+  // fetched a page at a time. The first entry on screen is kept, so a resize
+  // shows the page that still contains it.
+  const tableRef = useRef(null);
+  const pageSize = useFitPageSize(tableRef, { remeasureKey: rows.length > 0 });
+  const [firstIndex, setFirstIndex] = useState(0);
+  const page = Math.floor(firstIndex / pageSize) + 1;
+  const setPage = (p) => setFirstIndex((Math.max(1, p) - 1) * pageSize);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError("");
-    listAuditLogs({ dateFrom, dateTo, action, entityType, page })
-      .then(({ rows: r, total: t, pageSize: ps }) => {
+    listAuditLogs({ dateFrom, dateTo, action, entityType, page, pageSize })
+      .then(({ rows: r, total: t }) => {
         if (cancelled) return;
         setRows(r);
         setTotal(t);
-        setPageSize(ps);
       })
       .catch((err) => {
         if (!cancelled) setError(friendlyError(err, "Couldn't load the activity log."));
@@ -45,7 +52,7 @@ export default function ActivityLog() {
     return () => {
       cancelled = true;
     };
-  }, [dateFrom, dateTo, action, entityType, page]);
+  }, [dateFrom, dateTo, action, entityType, page, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const filtersActive = dateFrom || dateTo || action !== "All" || entityType !== "All";
@@ -80,7 +87,7 @@ export default function ActivityLog() {
           </select>
         </div>
 
-        <div className="agri-table-wrap">
+        <div className="agri-table-wrap" ref={tableRef}>
           <table className="agri-table">
             <thead>
               <tr><th>Date &amp; Time</th><th>User</th><th>Role</th><th>Action</th><th>Summary</th></tr>
@@ -114,10 +121,7 @@ export default function ActivityLog() {
           )}
         </div>
 
-        <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 10 }}>
-          Showing {rows.length} of {total} activity log entries
-        </div>
-        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+        <TableFooter page={page} pageSize={pageSize} total={total} totalPages={totalPages} onPageChange={setPage} noun={["activity log entry", "activity log entries"]} />
       </div>
     </div>
   );

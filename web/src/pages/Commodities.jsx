@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { Check, Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
-import Pagination from "../components/ui/Pagination.jsx";
+import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
-import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import { commodityCategories, computeCommodityStats } from "../data/mockData.js";
@@ -11,10 +10,23 @@ import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
+import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard.js";
 import { createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { friendlyError } from "../lib/friendlyError.js";
-import { rowActionsCellProps, rowLinkProps } from "../lib/rowLink.js";
+import { rowLinkProps } from "../lib/rowLink.js";
+
+// Inline edit (Commodity Details card): the fields that become inputs.
+function editFormFor(commodity) {
+  return { name: commodity.name, category: commodity.category, unit: commodity.unit ?? "kg", status: commodity.status };
+}
+
+function validateEdit(form) {
+  const errors = {};
+  if (!form.name.trim()) errors.name = "Enter the commodity name.";
+  if (!form.unit.trim()) errors.unit = "Enter a unit, e.g. kg, bag or set.";
+  return errors;
+}
 
 export default function Commodities() {
   const { data: commodities, setData: setCommodities, loading, error: loadError } = useSupabaseList(listCommodities);
@@ -23,10 +35,17 @@ export default function Commodities() {
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
-  const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", commodity }
+  const [adding, setAdding] = useState(false);
   const [actionError, setActionError] = useState("");
   const [toast, setToast] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
+  // Inline edit of the selected commodity: null in view mode.
+  const [edit, setEdit] = useState(null);
+  const [editErrors, setEditErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  // A row click or page change held back by "Discard changes?": a function
+  // that carries it out.
+  const [pendingLeave, setPendingLeave] = useState(null);
 
   useEffect(() => {
     listDistributions().then(setDistributions).catch(() => {});
@@ -53,6 +72,50 @@ export default function Commodities() {
   const selected = commodities.find((c) => c.id === selectedId) ?? null;
   const { totals } = computeCommodityStats(commodities, distributions);
   const selectedDistributedQty = selected ? (totals[selected.name] ?? 0) : 0;
+
+  const original = edit && selected ? editFormFor(selected) : null;
+  const dirty = !!original && Object.keys(original).some((k) => edit[k] !== original[k]);
+
+  useUnsavedChangesGuard(dirty, (go) => setPendingLeave(() => go));
+
+  function stopEditing() {
+    setEdit(null);
+    setEditErrors({});
+  }
+
+  function selectRow(id) {
+    if (id === selectedId) return;
+    const go = () => {
+      stopEditing();
+      setSelectedId(id);
+    };
+    if (dirty) setPendingLeave(() => go);
+    else go();
+  }
+
+  function updateField(key, value) {
+    setEdit((f) => ({ ...f, [key]: value }));
+    if (editErrors[key]) setEditErrors((e) => ({ ...e, [key]: undefined }));
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    if (saving) return;
+    const errors = validateEdit(edit);
+    setEditErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    setSaving(true);
+    try {
+      const saved = await updateCommodity(selected.id, { name: edit.name.trim(), category: edit.category, unit: edit.unit.trim(), status: edit.status });
+      setCommodities((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
+      stopEditing();
+      setToast({ tone: "success", message: "Commodity updated." });
+    } catch (err) {
+      setEditErrors({ form: friendlyError(err, "Couldn't save this commodity. Please try again.") });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Soft delete: the commodity keeps its row (and its name in past
   // distribution/request records) but disappears from every listing/picker.
@@ -89,6 +152,11 @@ export default function Commodities() {
     }
   }
 
+  // View and edit mode share one card: the same rows in the same order (each
+  // value becomes an input), and the button row at the bottom keeps its
+  // place — Edit | Delete, or Cancel | Save Changes.
+  const Card = edit ? "form" : "div";
+
   return (
     <div className="agri-fill-root">
       <div className={`agri-split${selected ? " has-detail" : ""}`}>
@@ -99,7 +167,7 @@ export default function Commodities() {
             </div>
           )}
           <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
-            <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setModal({ mode: "add" })}>
+            <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setAdding(true)}>
               <Plus size={16} /> Add Commodity
             </button>
             <div style={{ position: "relative", flex: 1 }}>
@@ -119,27 +187,18 @@ export default function Commodities() {
 
           <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table">
-              <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th><th></th></tr></thead>
+              <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th></tr></thead>
               <tbody>
                 {pageItems.map((c) => (
-                  <tr key={c.id} {...rowLinkProps(() => setSelectedId(c.id), { selected: c.id === selectedId })}>
+                  <tr key={c.id} {...rowLinkProps(() => selectRow(c.id), { selected: c.id === selectedId })}>
                     <td><span className="agri-row-title">{c.name}</span></td>
                     <td>{c.category}</td>
                     <td><Pill status={c.status} /></td>
                     <td>{c.dateAdded}</td>
-                    <td {...rowActionsCellProps}>
-                      <RowActionsMenu
-                        label={`Actions for ${c.name}`}
-                        actions={[
-                          { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ mode: "edit", commodity: c }) },
-                          { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(c) },
-                        ]}
-                      />
-                    </td>
                   </tr>
                 ))}
                 {loading && (
-                  <tr><td colSpan={5} className="agri-muted text-center py-4">Loading commodities…</td></tr>
+                  <tr><td colSpan={4} className="agri-muted text-center py-4">Loading commodities…</td></tr>
                 )}
               </tbody>
             </table>
@@ -151,54 +210,98 @@ export default function Commodities() {
               />
             )}
           </div>
-          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+          <TableFooter page={page} pageSize={pageSize} total={filtered.length} totalPages={totalPages} onPageChange={setPage} noun={["commodity", "commodities"]} />
         </div>
 
         {selected && (
-          <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
+          <Card className="agri-card agri-fill-card" style={{ padding: 18 }} {...(edit ? { onSubmit: saveEdit, noValidate: true } : {})}>
             <div className="agri-panel-header">
-              <div style={{ fontWeight: 700 }}>Commodity Details</div>
+              <div style={{ fontWeight: 700 }}>{edit ? "Edit Commodity" : "Commodity Details"}</div>
               <Pill status={selected.status} />
             </div>
             <div className="agri-detail-body">
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Name</div>{selected.name}</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Category</div>{selected.category}</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{selectedDistributedQty.toLocaleString()} kg</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{selected.dateAdded}</div></div>
+              {edit && editErrors.form && (
+                <div className="agri-pill red" style={{ display: "block", marginBottom: 10, padding: "8px 12px" }}>{editErrors.form}</div>
+              )}
+              {edit ? (
+                <>
+                  <EditField label="Name" id="commodity-name" error={editErrors.name}>
+                    <input id="commodity-name" className={`form-control form-control-sm${editErrors.name ? " is-invalid" : ""}`} value={edit.name} onChange={(e) => updateField("name", e.target.value)} disabled={saving} autoFocus />
+                  </EditField>
+                  <EditField label="Category" id="commodity-category">
+                    <select id="commodity-category" className="form-select form-select-sm" value={edit.category} onChange={(e) => updateField("category", e.target.value)} disabled={saving}>
+                      {[...new Set([edit.category, ...commodityCategories])].map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                  </EditField>
+                  <EditField label="Unit" id="commodity-unit" error={editErrors.unit}>
+                    <input id="commodity-unit" className={`form-control form-control-sm${editErrors.unit ? " is-invalid" : ""}`} value={edit.unit} onChange={(e) => updateField("unit", e.target.value)} disabled={saving} placeholder="e.g. kg, bag, set" />
+                  </EditField>
+                </>
+              ) : (
+                <>
+                  <div className="agri-detail-row"><div><div className="agri-detail-label">Name</div>{selected.name}</div></div>
+                  <div className="agri-detail-row"><div><div className="agri-detail-label">Category</div>{selected.category}</div></div>
+                  <div className="agri-detail-row"><div><div className="agri-detail-label">Unit</div>{selected.unit}</div></div>
+                </>
+              )}
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{selectedDistributedQty.toLocaleString()} kg</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{selected.dateAdded}</div></div>
 
-            <label className="agri-form-label" style={{ marginTop: 14 }} htmlFor="commodity-status-select">Status</label>
-            <select id="commodity-status-select" className="form-select mb-3" value={selected.status} onChange={() => toggleStatus(selected.id)}>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
+              <label className="agri-form-label" style={{ marginTop: 14 }} htmlFor="commodity-status-select">Status</label>
+              {edit ? (
+                <select id="commodity-status-select" className="form-select mb-3" value={edit.status} onChange={(e) => updateField("status", e.target.value)} disabled={saving}>
+                  <option>Active</option>
+                  <option>Inactive</option>
+                </select>
+              ) : (
+                <select id="commodity-status-select" className="form-select mb-3" value={selected.status} onChange={() => toggleStatus(selected.id)}>
+                  <option>Active</option>
+                  <option>Inactive</option>
+                </select>
+              )}
             </div>
 
             <div className="agri-detail-actions">
-              <button
-                className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2"
-                onClick={() => setModal({ mode: "edit", commodity: selected })}
-              >
-                <Pencil size={15} /> Edit Commodity
-              </button>
+              {edit ? (
+                <div className="agri-detail-actions-row">
+                  <button type="button" className="btn agri-detail-btn agri-detail-btn-edit d-flex align-items-center justify-content-center gap-2" onClick={stopEditing} disabled={saving}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-agri-primary agri-detail-btn d-flex align-items-center justify-content-center gap-2" disabled={saving}>
+                    {saving ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : <Check size={16} />}
+                    {saving ? "Saving…" : "Save Changes"}
+                  </button>
+                </div>
+              ) : (
+                <div className="agri-detail-actions-row">
+                  <button
+                    type="button"
+                    className="btn agri-detail-btn agri-detail-btn-edit d-flex align-items-center justify-content-center gap-2"
+                    onClick={() => setEdit(editFormFor(selected))}
+                  >
+                    <Pencil size={16} /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn agri-detail-btn agri-detail-btn-delete d-flex align-items-center justify-content-center gap-2"
+                    onClick={() => setPendingDelete(selected)}
+                  >
+                    <Trash2 size={16} /> Delete
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
+          </Card>
         )}
       </div>
 
-      {modal && (
-        <CommodityModal
-          mode={modal.mode}
-          commodity={modal.commodity}
-          onClose={() => setModal(null)}
+      {adding && (
+        <AddCommodityModal
+          onClose={() => setAdding(false)}
           onSaved={(saved) => {
-            if (modal.mode === "edit") {
-              setCommodities((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
-              setToast({ tone: "success", message: "Commodity updated." });
-            } else {
-              setCommodities((prev) => [saved, ...prev]);
-              setToast({ tone: "success", message: "Commodity added." });
-            }
-            setModal(null);
+            setCommodities((prev) => [saved, ...prev]);
+            setToast({ tone: "success", message: "Commodity added." });
+            setAdding(false);
           }}
         />
       )}
@@ -213,15 +316,42 @@ export default function Commodities() {
         />
       )}
 
+      {pendingLeave && (
+        <ConfirmDialog
+          title="Discard changes?"
+          message={`Your changes to ${selected?.name ?? "this commodity"} haven't been saved.`}
+          confirmLabel="Discard"
+          onConfirm={() => {
+            const go = pendingLeave;
+            setPendingLeave(null);
+            stopEditing();
+            go();
+          }}
+          onCancel={() => setPendingLeave(null)}
+        />
+      )}
+
       {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
     </div>
   );
 }
 
-function CommodityModal({ mode, commodity, onClose, onSaved }) {
-  const [form, setForm] = useState(() =>
-    mode === "edit" ? { name: commodity.name, category: commodity.category } : { name: "", category: "Rice" },
+// One field of the inline edit form, laid out like a detail row so each
+// input sits where its value was; the error shows right under the input.
+function EditField({ label, id, error, children }) {
+  return (
+    <div className="agri-detail-row">
+      <div style={{ flex: 1 }}>
+        <label className="agri-detail-label" htmlFor={id}>{label}</label>
+        {children}
+        {error && <div className="invalid-feedback d-block">{error}</div>}
+      </div>
+    </div>
   );
+}
+
+function AddCommodityModal({ onClose, onSaved }) {
+  const [form, setForm] = useState({ name: "", category: "Rice" });
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -232,8 +362,7 @@ function CommodityModal({ mode, commodity, onClose, onSaved }) {
     setFormError("");
     setSaving(true);
     try {
-      const saved = mode === "edit" ? await updateCommodity(commodity.id, form) : await createCommodity(form);
-      onSaved(saved);
+      onSaved(await createCommodity(form));
     } catch (err) {
       setFormError(friendlyError(err, "Couldn't save this commodity. Please try again."));
     } finally {
@@ -245,7 +374,7 @@ function CommodityModal({ mode, commodity, onClose, onSaved }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
       <div className="agri-card" style={{ width: 420, maxWidth: "92vw", padding: 22 }} onClick={(e) => e.stopPropagation()}>
         <div className="agri-panel-header">
-          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{mode === "edit" ? "Edit Commodity" : "Add Commodity"}</div>
+          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>Add Commodity</div>
           <button type="button" className="agri-icon-btn" aria-label="Close" onClick={onClose}><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit}>

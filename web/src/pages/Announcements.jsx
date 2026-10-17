@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Megaphone, Pencil, Pin, PinOff, Plus, Search, Send, Trash2 } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
-import Pagination from "../components/ui/Pagination.jsx";
+import TableFooter from "../components/ui/TableFooter.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
@@ -10,6 +10,7 @@ import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
+import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import {
   deleteAnnouncement,
@@ -19,7 +20,6 @@ import {
   setAnnouncementStatus,
 } from "../lib/api/announcements.js";
 
-const PAGE_SIZE = 10;
 
 function formatDate(iso) {
   return iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
@@ -45,7 +45,10 @@ export default function Announcements() {
     );
   }, [announcements, search, statusFilter]);
 
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
+  // Rows per page = however many fit in the full-height table area (min 5).
+  const tableRef = useRef(null);
+  const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
   const filtersActive = search || statusFilter !== "All";
 
   function resetFilters() {
@@ -123,7 +126,7 @@ export default function Announcements() {
           </select>
         </div>
 
-        <div className="agri-table-wrap">
+        <div className="agri-table-wrap" ref={tableRef}>
           <table className="agri-table">
             <thead>
               <tr><th>Announcement</th><th>Date / Venue</th><th>Recipients</th><th>Status</th><th></th></tr>
@@ -186,8 +189,7 @@ export default function Announcements() {
             />
           )}
         </div>
-        <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 10 }}>Showing {pageItems.length} of {filtered.length} announcements</div>
-        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+        <TableFooter page={page} pageSize={pageSize} total={filtered.length} totalPages={totalPages} onPageChange={setPage} noun={["announcement", "announcements"]} />
       </div>
 
       {modal && <AnnouncementModal announcement={modal.announcement} onClose={() => setModal(null)} onSaved={handleSaved} />}

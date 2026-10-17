@@ -866,6 +866,38 @@ textarea:focus-visible,
   overflow-x: auto;
 }
 
+/* Full-height tables: useFitPageSize sets --agri-fit-row-height so a full
+   page of rows exactly fills the table area (no blank strip under the last
+   row). Unset everywhere else. */
+.agri-table-wrap tbody tr {
+  height: var(--agri-fit-row-height, auto);
+}
+
+.agri-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 14px;
+}
+
+/* One line under a table: "Showing X–Y of N" left, pagination right. The
+   min-height is the page buttons' height, so the line is the same height
+   with or without pagination. */
+.agri-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  margin-top: 12px;
+  font-size: 0.78rem;
+}
+
+.agri-table-footer .agri-pagination {
+  margin-top: 0;
+}
+
 table.agri-table {
   width: 100%;
   border-collapse: collapse;

@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, History, Inbox, Search, Send, ShieldAlert } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import Toast from "../components/ui/Toast.jsx";
+import TableFooter from "../components/ui/TableFooter.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
+import { usePagination } from "../hooks/usePagination.js";
+import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { listRequests, listRequestsForAdminReview, faReviewRequest, adminReviewRequest } from "../lib/api/requests.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
@@ -79,6 +82,11 @@ function FARequestsView({ currentUserId }) {
     return tabbed.filter((r) => r.farmerName.toLowerCase().includes(q) || r.commodity.toLowerCase().includes(q));
   }, [tabbed, search]);
 
+  // Rows per page = however many fit in the full-height table area (min 5).
+  const tableRef = useRef(null);
+  const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
+
   useEffect(() => {
     if (!filtered.some((r) => r.id === selectedId)) setSelectedId(filtered[0]?.id ?? null);
   }, [filtered, selectedId]);
@@ -105,7 +113,7 @@ function FARequestsView({ currentUserId }) {
   }
 
   return (
-    <div>
+    <div className="agri-fill-root">
       <div className="agri-tabs">
         {FA_TABS.map((t) => (
           <button key={t.key} type="button" className={`agri-tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>
@@ -115,8 +123,8 @@ function FARequestsView({ currentUserId }) {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: selected ? "1.6fr 1fr" : "1fr", gap: 16 }}>
-        <div className="agri-card" style={{ padding: 16 }}>
+      <div className={`agri-split${selected ? " has-detail" : ""}`}>
+        <div className="agri-card agri-fill-card" style={{ padding: 16 }}>
           {(loadError || actionError) && (
             <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
               {loadError || actionError}
@@ -127,13 +135,13 @@ function FARequestsView({ currentUserId }) {
             <input className="form-control" placeholder="Search farmer or commodity" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
 
-          <div className="agri-table-wrap">
+          <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table">
               <thead>
                 <tr><th>Farmer</th><th>Commodity</th><th>Quantity</th><th>Date Requested</th><th>Status</th></tr>
               </thead>
               <tbody>
-                {filtered.map((r) => (
+                {pageItems.map((r) => (
                   <tr key={r.id} {...rowLinkProps(() => setSelectedId(r.id), { selected: r.id === selectedId })}>
                     <td><span className="agri-row-title">{r.farmerName}</span></td>
                     <td>{r.commodity}</td>
@@ -151,15 +159,17 @@ function FARequestsView({ currentUserId }) {
               </tbody>
             </table>
           </div>
+          <TableFooter page={page} pageSize={pageSize} total={filtered.length} totalPages={totalPages} onPageChange={setPage} noun={["request", "requests"]} />
         </div>
 
         {selected && (
-          <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
+          <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
               <Pill status={reviewLabel(selected)} />
             </div>
 
+            <div className="agri-detail-body">
             <div className="agri-detail-row"><div><div className="agri-detail-label">Farmer</div>{selected.farmerName}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">RSBSA Number</div>{selected.rsbsaNo}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Barangay</div>{selected.barangay}</div></div>
@@ -182,9 +192,11 @@ function FARequestsView({ currentUserId }) {
                 </div>
               </div>
             )}
+            </div>
 
+            <div className="agri-detail-actions">
             {canAct && (
-              <div style={{ marginTop: 16 }}>
+              <div>
                 <label className="agri-form-label">Notes (optional)</label>
                 <textarea className="form-control mb-3" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Add a note before deciding" />
                 <div style={{ display: "flex", gap: 8 }}>
@@ -197,11 +209,12 @@ function FARequestsView({ currentUserId }) {
             )}
 
             {!canAct && (
-              <div className="agri-pill gray" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 14, padding: "8px 12px" }}>
+              <div className="agri-pill gray" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px" }}>
                 <ShieldAlert size={13} />
                 {selected.status === "Forwarded" ? "Endorsed — waiting for the MAO's decision." : "This request has already been decided."}
               </div>
             )}
+            </div>
           </div>
         )}
       </div>
@@ -240,6 +253,11 @@ function AdminRequestsView() {
 
   const tabbed = useMemo(() => adminTabRows(requests, tab), [requests, tab]);
 
+  // Rows per page = however many fit in the full-height table area (min 5).
+  const tableRef = useRef(null);
+  const pageSize = useFitPageSize(tableRef, { remeasureKey: tabbed.length > 0 });
+  const { page, setPage, totalPages, pageItems } = usePagination(tabbed, pageSize);
+
   useEffect(() => {
     if (!tabbed.some((r) => r.id === selectedId)) setSelectedId(tabbed[0]?.id ?? null);
   }, [tabbed, selectedId]);
@@ -267,7 +285,7 @@ function AdminRequestsView() {
   }
 
   return (
-    <div>
+    <div className="agri-fill-root">
       <div className="agri-tabs">
         {ADMIN_TABS.map((t) => (
           <button key={t.key} type="button" className={`agri-tab${tab === t.key ? " active" : ""}`} onClick={() => setTab(t.key)}>
@@ -278,20 +296,20 @@ function AdminRequestsView() {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: selected ? "1.6fr 1fr" : "1fr", gap: 16 }}>
-        <div className="agri-card" style={{ padding: 16 }}>
+      <div className={`agri-split${selected ? " has-detail" : ""}`}>
+        <div className="agri-card agri-fill-card" style={{ padding: 16 }}>
           {(loadError || actionError) && (
             <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
               {loadError || actionError}
             </div>
           )}
-          <div className="agri-table-wrap">
+          <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table">
               <thead>
                 <tr><th>Farmer</th><th>Commodity</th><th>Quantity</th><th>Endorsed On</th><th>Status</th></tr>
               </thead>
               <tbody>
-                {tabbed.map((r) => (
+                {pageItems.map((r) => (
                   <tr key={r.id} {...rowLinkProps(() => setSelectedId(r.id), { selected: r.id === selectedId })}>
                     <td>
                       <span className="agri-farmer-cell">
@@ -314,15 +332,17 @@ function AdminRequestsView() {
               </tbody>
             </table>
           </div>
+          <TableFooter page={page} pageSize={pageSize} total={tabbed.length} totalPages={totalPages} onPageChange={setPage} noun={["request", "requests"]} />
         </div>
 
         {selected && (
-          <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
+          <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
               <Pill status={reviewLabel(selected)} />
             </div>
 
+            <div className="agri-detail-body">
             <div className="agri-detail-row">
               <div>
                 <div className="agri-detail-label">Farmer</div>
@@ -348,9 +368,11 @@ function AdminRequestsView() {
             {selected.maoRemarks && (
               <div className="agri-detail-row"><div><div className="agri-detail-label">Your Remarks</div>{selected.maoRemarks}</div></div>
             )}
+            </div>
 
+            <div className="agri-detail-actions">
             {canAct && (
-              <div style={{ marginTop: 16 }}>
+              <div>
                 <label className="agri-form-label">Notes (optional)</label>
                 <textarea className="form-control mb-3" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Add a reason for your decision" />
                 <div style={{ display: "flex", gap: 8 }}>
@@ -362,11 +384,12 @@ function AdminRequestsView() {
               </div>
             )}
             {!canAct && (
-              <div className="agri-pill gray" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 14, padding: "8px 12px" }}>
+              <div className="agri-pill gray" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px" }}>
                 <ShieldAlert size={13} />
                 {notEndorsed ? "Not endorsed by the Farmers' Association President, so it never reached the MAO." : "This request has already been decided."}
               </div>
             )}
+            </div>
           </div>
         )}
       </div>

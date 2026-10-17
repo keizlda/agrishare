@@ -4,7 +4,7 @@ import { Copy, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X 
 import Pill from "../components/ui/Pill.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
-import Pagination from "../components/ui/Pagination.jsx";
+import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import FarmerProfileDrawer from "../components/farmers/FarmerProfileDrawer.jsx";
@@ -376,10 +376,7 @@ export default function Farmers() {
             />
           )}
         </div>
-        <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 10 }}>
-          Showing {pageItems.length} of {filtered.length} farmers
-        </div>
-        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+        <TableFooter page={page} pageSize={pageSize} total={filtered.length} totalPages={totalPages} onPageChange={setPage} noun={["farmer", "farmers"]} />
       </div>
 
       {viewing && (
