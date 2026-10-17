@@ -5,7 +5,7 @@ import { usePersistedState } from "../hooks/usePersistedState.js";
 import { barangays, reportTypes } from "../data/mockData.js";
 import { listCommodities } from "../lib/api/commodities.js";
 
-const STATUS_OPTIONS = ["All Status", "Scheduled", "Ongoing", "Completed", "Cancelled"];
+const STATUS_OPTIONS = ["All Status", "Ongoing", "Distributed", "Completed"];
 
 // Generated-report history is a session convenience log (what got downloaded,
 // when) rather than domain data from the paper's ERD, so it stays local —

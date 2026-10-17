@@ -35,16 +35,15 @@ export async function listDistributions() {
 // ---------------------------------------------------------------------------
 // Phase 5: farmer-scoped feed — only distributions this farmer was actually
 // tagged in (via distribution_claims, RLS-scoped to their own rows), each
-// with their own quantity and acknowledgement, never another farmer's data.
+// with their own quantity, never another farmer's data.
 // ---------------------------------------------------------------------------
-// Acknowledgement is a single value per distribution (the MAO's
-// Acknowledgement Status dropdown, distribution_events.acknowledgement_status)
-// rather than a per-claim toggle — distribution_claims.acknowledgement_status
-// is no longer written to and isn't read here.
+// Farmers only see Upcoming (Ongoing) or Received (Distributed/Completed) —
+// the receipt-filing step (Distributed vs Completed) is office paperwork, so
+// no acknowledgement field is read here.
 const MY_CLAIM_SELECT = `
   claim_id, quantity_received,
   commodities ( name, unit ),
-  distribution_events ( event_id, program_name, event_date, venue, status, acknowledgement_status, funding_source, is_deleted )
+  distribution_events ( event_id, program_name, event_date, venue, status, funding_source, is_deleted )
 `;
 
 function mapMyDistribution(row) {
@@ -60,7 +59,6 @@ function mapMyDistribution(row) {
     item: row.commodities?.name ?? "",
     quantity: Number(row.quantity_received),
     unit: row.commodities?.unit ?? "kg",
-    acknowledgementStatus: event.acknowledgement_status === "acknowledged" ? "Received" : "Pending",
   };
 }
 

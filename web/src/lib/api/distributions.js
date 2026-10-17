@@ -2,7 +2,7 @@ import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 
 const SELECT = `
-  event_id, program_name, event_date, venue, barangay, funding_source, acknowledgement_status, status, remarks, beneficiaries_count,
+  event_id, program_name, event_date, venue, barangay, funding_source, status, receipts_collected_at, remarks, beneficiaries_count,
   distribution_event_items ( event_item_id, commodity_id, quantity_allocated, commodities ( name, category, unit ) )
 `;
 
@@ -22,14 +22,14 @@ function mapDistribution(row, summary) {
     barangay: row.barangay,
     beneficiaries: row.beneficiaries_count,
     taggedBeneficiaryCount: taggedCount,
-    // Acknowledgement is a single distribution-level value (the dropdown
-    // below, dbStatusToLabel(row.acknowledgement_status)) — there's no more
-    // separate per-farmer Pending/Partial/Complete computation.
+    // One status: Ongoing -> Distributed (items released) -> Completed
+    // (signed acknowledgement receipts collected, dated receiptsCollectedAt).
+    // Acknowledgement is part of it — see lib/distributionStatus.js.
     status: dbStatusToLabel(row.status),
+    receiptsCollectedAt: row.receipts_collected_at ?? null,
     venue: row.venue ?? "",
     program: row.program_name,
     fundingSource: row.funding_source ?? "",
-    acknowledgementStatus: dbStatusToLabel(row.acknowledgement_status),
     remarks: row.remarks ?? "",
     items,
   };
@@ -119,7 +119,7 @@ export async function listFarmerDistributionHistory(farmerId) {
       eventId: row.distribution_events.event_id,
       date: row.distribution_events.event_date,
       program: row.distribution_events.program_name ?? "",
-      status: dbStatusToLabel(row.distribution_events.status ?? "scheduled"),
+      status: dbStatusToLabel(row.distribution_events.status ?? "ongoing"),
       commodity: row.commodities?.name ?? "",
       unit: row.commodities?.unit ?? "kg",
       quantity: Number(row.quantity_received),
@@ -173,12 +173,12 @@ const BENEFICIARY_REPORT_SELECT = `
   claim_id, farmer_id, event_id, quantity_received,
   farmers ( rsbsa_no, first_name, surname, addresses ( barangay ) ),
   commodities ( name ),
-  distribution_events ( event_id, event_date, program_name, status, acknowledgement_status, is_deleted )
+  distribution_events ( event_id, event_date, program_name, status, receipts_collected_at, is_deleted )
 `;
 
-// Acknowledgement Status is one value per distribution (the dropdown on the
-// event, not the unused per-claim column) — every row from the same
-// distribution reports the same value.
+// Status (and so acknowledgement: Completed = receipts collected) is one
+// value per distribution, not the unused per-claim column — every row from
+// the same distribution reports the same value.
 function mapBeneficiaryReportRow(row) {
   const event = row.distribution_events;
   return {
@@ -191,10 +191,10 @@ function mapBeneficiaryReportRow(row) {
     barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
     commodity: row.commodities?.name ?? "",
     quantity: Number(row.quantity_received),
-    acknowledgementStatus: event?.acknowledgement_status === "acknowledged" ? "Acknowledged" : "Pending",
     eventDate: event?.event_date,
     program: event?.program_name,
-    status: dbStatusToLabel(event?.status ?? "scheduled"),
+    status: dbStatusToLabel(event?.status ?? "ongoing"),
+    receiptsCollectedAt: event?.receipts_collected_at ?? null,
   };
 }
 
@@ -244,7 +244,7 @@ export async function markAllBeneficiariesReceived(eventId) {
 // — when non-empty, this is the source of truth for the item's total
 // quantity and the old beneficiaries_count is set to match (kept in sync so
 // anything still reading the legacy column isn't left stale).
-export async function createDistribution({ program, venue, beneficiaries, commodityId, quantity, fundingSource, acknowledgementStatus, taggedBeneficiaries = [] }) {
+export async function createDistribution({ program, venue, beneficiaries, commodityId, quantity, fundingSource, status, taggedBeneficiaries = [] }) {
   const effectiveCount = taggedBeneficiaries.length > 0 ? taggedBeneficiaries.length : Number(beneficiaries) || 0;
   const effectiveQuantity =
     taggedBeneficiaries.length > 0 ? taggedBeneficiaries.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0) : Number(quantity) || 0;
@@ -256,12 +256,11 @@ export async function createDistribution({ program, venue, beneficiaries, commod
       event_date: new Date().toISOString().slice(0, 10),
       venue,
       funding_source: fundingSource || null,
-      acknowledgement_status: labelToDbStatus(acknowledgementStatus || "Pending"),
-      status: "ongoing",
+      status: labelToDbStatus(status || "Ongoing"),
       beneficiaries_count: effectiveCount,
     })
     .select(
-      "event_id, program_name, event_date, venue, barangay, funding_source, acknowledgement_status, status, remarks, beneficiaries_count",
+      "event_id, program_name, event_date, venue, barangay, funding_source, status, receipts_collected_at, remarks, beneficiaries_count",
     )
     .single();
   if (eventErr) throw eventErr;
@@ -288,11 +287,19 @@ export async function createDistribution({ program, venue, beneficiaries, commod
 // quantity here is all that's needed, no delta math). Distributions
 // seeded with more than one item keep their other items untouched.
 // RLS ("events: MAO writes" / "event_items: MAO writes") restricts both
-// writes to mao_admin — FA President's call comes back empty.
-export async function updateDistribution(eventId, { date, program, venue, barangay, fundingSource, beneficiaries, acknowledgementStatus, commodityId, quantity, itemId, taggedBeneficiaries = [] }) {
+// writes to mao_admin — FA President's call comes back empty. `status` is
+// only passed when the admin changed it, so status_updated_by/at stay
+// accurate.
+export async function updateDistribution(eventId, { date, program, venue, barangay, fundingSource, beneficiaries, status, commodityId, quantity, itemId, taggedBeneficiaries = [] }) {
   const effectiveCount = taggedBeneficiaries.length > 0 ? taggedBeneficiaries.length : Number(beneficiaries) || 0;
   const effectiveQuantity =
     taggedBeneficiaries.length > 0 ? taggedBeneficiaries.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0) : Number(quantity) || 0;
+
+  let statusFields = {};
+  if (status) {
+    const { data: auth } = await supabase.auth.getUser();
+    statusFields = { status: labelToDbStatus(status), status_updated_by: auth?.user?.id ?? null, status_updated_at: new Date().toISOString() };
+  }
 
   const { data: event, error: eventErr } = await supabase
     .from("distribution_events")
@@ -302,8 +309,8 @@ export async function updateDistribution(eventId, { date, program, venue, barang
       venue,
       barangay,
       funding_source: fundingSource || null,
-      acknowledgement_status: labelToDbStatus(acknowledgementStatus || "Pending"),
       beneficiaries_count: effectiveCount,
+      ...statusFields,
     })
     .eq("event_id", eventId)
     .select("event_id")

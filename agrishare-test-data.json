@@ -49,7 +49,7 @@
   "distributions": [
     {
       "date": "2026-03-12", "program_name": "RCEF Seed Distribution - Dry Season", "crop_type": "Rice", "commodity": "Rice Seeds (NSIC Rc222)",
-      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA-RCEF", "status": "Completed", "acknowledgement_status": "Acknowledged", "total_quantity": 160,
+      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA-RCEF", "status": "Completed", "total_quantity": 160,
       "beneficiaries": [
         { "rsbsa_number": "09-73-00-000-000537", "name": "Maui Pelaez", "quantity_received": 20 },
         { "rsbsa_number": "09-73-00-000-000612", "name": "Claude Oclarit", "quantity_received": 20 },
@@ -63,7 +63,7 @@
     },
     {
       "date": "2026-04-08", "program_name": "Corn Program Seed Assistance", "crop_type": "Corn", "commodity": "Corn Seeds",
-      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA Corn Program", "status": "Completed", "acknowledgement_status": "Acknowledged", "total_quantity": 90,
+      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA Corn Program", "status": "Completed", "total_quantity": 90,
       "beneficiaries": [
         { "rsbsa_number": "09-73-00-000-000203", "name": "Arnel Dacalos", "quantity_received": 18 },
         { "rsbsa_number": "09-73-00-000-000207", "name": "Ernesto Manlangit", "quantity_received": 18 },
@@ -74,7 +74,7 @@
     },
     {
       "date": "2026-05-20", "program_name": "HVCDP Vegetable Seed Distribution", "crop_type": "Vegetables", "commodity": "Vegetable Seeds",
-      "venue": "Langapud Covered Court", "barangay": "Langapud", "funding_source": "DA-HVCDP", "status": "Completed", "acknowledgement_status": "Acknowledged", "total_quantity": 10,
+      "venue": "Langapud Covered Court", "barangay": "Langapud", "funding_source": "DA-HVCDP", "status": "Completed", "total_quantity": 10,
       "beneficiaries": [
         { "rsbsa_number": "09-73-00-000-000206", "name": "Gina Salise", "quantity_received": 2 },
         { "rsbsa_number": "09-73-00-000-000210", "name": "Rosalie Baguio", "quantity_received": 2 },
@@ -85,7 +85,7 @@
     },
     {
       "date": "2026-06-15", "program_name": "Organic Fertilizer Assistance", "crop_type": "Fertilizer", "commodity": "Organic Fertilizer",
-      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "LGU Labangan", "status": "Completed", "acknowledgement_status": "Pending", "total_quantity": 450,
+      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "LGU Labangan", "status": "Distributed", "total_quantity": 450,
       "beneficiaries": [
         { "rsbsa_number": "09-73-00-000-000537", "name": "Maui Pelaez", "quantity_received": 50 },
         { "rsbsa_number": "09-73-00-000-000612", "name": "Claude Oclarit", "quantity_received": 50 },
@@ -100,7 +100,7 @@
     },
     {
       "date": "2026-08-26", "program_name": "Farm Tools Distribution", "crop_type": "Farm Tools", "commodity": "Farm Tools Set",
-      "venue": "MAO Labangan Office", "barangay": "Langapud", "funding_source": "LGU Labangan", "status": "Completed", "acknowledgement_status": "Acknowledged", "total_quantity": 10,
+      "venue": "MAO Labangan Office", "barangay": "Langapud", "funding_source": "LGU Labangan", "status": "Completed", "total_quantity": 10,
       "beneficiaries": [
         { "rsbsa_number": "09-73-00-000-000537", "name": "Maui Pelaez", "quantity_received": 1 },
         { "rsbsa_number": "09-73-00-000-000612", "name": "Claude Oclarit", "quantity_received": 1 },
@@ -116,7 +116,7 @@
     },
     {
       "date": "2026-10-02", "program_name": "RCEF Seed Distribution - Wet Season", "crop_type": "Rice", "commodity": "Rice Seeds (NSIC Rc222)",
-      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA-RCEF", "status": "Completed", "acknowledgement_status": "Pending", "total_quantity": 260,
+      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA-RCEF", "status": "Distributed", "total_quantity": 260,
       "beneficiaries": [
         { "rsbsa_number": "09-73-00-000-000389", "name": "Luna Cuizon", "quantity_received": 20 },
         { "rsbsa_number": "09-73-00-000-000201", "name": "Rodel Bagas", "quantity_received": 20 },
@@ -135,7 +135,7 @@
     },
     {
       "date": "2026-10-23", "program_name": "Urea Fertilizer Assistance", "crop_type": "Fertilizer", "commodity": "Urea Fertilizer (46-0-0)",
-      "venue": "Langapud Covered Court", "barangay": "Langapud", "funding_source": "DA Rice Program", "status": "Ongoing", "acknowledgement_status": "Pending", "total_quantity": 175,
+      "venue": "Langapud Covered Court", "barangay": "Langapud", "funding_source": "DA Rice Program", "status": "Ongoing", "total_quantity": 175,
       "beneficiaries": [
         { "rsbsa_number": "09-73-00-000-000537", "name": "Maui Pelaez", "quantity_received": 25 },
         { "rsbsa_number": "09-73-00-000-000612", "name": "Claude Oclarit", "quantity_received": 25 },

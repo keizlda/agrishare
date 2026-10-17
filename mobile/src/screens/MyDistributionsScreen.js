@@ -8,9 +8,11 @@ import EmptyState from "../components/ui/EmptyState";
 import { colors, radius, shadows, spacing } from "../theme";
 import { listMyDistributions } from "../lib/api/distributions";
 
+// Ongoing -> Upcoming; Distributed/Completed -> Received (no acknowledgement
+// wording for farmers).
 function recentBadge(status) {
-  if (status === "Completed") return "Received";
-  if (status === "Ongoing" || status === "Scheduled") return "Upcoming";
+  if (status === "Distributed" || status === "Completed") return "Received";
+  if (status === "Ongoing") return "Upcoming";
   return status;
 }
 
@@ -104,8 +106,7 @@ export default function MyDistributionsScreen({ navigation }) {
                 <DetailRow label="Quantity" value={`${open.quantity.toLocaleString()} ${open.unit}`} />
                 <DetailRow label="Date" value={open.date} />
                 <DetailRow label="Venue" value={open.venue} />
-                <DetailRow label="Funding Source" value={open.fundingSource || "—"} />
-                <DetailRow label="Your Acknowledgement" value={open.acknowledgementStatus} last />
+                <DetailRow label="Funding Source" value={open.fundingSource || "—"} last />
               </View>
             </ScrollView>
           </View>

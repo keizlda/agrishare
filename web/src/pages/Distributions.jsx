@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ChevronDown, Pencil, Plus, Printer, Trash2, Truck, X } from "lucide-react";
-import Pill, { STATUS_COLOR } from "../components/ui/Pill.jsx";
+import { ClipboardCheck, PackageCheck, Pencil, Plus, Printer, Trash2, Truck, X } from "lucide-react";
+import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
@@ -24,6 +24,7 @@ import {
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { friendlyError } from "../lib/friendlyError.js";
+import { DISTRIBUTION_STATUSES, receiptsLabel } from "../lib/distributionStatus.js";
 
 // New chips added during this edit split whatever's left after
 // already-edited/loaded rows' quantities are subtracted from the total —
@@ -48,23 +49,30 @@ function redistributeQuantities(rows, totalQuantity) {
   });
 }
 
-// Scheduled -> Ongoing or Cancelled; Ongoing -> Completed or Cancelled;
-// Completed/Cancelled are final (empty list = read-only badge, no menu).
-const STATUS_TRANSITIONS = {
-  Scheduled: ["Ongoing", "Cancelled"],
-  Ongoing: ["Completed", "Cancelled"],
-  Completed: [],
-  Cancelled: [],
+// One status, three steps: Ongoing -> Distributed (items released) ->
+// Completed (signed acknowledgement receipts collected). The details panel
+// offers the next step as a one-click action; the New/Edit form can set any
+// of the three.
+const NEXT_STEP = {
+  Ongoing: {
+    status: "Distributed",
+    label: "Mark as distributed",
+    icon: PackageCheck,
+    title: "Mark as distributed?",
+    message: "Items have been released to the farmers. Tagged farmers will be notified that they received them.",
+    confirmLabel: "Mark as distributed",
+  },
+  Distributed: {
+    status: "Completed",
+    label: "Mark receipts collected",
+    icon: ClipboardCheck,
+    title: "Mark receipts collected?",
+    message: "The signed acknowledgement receipts have been collected and filed. The status becomes Completed.",
+    confirmLabel: "Mark receipts collected",
+  },
 };
-const FINAL_STATUSES = new Set(["Completed", "Cancelled"]);
-const STATUS_DOT_COLOR = {
-  green: "var(--agri-primary-dark)",
-  red: "var(--agri-red)",
-  orange: "var(--agri-orange)",
-  blue: "var(--agri-blue)",
-  purple: "var(--agri-purple)",
-  gray: "var(--agri-text-muted)",
-};
+
+const STATUS_HELP = "Distributed = items released. Completed = signed acknowledgement receipts collected.";
 
 const EMPTY_FORM = {
   commodityId: "",
@@ -73,7 +81,7 @@ const EMPTY_FORM = {
   taggedBeneficiaries: [],
   quantity: "",
   fundingSource: "",
-  acknowledgementStatus: "Pending",
+  status: "Ongoing",
 };
 
 export default function Distributions() {
@@ -81,10 +89,11 @@ export default function Distributions() {
   const isMAO = user?.role !== "FA President";
   const { data: distributions, setData: setDistributions, loading, error: loadError } = useSupabaseList(listDistributions);
   const [commodities, setCommodities] = useState([]);
-  // ?status= preselects the status filter (the Dashboard's "ongoing" chip).
+  // ?status= preselects the status filter (the Dashboard's "ongoing" and
+  // "awaiting receipts" chips).
   const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(() =>
-    ["Completed", "Ongoing", "Scheduled"].includes(searchParams.get("status")) ? searchParams.get("status") : "All",
+    DISTRIBUTION_STATUSES.includes(searchParams.get("status")) ? searchParams.get("status") : "All",
   );
   const [programFilter, setProgramFilter] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
@@ -198,9 +207,7 @@ export default function Distributions() {
 
             <select className="form-select" style={{ width: 160 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="All">All Status</option>
-              <option value="Completed">Completed</option>
-              <option value="Ongoing">Ongoing</option>
-              <option value="Scheduled">Scheduled</option>
+              {DISTRIBUTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
 
             <select className="form-select" style={{ width: 200 }} value={programFilter} onChange={(e) => setProgramFilter(e.target.value)}>
@@ -257,15 +264,7 @@ export default function Distributions() {
           <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Distribution Details</div>
-              <DistributionStatusControl
-                distribution={selected}
-                canEdit={isMAO}
-                onSaved={(updated) => {
-                  setDistributions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-                  setToast({ tone: "success", message: `Status updated to ${updated.status}.` });
-                }}
-                onError={(message) => setToast({ tone: "error", message })}
-              />
+              <Pill status={selected.status} />
             </div>
             <div className="agri-muted" style={{ fontSize: "0.8rem", marginBottom: 10 }}>
               {selected.date}
@@ -276,7 +275,7 @@ export default function Distributions() {
             <div className="agri-detail-row"><div><div className="agri-detail-label">Barangay</div>{selected.barangay}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Venue</div>{selected.venue}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Funding Source</div>{selected.fundingSource || "—"}</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Acknowledgement Status</div><Pill status={selected.acknowledgementStatus} /></div></div>
+            <div className="agri-detail-row"><div><div className="agri-detail-label">Acknowledgement Receipts</div>{receiptsLabel(selected)}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Total Beneficiaries</div>{selected.beneficiaries} Farmers</div></div>
             {selected.remarks && (
               <div className="agri-detail-row"><div><div className="agri-detail-label">Remarks</div>{selected.remarks}</div></div>
@@ -326,6 +325,18 @@ export default function Distributions() {
             </div>
 
             <div className="agri-detail-actions">
+              {isMAO && NEXT_STEP[selected.status] && (
+                <StatusStepButton
+                  key={`${selected.id}-${selected.status}`}
+                  distribution={selected}
+                  onSaved={(updated) => {
+                    setDistributions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+                    setToast({ tone: "success", message: `Status updated to ${updated.status}.` });
+                  }}
+                  onError={(message) => setToast({ tone: "error", message })}
+                />
+              )}
+
               <button
                 className="btn btn-agri-primary agri-detail-btn w-100 d-flex align-items-center justify-content-center gap-2"
                 onClick={() => window.open(`/print/distributions/${selected.id}?autoPrint=1`, "_blank", "noopener,noreferrer")}
@@ -366,38 +377,28 @@ export default function Distributions() {
   );
 }
 
-// Read-only Pill for everyone else, or once a distribution has reached a
-// final status. Admins on a non-final status get a pill-styled trigger that
-// opens a menu of just the allowed next statuses; Completed/Cancelled go
-// through a confirmation dialog first since they can't be undone.
-function DistributionStatusControl({ distribution, canEdit, onSaved, onError }) {
-  const [open, setOpen] = useState(false);
-  const [pendingStatus, setPendingStatus] = useState(null);
+// The one-click next step for the selected distribution (MAO only):
+// Ongoing -> "Mark as distributed", Distributed -> "Mark receipts collected".
+// Both ask for confirmation first.
+function StatusStepButton({ distribution, onSaved, onError }) {
+  const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
-  const wrapRef = useRef(null);
+  const step = NEXT_STEP[distribution.status];
+  const Icon = step.icon;
 
-  const nextOptions = STATUS_TRANSITIONS[distribution.status] ?? [];
-
-  useEscapeToClose(open, () => setOpen(false));
-
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+  function handleClick() {
+    if ((distribution.taggedBeneficiaryCount ?? 0) === 0) {
+      onError(`Tag at least one beneficiary before marking this distribution as ${step.status}.`);
+      return;
     }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [open]);
-
-  if (!canEdit || nextOptions.length === 0) {
-    return <Pill status={distribution.status} />;
+    setConfirming(true);
   }
 
-  async function applyStatus(newStatus) {
+  async function handleConfirm() {
+    setConfirming(false);
     setSaving(true);
     try {
-      const updated = await updateDistributionStatus(distribution.id, newStatus);
-      onSaved(updated);
+      onSaved(await updateDistributionStatus(distribution.id, step.status));
     } catch (err) {
       onError(friendlyError(err, "Failed to update status."));
     } finally {
@@ -405,60 +406,28 @@ function DistributionStatusControl({ distribution, canEdit, onSaved, onError }) 
     }
   }
 
-  function handleSelect(newStatus) {
-    setOpen(false);
-    if (newStatus === "Completed" && (distribution.taggedBeneficiaryCount ?? 0) === 0) {
-      onError("Tag at least one beneficiary before marking this distribution as Completed.");
-      return;
-    }
-    if (FINAL_STATUSES.has(newStatus)) {
-      setPendingStatus(newStatus);
-    } else {
-      applyStatus(newStatus);
-    }
-  }
-
-  const color = STATUS_COLOR[distribution.status] ?? "gray";
-
   return (
-    <div className="agri-status-menu-wrap" ref={wrapRef}>
+    <>
       <button
         type="button"
-        className={`agri-pill ${color} agri-status-trigger d-flex align-items-center`}
-        onClick={() => setOpen((v) => !v)}
+        className="btn agri-detail-btn agri-detail-btn-edit w-100 d-flex align-items-center justify-content-center gap-2"
         disabled={saving}
-        aria-haspopup="menu"
-        aria-expanded={open}
+        onClick={handleClick}
       >
-        {distribution.status}
-        <ChevronDown size={12} style={{ marginLeft: 2 }} />
+        <Icon size={16} /> {saving ? "Saving…" : step.label}
       </button>
 
-      {open && (
-        <div className="agri-status-menu" role="menu">
-          {nextOptions.map((s) => (
-            <button key={s} type="button" className="agri-status-menu-item" role="menuitem" onClick={() => handleSelect(s)}>
-              <span className="agri-status-dot" style={{ background: STATUS_DOT_COLOR[STATUS_COLOR[s] ?? "gray"] }} />
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {pendingStatus && (
+      {confirming && (
         <ConfirmDialog
-          title={`Mark ${distribution.program} (${distribution.date}) as ${pendingStatus}?`}
-          message="This can't be undone."
-          confirmLabel={pendingStatus}
-          onConfirm={() => {
-            const s = pendingStatus;
-            setPendingStatus(null);
-            applyStatus(s);
-          }}
-          onCancel={() => setPendingStatus(null)}
+          title={step.title}
+          message={`${distribution.program} (${distribution.date}): ${step.message}`}
+          confirmLabel={step.confirmLabel}
+          danger={false}
+          onConfirm={handleConfirm}
+          onCancel={() => setConfirming(false)}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -518,7 +487,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
           taggedBeneficiaries: [],
           quantity: String(primaryItem?.quantity ?? ""),
           fundingSource: distribution.fundingSource ?? "",
-          acknowledgementStatus: distribution.acknowledgementStatus,
+          status: distribution.status,
         }
       : { ...EMPTY_FORM, commodityId: commodities[0]?.id ?? "" },
   );
@@ -669,12 +638,16 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
       setFormError("One or more tagged farmers already received this commodity under this program this year. Remove them or provide an override reason.");
       return;
     }
+    if (form.status !== "Ongoing" && form.taggedBeneficiaries.length === 0) {
+      setFormError(`Tag at least one beneficiary before setting the status to ${form.status}.`);
+      return;
+    }
     setFormError("");
     setSaving(true);
     try {
-      // acknowledgement_status stays "Pending" on every claim row — receipt
-      // acknowledgement is now set once for the whole distribution via the
-      // Acknowledgement Status dropdown below, not per farmer.
+      // acknowledgement_status stays "Pending" on every claim row (an unused
+      // per-farmer column) — acknowledgement is recorded once for the whole
+      // distribution through its status: Completed = receipts collected.
       const taggedBeneficiaries = form.taggedBeneficiaries.map((r) => ({
         farmerId: r.farmerId,
         quantity: Number(r.quantity) || 0,
@@ -692,7 +665,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
             quantity: form.quantity,
             itemId: primaryItem?.itemId ?? null,
             fundingSource: form.fundingSource,
-            acknowledgementStatus: form.acknowledgementStatus,
+            status: form.status !== distribution.status ? form.status : undefined,
             taggedBeneficiaries,
           })
         : await createDistribution({
@@ -702,7 +675,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
             commodityId: form.commodityId,
             quantity: form.quantity,
             fundingSource: form.fundingSource,
-            acknowledgementStatus: form.acknowledgementStatus,
+            status: form.status,
             taggedBeneficiaries,
           });
       onSaved(saved);
@@ -740,15 +713,13 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
             </div>
           )}
 
-          {editing && (
-            <div style={{ marginBottom: 14 }}>
-              <div className="agri-form-label" style={{ marginBottom: 4 }}>Status</div>
-              <Pill status={distribution.status} />
-              <div className="agri-muted" style={{ fontSize: "0.72rem", marginTop: 4 }}>
-                Change status from the badge in Distribution Details.
-              </div>
-            </div>
-          )}
+          <div style={{ marginBottom: 14 }}>
+            <label className="agri-form-label" htmlFor="distribution-status">Status</label>
+            <select id="distribution-status" className="form-select" value={form.status} onChange={(e) => update("status", e.target.value)}>
+              {DISTRIBUTION_STATUSES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+            <div className="agri-muted" style={{ fontSize: "0.72rem", marginTop: 4 }}>{STATUS_HELP}</div>
+          </div>
 
           <label className="agri-form-label">Commodity</label>
           <select className="form-select mb-3" value={form.commodityId} onChange={(e) => update("commodityId", e.target.value)}>
@@ -862,19 +833,8 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
 
           <div className="mb-3" />
 
-          <div className="row g-3 mb-3">
-            <div className="col-6">
-              <label className="agri-form-label">Funding Source</label>
-              <input className="form-control" placeholder="e.g. DA Regional Field Office IX" value={form.fundingSource} onChange={(e) => update("fundingSource", e.target.value)} />
-            </div>
-            <div className="col-6">
-              <label className="agri-form-label">Acknowledgement Status</label>
-              <select className="form-select" value={form.acknowledgementStatus} onChange={(e) => update("acknowledgementStatus", e.target.value)}>
-                <option>Pending</option>
-                <option>Acknowledged</option>
-              </select>
-            </div>
-          </div>
+          <label className="agri-form-label">Funding Source</label>
+          <input className="form-control mb-3" placeholder="e.g. DA Regional Field Office IX" value={form.fundingSource} onChange={(e) => update("fundingSource", e.target.value)} />
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
             <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>

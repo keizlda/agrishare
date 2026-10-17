@@ -165,7 +165,6 @@ async function main() {
   }
 
   // ---------- 4. Remove (children first) ----------
-  const auditMark = (await must(sb.from("audit_logs").select("log_id").order("log_id", { ascending: false }).limit(1), "audit watermark"))[0]?.log_id ?? 0;
   await deleteIn("user_notifications", "id", ledger.notifications);
   await deleteIn("announcements", "announcement_id", annRows.map((a) => a.announcement_id));
   await deleteIn("requests", "request_id", requestIds);
@@ -191,21 +190,21 @@ async function main() {
     count(`storage ${bucket}`, paths.length);
   }
 
-  // Audit entries: the seed's, the seeded accounts' own actions, and the
-  // ones this cleanup's deletes just generated.
+  // Audit entries: the seeded accounts' own actions, plus every entry about
+  // a removed test row whenever it was written (the seed, testing, a
+  // migration's conversion entry, or this cleanup's own deletes) — row keys
+  // are unique per table, so these are only ever about test data.
   const auditIds = new Set(ledger.auditLogs);
   (await selectIn("audit_logs", "log_id", "actor_id", profileIds)).forEach((r) => auditIds.add(r.log_id));
-  if (!DRY) {
-    const idsFor = {
-      farmers: farmerIds, commodities: comToDelete, distribution_events: eventIds, distribution_event_items: itemIdsOfSeededEvents,
-      distribution_claims: claimIds, crop_validations: validationIds, requests: requestIds, announcements: annRows.map((a) => a.announcement_id),
-    };
-    for (const [table, pk] of Object.entries(AUDITED)) {
-      for (const ids of chunk([...new Set(idsFor[table])].map(String))) {
-        if (!ids.length) continue;
-        const rows = await must(sb.from("audit_logs").select("log_id").eq("table_name", table).gt("log_id", auditMark).is("actor_id", null).in(`details->>${pk}`, ids), `audit ${table}`);
-        rows.forEach((r) => auditIds.add(r.log_id));
-      }
+  const idsFor = {
+    farmers: farmerIds, commodities: comToDelete, distribution_events: eventIds, distribution_event_items: itemIdsOfSeededEvents,
+    distribution_claims: claimIds, crop_validations: validationIds, requests: requestIds, announcements: annRows.map((a) => a.announcement_id),
+  };
+  for (const [table, pk] of Object.entries(AUDITED)) {
+    for (const ids of chunk([...new Set(idsFor[table])].map(String))) {
+      if (!ids.length) continue;
+      const rows = await must(sb.from("audit_logs").select("log_id").eq("table_name", table).in(`details->>${pk}`, ids), `audit ${table}`);
+      rows.forEach((r) => auditIds.add(r.log_id));
     }
   }
   await deleteIn("audit_logs", "log_id", [...auditIds]);

@@ -304,15 +304,21 @@ async function main() {
     if (ev && !ledger.events.some((x) => x.event_id === ev.event_id)) {
       throw new StopError(`A real distribution "${d.program_name}" on ${d.date} already exists (event ${ev.event_id}). Not adding beneficiaries to it.`);
     }
+    // One status: ongoing -> distributed (items released) -> completed
+    // (signed acknowledgement receipts collected).
     const status = d.status.toLowerCase();
+    if (!["ongoing", "distributed", "completed"].includes(status)) throw new Error(`Unknown distribution status "${d.status}"`);
     const createdAt = cap(plusDays(at(d.date, "09:00"), -7, "09:00"));
-    const done = status === "completed" || d.acknowledgement_status === "Acknowledged";
-    const tagTime = done ? at(d.date, "10:00") : createdAt;
-    if (DRY) { log(`Distribution: ${ev ? "exists" : "would insert"} ${d.program_name} ${d.date} with ${d.beneficiaries.length} beneficiaries`); continue; }
+    const released = status !== "ongoing";
+    const tagTime = released ? at(d.date, "10:00") : createdAt;
+    // Receipts "collected" two days after the distribution (the database
+    // would otherwise stamp the time of the insert).
+    const receiptsAt = status === "completed" ? cap(plusDays(at(d.date, "09:00"), 2, "15:00")) : null;
+    if (DRY) { log(`Distribution: ${ev ? "exists" : "would insert"} ${d.program_name} ${d.date} (${d.status}) with ${d.beneficiaries.length} beneficiaries`); continue; }
     if (!ev) {
       ev = await must(sb.from("distribution_events").insert({
         program_name: d.program_name, event_date: d.date, venue: d.venue, barangay: d.barangay, funding_source: d.funding_source,
-        status, acknowledgement_status: d.acknowledgement_status.toLowerCase(), beneficiaries_count: d.beneficiaries.length, created_at: createdAt,
+        status, receipts_collected_at: receiptsAt, beneficiaries_count: d.beneficiaries.length, created_at: createdAt,
       }).select("event_id").single(), `insert event ${d.program_name}`);
       remember(ledger.events, { event_id: ev.event_id, program_name: d.program_name, event_date: d.date }, "event_id");
       bump("distribution_events");
@@ -336,7 +342,7 @@ async function main() {
       claims.forEach((c) => remember(ledger.claims, c.claim_id));
       bump("distribution_claims", claims.length);
       saveLedger(ledger);
-      await captureNotifs(done ? at(d.date, "16:00") : createdAt, ["You received a distribution", "You're listed in an upcoming distribution"]);
+      await captureNotifs(released ? at(d.date, "16:00") : createdAt, ["You received a distribution", "You're listed in an upcoming distribution"]);
     }
   }
   if (!DRY) saveLedger(ledger);

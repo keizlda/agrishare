@@ -11,11 +11,12 @@ import { listMyDistributions } from "../lib/api/distributions";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
 import dashboardBanner from "../assets/dashboard-banner.png";
 
-// Completed -> "Received" (they got it); Ongoing/Scheduled -> "Upcoming"
-// (it's coming or in progress); anything else (Cancelled) keeps its own label.
+// Distributed/Completed -> "Received" (they got it); Ongoing -> "Upcoming"
+// (scheduled or in progress). Farmers never see acknowledgement wording —
+// filing the signed receipts (Completed) is office paperwork.
 function recentBadge(status) {
-  if (status === "Completed") return "Received";
-  if (status === "Ongoing" || status === "Scheduled") return "Upcoming";
+  if (status === "Distributed" || status === "Completed") return "Received";
+  if (status === "Ongoing") return "Upcoming";
   return status;
 }
 

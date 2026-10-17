@@ -4,11 +4,12 @@ import PrintLayout, { KV } from "../components/print/PrintLayout.jsx";
 import { useAutoPrint } from "../hooks/useAutoPrint.js";
 import { getDistribution, listPrintBeneficiaries } from "../lib/api/distributions.js";
 import { friendlyError } from "../lib/friendlyError.js";
+import { isReleased, receiptsLabel } from "../lib/distributionStatus.js";
 
 const STATUS_DOT = {
   Ongoing: "#f08c00",
+  Distributed: "#3b82f6",
   Completed: "#2f9e44",
-  Scheduled: "#9aa89f",
 };
 
 export default function PrintDistribution() {
@@ -52,7 +53,7 @@ export default function PrintDistribution() {
           <KV label="Barangay" value={d.barangay} />
           <KV label="Venue" value={d.venue} />
           <KV label="Funding Source" value={d.fundingSource} />
-          <KV label="Acknowledgement Status" value={d.acknowledgementStatus} />
+          <KV label="Acknowledgement Receipts" value={receiptsLabel(d)} />
           <KV
             label="Status"
             value={
@@ -123,13 +124,14 @@ function Signatures() {
 // page (the shared print header repeats there via PrintLayout's thead); the
 // table's own header row repeats on every page it continues onto, and rows
 // never split across pages. Date Received is the distribution date once the
-// distribution is acknowledged, otherwise blank to be filled in by hand.
+// items are released (Distributed or Completed), otherwise blank to be
+// filled in by hand.
 // The signature block follows the Total row (or the empty-list note).
 function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
   const farmerCount = new Set(beneficiaries.map((b) => b.farmerId)).size;
   const totalQty = beneficiaries.reduce((sum, b) => sum + b.quantity, 0);
   const sameUnit = beneficiaries.length > 0 && beneficiaries.every((b) => b.unit === beneficiaries[0].unit);
-  const received = d.acknowledgementStatus === "Acknowledged" ? shortDate(d.date) : "";
+  const received = isReleased(d) ? shortDate(d.date) : "";
 
   return (
     <section className="pr-beneficiaries">
