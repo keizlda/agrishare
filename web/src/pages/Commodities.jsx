@@ -14,6 +14,7 @@ import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { friendlyError } from "../lib/friendlyError.js";
+import { rowActionsCellProps, rowLinkProps } from "../lib/rowLink.js";
 
 export default function Commodities() {
   const { data: commodities, setData: setCommodities, loading, error: loadError } = useSupabaseList(listCommodities);
@@ -121,12 +122,12 @@ export default function Commodities() {
               <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th><th></th></tr></thead>
               <tbody>
                 {pageItems.map((c) => (
-                  <tr key={c.id} className={c.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(c.id)}>
-                    <td>{c.name}</td>
+                  <tr key={c.id} {...rowLinkProps(() => setSelectedId(c.id), { selected: c.id === selectedId })}>
+                    <td><span className="agri-row-title">{c.name}</span></td>
                     <td>{c.category}</td>
                     <td><Pill status={c.status} /></td>
                     <td>{c.dateAdded}</td>
-                    <td>
+                    <td {...rowActionsCellProps}>
                       <RowActionsMenu
                         label={`Actions for ${c.name}`}
                         actions={[

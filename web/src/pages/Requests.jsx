@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { listRequests, listRequestsForAdminReview, faReviewRequest, adminReviewRequest } from "../lib/api/requests.js";
 import { friendlyError } from "../lib/friendlyError.js";
+import { rowLinkProps } from "../lib/rowLink.js";
 
 // status is the raw four-value lifecycle (Pending/Forwarded/Approved/
 // Rejected) — Pill's color lookup keys off that. The label shown to the
@@ -128,8 +129,8 @@ function FARequestsView({ currentUserId }) {
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.id} className={r.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(r.id)}>
-                    <td>{r.farmerName}</td>
+                  <tr key={r.id} {...rowLinkProps(() => setSelectedId(r.id), { selected: r.id === selectedId })}>
+                    <td><span className="agri-row-title">{r.farmerName}</span></td>
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
                     <td>{r.requestDate}</td>
@@ -295,8 +296,8 @@ function AdminRequestsView() {
               </thead>
               <tbody>
                 {tabbed.map((r) => (
-                  <tr key={r.id} className={r.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(r.id)}>
-                    <td>{r.faPresidentName}</td>
+                  <tr key={r.id} {...rowLinkProps(() => setSelectedId(r.id), { selected: r.id === selectedId })}>
+                    <td><span className="agri-row-title">{r.faPresidentName}</span></td>
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
                     <td>{r.faDecisionAt?.slice(0, 10) ?? "—"}</td>

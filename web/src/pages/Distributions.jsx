@@ -25,6 +25,7 @@ import {
 import { listCommodities } from "../lib/api/commodities.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { DISTRIBUTION_STATUSES, completedOn } from "../lib/distributionStatus.js";
+import { rowLinkProps } from "../lib/rowLink.js";
 
 // New chips added during this edit split whatever's left after
 // already-edited/loaded rows' quantities are subtracted from the total —
@@ -202,11 +203,11 @@ export default function Distributions() {
               </thead>
               <tbody>
                 {pageItems.map((d) => (
-                  <tr key={d.id} className={d.id === selectedId ? "selected" : ""} onClick={() => setSelectedId(d.id)}>
+                  <tr key={d.id} {...rowLinkProps(() => setSelectedId(d.id), { selected: d.id === selectedId })}>
                     <td>{d.date}</td>
                     <td>{d.cropType}</td>
                     <td className="agri-cell-truncate" title={d.program || undefined}>
-                      {d.program || <span className="agri-muted">—</span>}
+                      {d.program ? <span className="agri-row-title">{d.program}</span> : <span className="agri-muted">—</span>}
                     </td>
                     <td>
                       {d.taggedBeneficiaryCount > 0 ? (

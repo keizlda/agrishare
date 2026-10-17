@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Copy, Eye, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
+import { Copy, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
@@ -16,6 +16,7 @@ import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { commodityCategories } from "../data/mockData.js";
 import { friendlyError } from "../lib/friendlyError.js";
+import { rowActionsCellProps, rowLinkProps } from "../lib/rowLink.js";
 import {
   checkLoginIdAvailable,
   createFarmer,
@@ -206,6 +207,9 @@ export default function Farmers() {
 
   const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", farmer }
   const [viewing, setViewing] = useState(null); // farmer row shown in the read-only profile drawer
+  // The row that opened the drawer gets focus back when it closes, so a
+  // keyboard user stays in place in the table.
+  const openerRowRef = useRef(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [pendingReset, setPendingReset] = useState(null);
   const [resetting, setResetting] = useState(false);
@@ -324,12 +328,21 @@ export default function Farmers() {
             </thead>
             <tbody>
               {pageItems.map((f) => (
-                <tr key={f.id} onClick={() => setViewing(f)}>
+                <tr
+                  key={f.id}
+                  {...rowLinkProps(
+                    (row) => {
+                      openerRowRef.current = row;
+                      setViewing(f);
+                    },
+                    { selected: viewing?.id === f.id },
+                  )}
+                >
                   <td>{f.rsbsaNo}</td>
                   <td>
                     <span className="agri-farmer-cell">
                       <FarmerAvatar url={f.avatarUrl} firstName={f.firstName} lastName={f.lastName} size={28} />
-                      {f.firstName} {f.lastName}
+                      <span className="agri-row-title">{f.firstName} {f.lastName}</span>
                     </span>
                   </td>
                   <td>{f.sex}</td>
@@ -341,11 +354,10 @@ export default function Farmers() {
                   <td>{f.farmLocation}</td>
                   <td><Pill status={f.status} /></td>
                   {/* The ⋯ menu must not also trigger the row's "open profile" click. */}
-                  <td onClick={(e) => e.stopPropagation()}>
+                  <td {...rowActionsCellProps}>
                     <RowActionsMenu
                       label={`Actions for ${f.firstName} ${f.lastName}`}
                       actions={[
-                        { key: "view", label: "View", icon: Eye, onClick: () => setViewing(f) },
                         isMAO && { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ mode: "edit", farmer: f }) },
                         isMAO &&
                           f.profileId && { key: "reset-password", label: "Reset Password", icon: KeyRound, onClick: () => setPendingReset(f) },
@@ -389,7 +401,10 @@ export default function Farmers() {
             setModal({ mode: "edit", farmer: viewing });
             setViewing(null);
           }}
-          onClose={() => setViewing(null)}
+          onClose={() => {
+            setViewing(null);
+            openerRowRef.current?.focus();
+          }}
         />
       )}
 
