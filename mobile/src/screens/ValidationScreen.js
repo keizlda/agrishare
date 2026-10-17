@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 18,
+    paddingVertical: 11,
     paddingHorizontal: 16,
     marginBottom: 18,
     shadowColor: colors.primaryDarker,
