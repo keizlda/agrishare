@@ -19,7 +19,9 @@ export const STATUS_COLOR = {
   Forwarded: "purple",
 };
 
-export default function Pill({ status, children }) {
+// `wrap` lets a long label (e.g. "Approved by Farmers' Association
+// President") break onto two lines instead of stretching its column.
+export default function Pill({ status, children, wrap }) {
   const color = STATUS_COLOR[status] ?? "gray";
-  return <span className={`agri-pill ${color}`}>{children ?? status}</span>;
+  return <span className={`agri-pill ${color}${wrap ? " agri-pill-wrap" : ""}`}>{children ?? status}</span>;
 }

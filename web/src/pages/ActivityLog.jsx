@@ -90,7 +90,7 @@ export default function ActivityLog() {
                 <tr key={r.id}>
                   <td style={{ whiteSpace: "nowrap" }}>{formatDateTime(r.createdAt)}</td>
                   <td>{r.userName}</td>
-                  <td>{r.userRole}</td>
+                  <td className="agri-wrap">{r.userRole}</td>
                   <td><Pill status={ACTION_PILL[r.action] ?? "Pending"}>{r.actionLabel}</Pill></td>
                   <td>{r.summary}</td>
                 </tr>

@@ -116,7 +116,7 @@ export default function Login() {
           </form>
 
           <p className="agri-muted" style={{ fontSize: "0.72rem", marginTop: 20 }}>
-            For MAO Admin and FA President use only. Registered farmers should use the AgriShare mobile app.
+            For MAO Admin and Farmers' Association President use only. Registered farmers should use the AgriShare mobile app.
           </p>
         </div>
       </div>

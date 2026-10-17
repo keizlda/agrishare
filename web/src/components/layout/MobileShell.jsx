@@ -111,7 +111,7 @@ export default function MobileShell() {
               </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>{user?.name ?? "Admin"}</div>
-                <div className="agri-muted" style={{ fontSize: "0.75rem" }}>{role}</div>
+                <div className="agri-muted" style={{ fontSize: "0.75rem" }}>{user?.roleLabel ?? role}</div>
               </div>
             </div>
 

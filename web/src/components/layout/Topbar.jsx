@@ -145,7 +145,7 @@ export default function Topbar() {
               >
                 <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--agri-divider)" }}>
                   <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>{user?.name ?? "Admin"}</div>
-                  <div className="agri-muted" style={{ fontSize: "0.72rem" }}>{user?.role ?? "MAO Admin"}</div>
+                  <div className="agri-muted" style={{ fontSize: "0.72rem" }}>{user?.roleLabel ?? "MAO Admin"}</div>
                 </div>
                 <button
                   onClick={() => { setOpenMenu(null); setShowProfile(true); }}

@@ -53,7 +53,7 @@ function mapAdminReviewRequest(row) {
     commodity: row.commodity_name ?? "",
     unit: row.commodity_unit ?? "kg",
     quantity: Number(row.quantity_requested),
-    faPresidentName: row.fa_president_name ?? "FA President",
+    faPresidentName: row.fa_president_name ?? "Farmers' Association President",
     faRemarks: row.fa_remarks ?? "",
     maoRemarks: row.mao_remarks ?? "",
     requestDate: row.created_at?.slice(0, 10),

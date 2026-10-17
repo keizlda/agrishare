@@ -27,7 +27,7 @@ export const ENTITY_LABELS = {
 export const ACTION_TYPES = ["insert", "update", "delete"];
 export const ACTION_LABELS = { insert: "Created", update: "Updated", delete: "Deleted" };
 
-const ROLE_LABELS = { mao_admin: "MAO Admin", fa_president: "FA President", farmer: "Farmer" };
+const ROLE_LABELS = { mao_admin: "MAO Admin", fa_president: "Farmers' Association President", farmer: "Farmer" };
 
 const SELECT = "log_id, table_name, action, record_id, summary, user_role, created_at, profiles ( full_name )";
 

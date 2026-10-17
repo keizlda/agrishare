@@ -4,7 +4,9 @@ import { decode } from "base64-arraybuffer";
 import { supabase } from "../supabaseClient";
 import { dbStatusToLabel } from "../status";
 
-const LIST_SELECT = "validation_id, photo_url, latitude, longitude, captured_at, status, remarks, reviewed_at, created_at";
+// crop: the farm crop this submission is linked to, when it has one (shown as
+// crop type · area on the Validation screen).
+const LIST_SELECT = "validation_id, photo_url, latitude, longitude, captured_at, status, remarks, reviewed_at, created_at, crop:crops ( crop_type, area_planted )";
 
 function mapValidation(row) {
   return {
@@ -21,6 +23,8 @@ function mapValidation(row) {
     // once status is Rejected, this IS the reviewer's reason.
     remarks: row.remarks ?? "",
     reviewedAt: row.reviewed_at,
+    cropType: row.crop?.crop_type ?? null,
+    areaPlanted: row.crop?.area_planted != null ? Number(row.crop.area_planted) : null,
   };
 }
 

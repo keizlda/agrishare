@@ -296,7 +296,7 @@ export default function CropValidationScreen({ navigation }) {
         gpsAccuracyMeters: location.accuracy,
         remarks: remarks || `${cropType} · ${areaPlanted} ha · planted ${plantingDate}`,
       });
-      Alert.alert("Submitted", "Your crop validation has been submitted for MAO/FA President review.");
+      Alert.alert("Submitted", "Your crop validation has been submitted for review by the MAO and your Farmers' Association President.");
       navigation.goBack();
     } catch (err) {
       Alert.alert("Submission failed", err.message);

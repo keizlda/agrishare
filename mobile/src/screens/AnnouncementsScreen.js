@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { Megaphone, Pin, X } from "lucide-react-native";
+import { Megaphone, Pin } from "lucide-react-native";
 import ScreenHeader from "../components/ScreenHeader";
+import AnnouncementDetailModal from "../components/AnnouncementDetailModal";
 import EmptyState from "../components/ui/EmptyState";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
-import { getAnnouncementImageUrl, isTaggedInDistribution, listAnnouncements, markAnnouncementRead, subscribeToAnnouncements } from "../lib/api/announcements";
+import { listAnnouncements, markAnnouncementRead, subscribeToAnnouncements } from "../lib/api/announcements";
 import { deleteNotification, listMyNotifications, markAllNotificationsRead, markNotificationRead } from "../lib/api/userNotifications";
 
 const UPDATES_TAB = "My Updates";
@@ -35,8 +36,6 @@ export default function AnnouncementsScreen({ navigation }) {
   const [tab, setTab] = useState(TABS[0]);
   const [updates, setUpdates] = useState([]);
   const [open, setOpen] = useState(null); // announcement shown in the detail sheet
-  const [openImage, setOpenImage] = useState(null);
-  const [openIncluded, setOpenIncluded] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -70,10 +69,6 @@ export default function AnnouncementsScreen({ navigation }) {
 
   function openAnnouncement(a) {
     setOpen(a);
-    setOpenImage(null);
-    setOpenIncluded(false);
-    if (a.imagePath) getAnnouncementImageUrl(a.imagePath).then(setOpenImage).catch(() => {});
-    if (a.linkedDistributionId) isTaggedInDistribution(a.linkedDistributionId).then(setOpenIncluded).catch(() => {});
     if (!a.read && farmerId) {
       setItems((prev) => prev.map((x) => (x.id === a.id ? { ...x, read: true } : x)));
       markAnnouncementRead(a.id, farmerId).catch(() => {
@@ -206,64 +201,7 @@ export default function AnnouncementsScreen({ navigation }) {
         />
       )}
 
-      <Modal visible={!!open} animationType="slide" onRequestClose={() => setOpen(null)}>
-        {open && (
-          <View style={styles.detail}>
-            <View style={styles.detailBar}>
-              <TouchableOpacity onPress={() => setOpen(null)} style={styles.closeBtn} accessibilityLabel="Close">
-                <X size={20} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={styles.detailContent}>
-              {open.isPinned && (
-                <View style={[styles.pinned, { marginBottom: 8 }]}>
-                  <Pin size={11} color={colors.primaryDark} />
-                  <Text style={styles.pinnedText}>Pinned</Text>
-                </View>
-              )}
-              <Text style={styles.detailTitle}>{open.title}</Text>
-              <Text style={styles.detailDate}>Posted {open.date}{open.wasForwarded ? " · Forwarded by your FA President" : ""}</Text>
-
-              {openIncluded && (
-                <View style={styles.includedBanner}>
-                  <Ionicons name="checkmark-circle" size={16} color={colors.primaryDark} />
-                  <Text style={styles.includedText}>You are included in this distribution</Text>
-                </View>
-              )}
-
-              {!!open.imagePath && (openImage ? (
-                <Image source={{ uri: openImage }} style={styles.detailImage} resizeMode="cover" />
-              ) : (
-                <View style={[styles.detailImage, styles.imagePlaceholder]}>
-                  <ActivityIndicator color={colors.primary} />
-                </View>
-              ))}
-
-              {!open.isGeneralNotice && (
-                <View style={styles.detailKvGroup}>
-                  <DetailRow label="Distribution Date" value={open.distributionDate} />
-                  <DetailRow label="Time" value={open.distributionTime} />
-                  <DetailRow label="Venue" value={open.venue} />
-                  <DetailRow label="Type of Assistance" value={open.assistanceType} />
-                  <DetailRow label="Requirements Needed" value={open.requirements} last />
-                </View>
-              )}
-
-              {!!open.body && <Text style={styles.detailBody} selectable>{open.body}</Text>}
-            </ScrollView>
-          </View>
-        )}
-      </Modal>
-    </View>
-  );
-}
-
-function DetailRow({ label, value, last }) {
-  if (!value) return null;
-  return (
-    <View style={[styles.detailRow, last && { borderBottomWidth: 0 }]}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
+      <AnnouncementDetailModal announcement={open} onClose={() => setOpen(null)} />
     </View>
   );
 }
@@ -309,31 +247,4 @@ const styles = StyleSheet.create({
   archiveBtn: { padding: 4, alignSelf: "flex-start" },
   empty: { textAlign: "center", color: colors.textMuted, fontSize: 12.5, marginVertical: 20 },
   errorText: { textAlign: "center", color: colors.red, fontSize: 12, marginBottom: 10 },
-
-  detail: { flex: 1, backgroundColor: colors.card },
-  detailBar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 16, paddingTop: 54, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
-  detailContent: { padding: spacing.base, paddingBottom: 48 },
-  detailTitle: { fontSize: 20, fontWeight: "800", color: colors.text, lineHeight: 26 },
-  detailDate: { fontSize: 12, color: colors.textMuted, marginTop: 6, marginBottom: 14 },
-  detailImage: { width: "100%", height: 200, borderRadius: radius.md, marginBottom: 14 },
-  imagePlaceholder: { backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" },
-  detailBody: { fontSize: 14.5, color: colors.text, lineHeight: 22, marginTop: 14 },
-
-  includedBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.sm,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginTop: 12,
-  },
-  includedText: { fontSize: 12.5, fontWeight: "700", color: colors.primaryDark, flex: 1 },
-
-  detailKvGroup: { marginTop: 16 },
-  detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
-  detailLabel: { fontSize: 11.5, color: colors.textMuted },
-  detailValue: { fontSize: 12.5, color: colors.text, fontWeight: "600", flexShrink: 1, textAlign: "right" },
 });

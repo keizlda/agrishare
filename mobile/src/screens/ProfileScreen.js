@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Linking, Modal, RefreshControl, ScrollView, S
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import ScreenHeader from "../components/ScreenHeader";
+import TabScreenLayout, { PageTitle, tabCard } from "../components/TabScreenLayout";
 import Pill from "../components/Pill";
 import Avatar from "../components/Avatar";
 import AvatarCropModal from "../components/AvatarCropModal";
@@ -105,12 +105,13 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.screen}>
-      <ScreenHeader title="Profile" />
+    <TabScreenLayout navigation={navigation}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight }]}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
+        <PageTitle>Profile</PageTitle>
+
         <View style={styles.headerCard}>
           <View style={styles.banner} />
 
@@ -151,7 +152,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.note}>
           <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
           <Text style={styles.noteText}>
-            To update your information, coordinate with your FA President or the Municipal Agriculture Office.
+            To update your information, coordinate with your Farmers' Association President or the Municipal Agriculture Office.
           </Text>
         </View>
 
@@ -191,7 +192,7 @@ export default function ProfileScreen({ navigation }) {
       <AvatarCropModal visible={!!cropUri} uri={cropUri} onCancel={() => setCropUri(null)} onConfirm={handleCropConfirm} />
 
       <Toast visible={toast.visible} message={toast.message} tone={toast.tone} onDone={() => setToast((t) => ({ ...t, visible: false }))} />
-    </View>
+    </TabScreenLayout>
   );
 }
 
@@ -223,19 +224,14 @@ function Row({ label, value, last }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 32 },
 
   headerCard: {
+    ...tabCard,
     alignItems: "center",
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
     overflow: "hidden",
     paddingBottom: 18,
     marginBottom: 16,
-    ...shadows.card,
   },
   banner: {
     position: "absolute",
@@ -281,13 +277,7 @@ const styles = StyleSheet.create({
 
   section: { marginBottom: 16 },
   sectionTitle: { fontSize: 12, fontWeight: "700", color: colors.textMuted, marginBottom: 6, textTransform: "uppercase" },
-  card: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    ...shadows.card,
-  },
+  card: { ...tabCard },
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -313,7 +303,8 @@ const styles = StyleSheet.create({
 
   logoutRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 14 },
   logoutText: { color: colors.red, fontWeight: "700", fontSize: 13 },
-  version: { textAlign: "center", fontSize: 10.5, color: "#a8b3ab" },
+  // Muted (not faint) gray: it now sits over the background illustration.
+  version: { textAlign: "center", fontSize: 10.5, color: colors.textMuted },
 
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(20,40,25,0.35)", justifyContent: "flex-end" },
   sheet: {

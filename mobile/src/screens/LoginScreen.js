@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Eye, EyeOff, Lock, Mail, Sprout, User } from "lucide-react-native";
+import { Eye, EyeOff, IdCard, Lock, Sprout, User } from "lucide-react-native";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import daSeal from "../assets/da-seal.png";
@@ -78,10 +78,13 @@ export default function LoginScreen() {
 
           <Text style={styles.fieldLabel}>RSBSA Number</Text>
           <View style={styles.inputWrap}>
-            <Mail size={16} color={colors.textMuted} style={styles.inputIcon} />
+            <IdCard size={16} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
-              placeholder="Last 6 digits"
+              // Slightly smaller text so the full placeholder fits on one
+              // line on 360px-wide phones.
+              style={[styles.input, styles.rsbsaInput]}
+              placeholder="Enter the last 6 digits of your RSBSA number"
+              accessibilityLabel="RSBSA number, last 6 digits"
               placeholderTextColor="#9aa89f"
               value={rsbsaNo}
               // A pasted/typed full RSBSA number (with or without hyphens)
@@ -96,7 +99,6 @@ export default function LoginScreen() {
               autoCapitalize="none"
             />
           </View>
-          <Text style={styles.helperText}>Enter the last 6 digits of your RSBSA number</Text>
 
           <View style={styles.inputWrap}>
             <Lock size={16} color={colors.textMuted} style={styles.inputIcon} />
@@ -118,7 +120,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <Text style={styles.footnote}>
-            For registered farmers of Barangay Langapud. Contact your FA President if you need help logging in.
+            For registered farmers of Barangay Langapud. Contact your Farmers' Association President if you need help logging in.
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -167,7 +169,6 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 12.5, color: colors.textMuted, marginTop: 2, marginBottom: 18 },
   error: { color: colors.red, fontSize: 12, marginBottom: 10 },
   fieldLabel: { width: "100%", fontSize: 11.5, fontWeight: "700", color: colors.text, marginBottom: 4 },
-  helperText: { width: "100%", fontSize: 10.5, color: colors.textMuted, marginTop: -8, marginBottom: 12 },
   inputWrap: {
     width: "100%",
     flexDirection: "row",
@@ -180,6 +181,7 @@ const styles = StyleSheet.create({
   },
   inputIcon: { marginRight: 6 },
   input: { flex: 1, paddingVertical: 11, fontSize: 13.5, color: colors.text },
+  rsbsaInput: { fontSize: 12.5 },
   eyeBtn: { position: "absolute", right: 10 },
   loginBtn: {
     width: "100%",

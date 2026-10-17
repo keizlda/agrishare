@@ -21,7 +21,7 @@ export default function ProfileModal({ user, onClose }) {
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: "1rem" }}>{user?.name ?? "—"}</div>
-            <div className="agri-muted" style={{ fontSize: "0.8rem" }}>{user?.role ?? "—"}</div>
+            <div className="agri-muted" style={{ fontSize: "0.8rem" }}>{user?.roleLabel ?? "—"}</div>
           </div>
         </div>
 

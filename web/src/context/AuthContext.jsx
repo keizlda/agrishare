@@ -11,6 +11,13 @@ const ROLE_LABELS = {
   fa_president: "FA President",
 };
 
+// What each role is called on screen. `role` stays the short key that the
+// role checks compare against; only roleLabel is ever displayed.
+const ROLE_DISPLAY = {
+  "MAO Admin": "MAO Admin",
+  "FA President": "Farmers' Association President",
+};
+
 const ROLE_PROFILES = {
   "MAO Admin": { office: "Municipality of Agriculture Office - Labangan" },
   "FA President": { office: "Farmers' Association - Barangay Langapud" },
@@ -35,6 +42,7 @@ async function loadProfile(authUser) {
     email: authUser.email,
     name: profile.full_name,
     role,
+    roleLabel: ROLE_DISPLAY[role] ?? role,
     office: ROLE_PROFILES[role]?.office ?? "",
   };
 }

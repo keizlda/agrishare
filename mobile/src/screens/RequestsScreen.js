@@ -52,7 +52,7 @@ export default function RequestsScreen({ navigation, route }) {
       setQuantity("");
       setReason("");
       setShowForm(false);
-      Alert.alert("Request Sent", "Your commodity request has been sent to your FA President for review.");
+      Alert.alert("Request Sent", "Your commodity request has been sent to your Farmers' Association President for review.");
     } catch (err) {
       Alert.alert("Request failed", err.message);
     } finally {
@@ -122,7 +122,7 @@ export default function RequestsScreen({ navigation, route }) {
 
                 <TouchableOpacity style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleSubmit} disabled={submitting}>
                   <Ionicons name="send" size={14} color="#fff" />
-                  <Text style={styles.submitText}>{submitting ? "Sending…" : "Send to FA President"}</Text>
+                  <Text style={styles.submitText}>{submitting ? "Sending…" : "Send to Farmers' Association President"}</Text>
                 </TouchableOpacity>
               </View>
             )}

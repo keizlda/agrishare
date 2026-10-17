@@ -139,7 +139,7 @@ export default function Announcements() {
                     <div className="agri-muted agri-cell-truncate" style={{ fontSize: "0.75rem", maxWidth: 260 }} title={a.body}>{a.body}</div>
                     {a.forwardedAt && (
                       <div className="agri-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
-                        Forwarded by FA President on {formatDate(a.forwardedAt)}
+                        Forwarded by Farmers' Association President on {formatDate(a.forwardedAt)}
                       </div>
                     )}
                   </td>

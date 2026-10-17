@@ -14,8 +14,8 @@ import { friendlyError } from "../lib/friendlyError.js";
 // stage actually rejected it (FA directly vs. Admin overruling an
 // FA-approved request) using rejectedBy from the API layer.
 function reviewLabel(r) {
-  if (r.status === "Forwarded") return "FA Approved";
-  if (r.status === "Rejected") return r.rejectedBy === "admin" ? "Rejected by Admin" : "FA Rejected";
+  if (r.status === "Forwarded") return "Approved by Farmers' Association President";
+  if (r.status === "Rejected") return r.rejectedBy === "admin" ? "Rejected by Admin" : "Rejected by Farmers' Association President";
   return r.status;
 }
 
@@ -133,7 +133,7 @@ function FARequestsView({ currentUserId }) {
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
                     <td>{r.requestDate}</td>
-                    <td><Pill status={r.status}>{reviewLabel(r)}</Pill></td>
+                    <td><Pill status={r.status} wrap>{reviewLabel(r)}</Pill></td>
                   </tr>
                 ))}
                 {loading && (
@@ -151,7 +151,7 @@ function FARequestsView({ currentUserId }) {
           <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
-              <Pill status={selected.status}>{reviewLabel(selected)}</Pill>
+              <Pill status={selected.status} wrap>{reviewLabel(selected)}</Pill>
             </div>
 
             <div className="agri-detail-row"><div><div className="agri-detail-label">Farmer</div>{selected.farmerName}</div></div>
@@ -291,7 +291,7 @@ function AdminRequestsView() {
           <div className="agri-table-wrap">
             <table className="agri-table">
               <thead>
-                <tr><th>FA President</th><th>Commodity</th><th>Quantity</th><th>FA Decision Date</th><th>Status</th></tr>
+                <tr><th className="agri-wrap">Farmers' Association President</th><th>Commodity</th><th>Quantity</th><th className="agri-wrap">Farmers' Association President's Decision Date</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {tabbed.map((r) => (
@@ -300,7 +300,7 @@ function AdminRequestsView() {
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
                     <td>{r.faDecisionAt?.slice(0, 10) ?? "—"}</td>
-                    <td><Pill status={r.status}>{reviewLabel(r)}</Pill></td>
+                    <td><Pill status={r.status} wrap>{reviewLabel(r)}</Pill></td>
                   </tr>
                 ))}
                 {loading && (
@@ -318,20 +318,20 @@ function AdminRequestsView() {
           <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
-              <Pill status={selected.status}>{reviewLabel(selected)}</Pill>
+              <Pill status={selected.status} wrap>{reviewLabel(selected)}</Pill>
             </div>
 
-            <div className="agri-detail-row"><div><div className="agri-detail-label">FA President</div>{selected.faPresidentName}</div></div>
+            <div className="agri-detail-row"><div><div className="agri-detail-label">Farmers' Association President</div>{selected.faPresidentName}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity</div>{selected.commodity}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Quantity</div>{selected.quantity.toLocaleString()} {selected.unit}</div></div>
             <div className="agri-detail-row">
               <div>
-                <div className="agri-detail-label">FA Decision</div>
+                <div className="agri-detail-label">Farmers' Association President's Decision</div>
                 Approved on {selected.faDecisionAt?.slice(0, 10) ?? "—"}
               </div>
             </div>
             {selected.faRemarks && (
-              <div className="agri-detail-row"><div><div className="agri-detail-label">FA President's Remarks</div>{selected.faRemarks}</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Farmers' Association President's Remarks</div>{selected.faRemarks}</div></div>
             )}
             {selected.maoRemarks && (
               <div className="agri-detail-row"><div><div className="agri-detail-label">Your Remarks</div>{selected.maoRemarks}</div></div>
