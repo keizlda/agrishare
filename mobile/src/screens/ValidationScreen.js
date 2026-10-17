@@ -117,7 +117,7 @@ export default function ValidationScreen({ navigation }) {
           <LoadingSkeleton />
         ) : !latest ? (
           <View style={styles.emptyWrap}>
-            <Sprout size={28} color={colors.textFaint} />
+            <Sprout size={28} color={colors.iconFaint} />
             <Text style={styles.emptyText}>You haven't submitted any proof of planting yet.</Text>
           </View>
         ) : (
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   stepCircle: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   stepNumber: { fontSize: 12, fontWeight: "700", color: colors.textFaint },
   stepLabel: { fontSize: 10.5, color: colors.text, textAlign: "center", marginTop: 6, paddingHorizontal: 2, lineHeight: 14 },
-  stepLabelCurrent: { fontWeight: "800", color: colors.orange },
+  stepLabelCurrent: { fontWeight: "800", color: colors.orangeText },
   stepLabelRejected: { fontWeight: "800", color: colors.red },
   stepLabelTodo: { color: colors.textMuted },
 
@@ -482,9 +482,9 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 12.5, color: colors.textMuted, textAlign: "center", lineHeight: 18 },
   skeleton: { backgroundColor: colors.grayBg, borderRadius: 6 },
 
-  detail: { flex: 1, backgroundColor: colors.card },
-  detailBar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 16, paddingTop: 54, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  detail: { flex: 1, backgroundColor: colors.bg },
+  detailBar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 16, paddingTop: 54, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.header },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
   detailContent: { padding: spacing.base, paddingBottom: 48 },
   detailPhoto: { width: "100%", height: 220, borderRadius: radius.md, marginBottom: 14 },
   detailTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },

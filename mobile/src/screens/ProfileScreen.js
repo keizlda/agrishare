@@ -165,7 +165,7 @@ export default function ProfileScreen({ navigation }) {
             >
               <Ionicons name={item.icon} size={16} color={colors.textMuted} style={{ width: 22 }} />
               <Text style={styles.itemLabel}>{item.label}</Text>
-              <Ionicons name="chevron-forward" size={14} color="#c3ccc5" />
+              <Ionicons name="chevron-forward" size={14} color={colors.iconMuted} />
             </TouchableOpacity>
           ))}
         </Section>
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   avatarRing: {
     borderRadius: AVATAR_SIZE / 2 + 4,
     borderWidth: 4,
-    borderColor: "#fff",
+    borderColor: colors.card,
     shadowColor: "#14281a",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,

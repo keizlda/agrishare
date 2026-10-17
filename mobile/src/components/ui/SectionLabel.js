@@ -23,6 +23,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: typography.letterSpacingWide,
     textTransform: "uppercase",
-    color: colors.primary,
+    color: colors.primaryDark,
   },
 });

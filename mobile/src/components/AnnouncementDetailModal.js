@@ -98,14 +98,14 @@ const styles = StyleSheet.create({
   pinned: { flexDirection: "row", alignItems: "center", gap: 3 },
   pinnedText: { fontSize: 10.5, fontWeight: "700", color: colors.primaryDark },
 
-  detail: { flex: 1, backgroundColor: colors.card },
-  detailBar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 16, paddingTop: 54, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  detail: { flex: 1, backgroundColor: colors.bg },
+  detailBar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 16, paddingTop: 54, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.header },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
   detailContent: { padding: spacing.base, paddingBottom: 48 },
   detailTitle: { fontSize: 20, fontWeight: "800", color: colors.text, lineHeight: 26 },
   detailDate: { fontSize: 12, color: colors.textMuted, marginTop: 6, marginBottom: 14 },
   detailImage: { width: "100%", height: 200, borderRadius: radius.md, marginBottom: 14 },
-  imagePlaceholder: { backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" },
+  imagePlaceholder: { backgroundColor: colors.header, alignItems: "center", justifyContent: "center" },
   detailBody: { fontSize: 14.5, color: colors.text, lineHeight: 22, marginTop: 14 },
 
   includedBanner: {

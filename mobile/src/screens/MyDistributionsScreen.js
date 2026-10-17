@@ -144,9 +144,9 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 13, fontWeight: "700", color: colors.text },
   cardSub: { fontSize: 10.5, color: colors.textMuted, marginTop: 2 },
 
-  detail: { flex: 1, backgroundColor: colors.card },
-  detailBar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 16, paddingTop: 54, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  closeBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  detail: { flex: 1, backgroundColor: colors.bg },
+  detailBar: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", paddingHorizontal: 16, paddingTop: 54, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.header },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" },
   detailContent: { padding: spacing.base, paddingBottom: 48 },
   detailTitle: { fontSize: 20, fontWeight: "800", color: colors.text, lineHeight: 26, marginBottom: 8 },
   detailKvGroup: { marginTop: 18 },

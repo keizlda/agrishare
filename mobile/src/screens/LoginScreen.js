@@ -11,9 +11,12 @@ import {
   View,
 } from "react-native";
 import { Eye, EyeOff, IdCard, Lock, Sprout, User } from "lucide-react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import daSeal from "../assets/da-seal.png";
+
+const TOP_SHADE_HEIGHT = 240;
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -46,6 +49,18 @@ export default function LoginScreen() {
       resizeMode="cover"
     >
       <View style={styles.overlay} />
+      {/* Darker at the top, fading out, so the white logo and seal text
+          stay readable (WCAG AA) over the bright sky in the photo. */}
+      <Svg style={styles.topShade} width="100%" height={TOP_SHADE_HEIGHT} pointerEvents="none">
+        <Defs>
+          <LinearGradient id="loginTopShade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#0a1a0f" stopOpacity="0.5" />
+            <Stop offset="0.6" stopColor="#0a1a0f" stopOpacity="0.4" />
+            <Stop offset="1" stopColor="#0a1a0f" stopOpacity="0" />
+          </LinearGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#loginTopShade)" />
+      </Svg>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}
@@ -85,7 +100,7 @@ export default function LoginScreen() {
               style={[styles.input, styles.rsbsaInput]}
               placeholder="Enter the last 6 digits of your RSBSA number"
               accessibilityLabel="RSBSA number, last 6 digits"
-              placeholderTextColor="#9aa89f"
+              placeholderTextColor={colors.textFaint}
               value={rsbsaNo}
               // A pasted/typed full RSBSA number (with or without hyphens)
               // is quietly reduced to just its last 6 digits as they type —
@@ -105,7 +120,7 @@ export default function LoginScreen() {
             <TextInput
               style={[styles.input, { paddingRight: 34 }]}
               placeholder="Enter your password"
-              placeholderTextColor="#9aa89f"
+              placeholderTextColor={colors.textFaint}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
@@ -131,6 +146,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   bg: { flex: 1 },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(15,35,20,0.25)" },
+  topShade: { position: "absolute", top: 0, left: 0, right: 0 },
   flex: { flex: 1 },
   logoRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 56, paddingHorizontal: 20 },
   logo: { color: "#fff", fontSize: 18, fontWeight: "800", letterSpacing: 0.5 },
@@ -140,16 +156,16 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     overflow: "hidden",
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.6)",
   },
   sealImg: { width: "100%", height: "100%" },
   sealTitle: { color: "#fff", fontSize: 12.5, fontWeight: "700" },
-  sealSubtitle: { color: "rgba(255,255,255,0.85)", fontSize: 11, marginTop: 1 },
+  sealSubtitle: { color: "#fff", fontSize: 11, marginTop: 1 },
   spacer: { flex: 1 },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     borderTopLeftRadius: radius.lg + 4,
     borderTopRightRadius: radius.lg + 4,
     padding: 26,

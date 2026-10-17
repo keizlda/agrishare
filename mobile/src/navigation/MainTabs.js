@@ -42,10 +42,13 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
+        // Active label in the darker green so it passes WCAG AA as text.
+        tabBarActiveTintColor: colors.primaryDark,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
+          backgroundColor: colors.tabBar,
           borderTopColor: colors.border,
+          borderTopWidth: 1,
           height: TAB_BAR_BASE_HEIGHT + bottomPad,
           paddingBottom: bottomPad,
           paddingTop: 6,

@@ -8,47 +8,51 @@
 import { Platform } from "react-native";
 
 // ---------------------------------------------------------------------------
-// Colors — web/src/theme.css:2-21 (:root custom properties)
+// Colors — the web app's tokens (web/src/theme.css :root), so both apps have
+// the same color exposure: a soft sage page instead of white, slightly
+// off-white cards, and text tones that pass WCAG AA on both. Screens use
+// these names; nothing hardcodes white for a surface.
 // ---------------------------------------------------------------------------
 export const colors = {
-  primary: "#2f9e44",
-  primaryDark: "#1e7233",
+  primary: "#2f9e44", // --agri-primary (fills, icons — not small text)
+  primaryDark: "#1e7233", // --agri-primary-dark (green text, links)
   primaryDarker: "#14532d",
   primaryLight: "#e8f6ea", // tint bg — active rows, icon chips
   primarySoft: "#eef8ef", // even lighter tint — hover/pressed backgrounds
 
-  bg: "#f4f7f4", // page background
-  card: "#ffffff", // surface white
-  surface: "#ffffff", // alias of card
-  border: "#e4eae4", // hairline border
+  bg: "#eaf0e7", // --agri-bg: soft sage page background
+  header: "#dfe8da", // one step deeper than bg, so the header band stands out
+  card: "#fcfdfb", // --agri-card
+  surface: "#fcfdfb", // alias of card (modals, bottom sheets)
+  tabBar: "#fcfdfb",
+  border: "#dde5da", // card, input and tab bar outlines
 
-  text: "#1f2a24", // primary / near-black
-  // Web has no single --agri-text-secondary variable, but #45524a recurs
-  // as a consistent "one step lighter than primary text" tone across icon
-  // buttons, form labels, and detail-panel icons (theme.css:140, 455, 618)
-  // — promoted to a token since mobile needs a 3-tier gray scale.
-  textSecondary: "#45524a",
-  textMuted: "#6b7a70", // --agri-text-muted
-  // Lightest tier, used sparingly on web for submission timestamps only
-  // (theme.css:783) — kept as a distinct token for the same use on mobile.
-  textFaint: "#99a49c",
+  text: "#1f2a22", // --agri-text
+  textSecondary: "#45524a", // --agri-text-secondary: labels
+  textMuted: "#56645a", // --agri-text-muted
+  // Lightest text tier (timestamps, placeholders): still >= 4.5:1 on bg.
+  textFaint: "#5e6c62",
+  // Non-text glyphs: chevrons and similar affordances (~3.5:1 on cards)…
+  iconMuted: "#7b877f", // --agri-icon-muted
+  // …and purely decorative ones (empty-state icons), never text.
+  iconFaint: "#b7c2ba", // --agri-icon-faint
 
   blue: "#3b82f6",
   blueBg: "#eaf2fe",
   // Text on blueBg (badges) — --agri-blue-text on web.
   blueText: "#1f5fbf",
-  red: "#e03131",
-  redBg: "#fdeeee",
+  red: "#c23b36", // --agri-red: text-safe red
+  redBg: "#fbeeed", // --agri-red-bg
   // Lighter red used only for icon color on dark surfaces (e.g. error
-  // toasts) — --agri-red itself is too dark to read on colors.text.
-  // web/src/theme.css:969.
+  // toasts) — red itself is too dark to read on colors.text.
   redOnDark: "#ff8383",
-  orange: "#f08c00",
+  orange: "#f08c00", // fills and dots only
+  orangeText: "#96590a", // --agri-orange-text: amber text and badges
   orangeBg: "#fff4e0",
   purple: "#7048e8",
   purpleBg: "#f1ecfd",
-  gray: "#667066",
-  grayBg: "#f1f3f1",
+  gray: "#5f6a5f",
+  grayBg: "#eef1ec",
 };
 
 // ---------------------------------------------------------------------------
@@ -61,7 +65,7 @@ export const colors = {
 export const statusColors = {
   success: { fg: colors.primaryDark, bg: colors.primaryLight },
   danger: { fg: colors.red, bg: colors.redBg },
-  warning: { fg: colors.orange, bg: colors.orangeBg },
+  warning: { fg: colors.orangeText, bg: colors.orangeBg },
   info: { fg: colors.purple, bg: colors.purpleBg },
   endorsed: { fg: colors.blueText, bg: colors.blueBg },
   neutral: { fg: colors.gray, bg: colors.grayBg },

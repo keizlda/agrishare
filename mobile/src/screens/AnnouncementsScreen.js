@@ -20,7 +20,7 @@ const UPDATE_ICONS = {
   validated: { name: "checkmark-circle", color: colors.primaryDark, bg: colors.primaryLight },
   rejected: { name: "close-circle", color: colors.red, bg: colors.redBg },
   request: { name: "file-tray-outline", color: colors.purple, bg: colors.purpleBg },
-  distribution: { name: "cube-outline", color: colors.orange, bg: colors.orangeBg },
+  distribution: { name: "cube-outline", color: colors.orangeText, bg: colors.orangeBg },
   announcement: { name: "megaphone-outline", color: colors.blue, bg: colors.blueBg },
   system: { name: "notifications-outline", color: colors.gray, bg: colors.grayBg },
 };

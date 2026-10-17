@@ -108,7 +108,7 @@ export default function RequestsScreen({ navigation, route }) {
                 </View>
 
                 <Text style={styles.fieldLabel}>Quantity (kg)</Text>
-                <TextInput style={styles.input} value={quantity} onChangeText={setQuantity} keyboardType="number-pad" placeholder="e.g. 25" placeholderTextColor="#9aa89f" />
+                <TextInput style={styles.input} value={quantity} onChangeText={setQuantity} keyboardType="number-pad" placeholder="e.g. 25" placeholderTextColor={colors.textFaint} />
 
                 <Text style={styles.fieldLabel}>Reason for Request</Text>
                 <TextInput
@@ -117,7 +117,7 @@ export default function RequestsScreen({ navigation, route }) {
                   onChangeText={setReason}
                   multiline
                   placeholder="Explain why you need this commodity"
-                  placeholderTextColor="#9aa89f"
+                  placeholderTextColor={colors.textFaint}
                 />
 
                 <TouchableOpacity style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleSubmit} disabled={submitting}>

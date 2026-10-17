@@ -493,7 +493,7 @@ export default function CropValidationScreen({ navigation }) {
             onChangeText={setRemarks}
             multiline
             placeholder="Add any notes for the reviewer"
-            placeholderTextColor="#9aa89f"
+            placeholderTextColor={colors.textFaint}
           />
         </Card>
 
@@ -536,7 +536,7 @@ function InfoRow({ label, value, small, last, warn }) {
   return (
     <View style={[styles.infoRow, last && { borderBottomWidth: 0 }]}>
       <Text style={[styles.infoLabel, small && { fontSize: 9.5 }]}>{label}</Text>
-      <Text style={[styles.infoValue, small && { fontSize: 11 }, warn && { color: colors.orange }]}>{value}</Text>
+      <Text style={[styles.infoValue, small && { fontSize: 11 }, warn && { color: colors.orangeText }]}>{value}</Text>
     </View>
   );
 }

@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   annTitle: { fontSize: 12.5, fontWeight: "700", color: colors.text },
   annSub: { fontSize: 10.5, color: colors.textMuted, marginTop: 2 },
   includedRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
-  includedText: { fontSize: 10.5, fontWeight: "700", color: colors.primary },
+  includedText: { fontSize: 10.5, fontWeight: "700", color: colors.primaryDark },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
   skeleton: { backgroundColor: colors.grayBg, borderRadius: 6 },
 
