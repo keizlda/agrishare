@@ -4,17 +4,21 @@ import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 const SELECT = `
   request_id, quantity_requested, reason, status, fa_remarks, mao_remarks, created_at,
   reviewed_by_fa, reviewed_by_mao, forwarded_to_admin_at, fa_decision_at, admin_decision_at,
-  farmers ( farmer_id, first_name, surname, rsbsa_no, addresses ( barangay ) ),
-  commodities ( name, unit )
+  farmers ( farmer_id, first_name, surname, rsbsa_no, addresses ( barangay ), profiles!profile_id ( avatar_url ) ),
+  commodities ( name, unit ),
+  fa:profiles!reviewed_by_fa ( full_name )
 `;
 
 function mapRequest(row) {
   return {
     id: row.request_id,
     farmerId: row.farmers?.farmer_id,
+    farmerFirstName: row.farmers?.first_name ?? "",
+    farmerLastName: row.farmers?.surname ?? "",
     farmerName: `${row.farmers?.first_name ?? ""} ${row.farmers?.surname ?? ""}`.trim(),
     rsbsaNo: row.farmers?.rsbsa_no ?? "",
     barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
+    avatarUrl: row.farmers?.profiles?.avatar_url ?? null,
     commodity: row.commodities?.name ?? "",
     quantity: Number(row.quantity_requested),
     unit: row.commodities?.unit ?? "kg",
@@ -23,6 +27,7 @@ function mapRequest(row) {
     status: dbStatusToLabel(row.status),
     faRemarks: row.fa_remarks ?? "",
     maoRemarks: row.mao_remarks ?? "",
+    faPresidentName: row.fa?.full_name ?? "Farmers' Association President",
     // Present once the FA President has acted; lets the UI tell "I
     // reviewed this" apart from "someone else did" and "rejected by FA
     // before it ever reached Admin" apart from "rejected by Admin".
@@ -37,46 +42,26 @@ function mapRequest(row) {
   };
 }
 
-// Admin's review queue/history: sourced from requests_for_admin_review,
-// a view that has no farmer column at all (see the migration) — Admin
-// reviews the FA President's judgment, not the farmer's identity.
-const ADMIN_VIEW_SELECT = `
-  request_id, status, quantity_requested, fa_remarks, mao_remarks, created_at,
-  forwarded_to_admin_at, fa_decision_at, admin_decision_at,
-  commodity_name, commodity_unit, fa_president_name
-`;
-
-function mapAdminReviewRequest(row) {
-  return {
-    id: row.request_id,
-    status: dbStatusToLabel(row.status),
-    commodity: row.commodity_name ?? "",
-    unit: row.commodity_unit ?? "kg",
-    quantity: Number(row.quantity_requested),
-    faPresidentName: row.fa_president_name ?? "Farmers' Association President",
-    faRemarks: row.fa_remarks ?? "",
-    maoRemarks: row.mao_remarks ?? "",
-    requestDate: row.created_at?.slice(0, 10),
-    forwardedToAdminAt: row.forwarded_to_admin_at,
-    faDecisionAt: row.fa_decision_at,
-    adminDecisionAt: row.admin_decision_at,
-  };
-}
-
+// The MAO's review queue and history: every request past the Farmers'
+// Association President's review — endorsed (waiting for the MAO), approved,
+// rejected, and not endorsed — with the farmer who made it. Read from
+// requests directly (RLS: staff read all requests, farmers and profiles).
 export async function listRequestsForAdminReview() {
   const { data, error } = await supabase
-    .from("requests_for_admin_review")
-    .select(ADMIN_VIEW_SELECT)
-    .order("forwarded_to_admin_at", { ascending: false });
+    .from("requests")
+    .select(SELECT)
+    .neq("status", "pending")
+    .order("fa_decision_at", { ascending: false, nullsFirst: false });
   if (error) throw error;
-  return data.map(mapAdminReviewRequest);
+  return data.map(mapRequest);
 }
 
-// FA President's Level 1 decision: Pending -> Forwarded (approve) or
-// Rejected. Sets fa_decision_at (and forwarded_to_admin_at, only on
-// approval) alongside status so the timeline is accurate from the start —
-// RLS still enforces that this can only run on a Pending row and can only
-// land on 'forwarded' or 'rejected' (requests: FA forwards or rejects pending).
+// FA President's Level 1 decision: Pending -> Forwarded (endorse) or
+// Rejected (not endorsed). Sets fa_decision_at (and forwarded_to_admin_at,
+// only on endorsement) alongside status so the timeline is accurate from the
+// start — RLS still enforces that this can only run on a Pending row and can
+// only land on 'forwarded' or 'rejected' (requests: FA forwards or rejects
+// pending).
 export async function faReviewRequest(requestId, { decision, notes }) {
   const { data: auth } = await supabase.auth.getUser();
   const now = new Date().toISOString();

@@ -15,12 +15,12 @@ export const STATUS_COLOR = {
   Received: "green",
   Complete: "green",
   "For Review": "purple",
-  Forwarded: "purple",
+  // Requests: Pending -> Endorsed -> Approved / Rejected, or Not endorsed.
+  Endorsed: "blue",
+  "Not endorsed": "gray",
 };
 
-// `wrap` lets a long label (e.g. "Approved by Farmers' Association
-// President") break onto two lines instead of stretching its column.
-export default function Pill({ status, children, wrap }) {
+export default function Pill({ status, children }) {
   const color = STATUS_COLOR[status] ?? "gray";
-  return <span className={`agri-pill ${color}${wrap ? " agri-pill-wrap" : ""}`}>{children ?? status}</span>;
+  return <span className={`agri-pill ${color}`}>{children ?? status}</span>;
 }

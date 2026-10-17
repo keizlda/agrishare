@@ -977,15 +977,8 @@ table.agri-table tbody tr.agri-row-link:focus-visible .agri-row-title {
 .agri-pill.green { background: var(--agri-primary-light); color: var(--agri-primary-dark); }
 .agri-pill.red { background: var(--agri-red-bg); color: var(--agri-red); }
 .agri-pill.orange { background: var(--agri-orange-bg); color: var(--agri-orange-text); }
-/* Long labels (the full "Farmers' Association President" role name) wrap
-   instead of stretching their table column. */
-.agri-pill.agri-pill-wrap {
-  white-space: normal;
-  border-radius: 10px;
-  line-height: 1.3;
-  min-width: 150px;
-  max-width: 220px;
-}
+/* Long table text (the full "Farmers' Association President" role name)
+   wraps instead of stretching its column. */
 table.agri-table th.agri-wrap,
 table.agri-table td.agri-wrap {
   white-space: normal;
@@ -2307,11 +2300,18 @@ table.agri-table thead th {
   box-shadow: inset 0 -1px 0 var(--agri-divider);
 }
 
+/* Detail panel actions, under a divider: the main action in solid green
+   (.btn-agri-primary), Edit | Delete side by side, Print in soft blue so it
+   doesn't compete with the green action. All 42px, same radius, 8px apart.
+   Colors go through Bootstrap's --bs-btn-* variables so hover, pressed and
+   disabled states all match. */
 .agri-detail-actions {
   margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--agri-divider);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .agri-detail-actions-row {
@@ -2321,33 +2321,53 @@ table.agri-table thead th {
 
 .agri-detail-btn {
   height: 42px;
+  border-radius: 8px;
   font-weight: 500;
+}
+
+/* Edit | Delete share the row equally. (Only here: flex: 1 on the
+   full-width buttons in the column would shrink them below 42px.) */
+.agri-detail-actions-row > .agri-detail-btn {
   flex: 1;
 }
 
 .agri-detail-btn-edit {
-  background: var(--agri-card);
-  border: 1px solid var(--agri-divider);
-  color: var(--agri-text);
-}
-.agri-detail-btn-edit svg {
-  color: var(--agri-primary);
-}
-.agri-detail-btn-edit:hover {
-  background: var(--agri-primary-soft);
+  --bs-btn-bg: var(--agri-card);
+  --bs-btn-color: var(--agri-text);
+  --bs-btn-border-color: var(--agri-divider);
+  --bs-btn-hover-bg: #f1f3f1;
+  --bs-btn-hover-color: var(--agri-text);
+  --bs-btn-hover-border-color: var(--agri-divider);
+  --bs-btn-active-bg: #e6e9e6;
+  --bs-btn-active-color: var(--agri-text);
+  --bs-btn-active-border-color: var(--agri-divider);
 }
 
 .agri-detail-btn-delete {
-  background: var(--agri-card);
-  border: 1px solid var(--agri-divider);
-  color: var(--agri-red);
+  --bs-btn-bg: var(--agri-card);
+  --bs-btn-color: var(--agri-red);
+  --bs-btn-border-color: #efc4c2;
+  --bs-btn-hover-bg: var(--agri-red-bg);
+  --bs-btn-hover-color: var(--agri-red);
+  --bs-btn-hover-border-color: #e6aeab;
+  --bs-btn-active-bg: #f6dedd;
+  --bs-btn-active-color: var(--agri-red);
+  --bs-btn-active-border-color: #e6aeab;
+  --bs-btn-disabled-bg: var(--agri-card);
+  --bs-btn-disabled-color: var(--agri-red);
+  --bs-btn-disabled-border-color: #efc4c2;
 }
-.agri-detail-btn-delete:hover {
-  background: var(--agri-red-bg);
-  border-color: var(--agri-red);
-}
-.agri-detail-btn-delete:disabled {
-  opacity: 0.6;
+
+.agri-detail-btn-print {
+  --bs-btn-bg: #e8f0fa;
+  --bs-btn-color: #1f4e8c;
+  --bs-btn-border-color: #c9daf0;
+  --bs-btn-hover-bg: #dae6f6;
+  --bs-btn-hover-color: #1f4e8c;
+  --bs-btn-hover-border-color: #b6cbea;
+  --bs-btn-active-bg: #cddcf1;
+  --bs-btn-active-color: #1f4e8c;
+  --bs-btn-active-border-color: #b6cbea;
 }
 
 @media (min-width: 1024px) {
@@ -2408,11 +2428,6 @@ table.agri-table thead th {
     min-height: 0;
     overflow-y: auto;
   }
-  .agri-app-fill .agri-detail-actions {
-    border-top: 1px solid var(--agri-divider);
-    padding-top: 12px;
-  }
-
   /* Validation: the two-pane inbox owns its own scroll areas, so it just
      fills the card (no min/max height, so no double scrollbars). */
   .agri-app-fill .agri-inbox {
@@ -2435,14 +2450,6 @@ table.agri-table thead th {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.25;
-}
-
-/* Sits on the page background with the leaf art behind it, so it uses the
-   full body-text color (>=4.5:1 even over the darkest leaf pixels). */
-.agri-page-title p {
-  margin: 2px 0 0;
-  font-size: 0.85rem;
-  color: var(--agri-text);
 }
 
 /* ---------- Side drawer (Farmer Profile) ---------- */
@@ -2503,20 +2510,13 @@ table.agri-table thead th {
   color: var(--agri-text-muted);
 }
 
+/* Scrolls down to the bottom of the screen (there's no footer); the bottom
+   padding keeps the last section clear of the edge. */
 .agri-drawer-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 20px 8px;
-}
-
-.agri-drawer-footer {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 20px;
-  border-top: 1px solid var(--agri-divider);
+  padding: 0 20px 24px;
 }
 
 .agri-profile-head {

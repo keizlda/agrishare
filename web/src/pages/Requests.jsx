@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, History, Inbox, Search, Send, ShieldAlert } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
+import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
@@ -10,15 +11,18 @@ import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
 // status is the raw four-value lifecycle (Pending/Forwarded/Approved/
-// Rejected) — Pill's color lookup keys off that. The label shown to the
-// user is friendlier and, for Rejected specifically, distinguishes which
-// stage actually rejected it (FA directly vs. Admin overruling an
-// FA-approved request) using rejectedBy from the API layer.
+// Rejected). The Farmers' Association President endorses (or doesn't); only
+// the MAO approves or rejects. So the label shown is:
+//   Pending -> Endorsed -> Approved or Rejected, or Not endorsed when the
+//   Farmers' Association President turned it down (rejectedBy "fa").
+// Pill colors key off this label (Pill.jsx).
 function reviewLabel(r) {
-  if (r.status === "Forwarded") return "Approved by Farmers' Association President";
-  if (r.status === "Rejected") return r.rejectedBy === "admin" ? "Rejected by Admin" : "Rejected by Farmers' Association President";
+  if (r.status === "Forwarded") return "Endorsed";
+  if (r.status === "Rejected" && r.rejectedBy === "fa") return "Not endorsed";
   return r.status;
 }
+
+const day = (timestamp) => timestamp?.slice(0, 10) ?? "—";
 
 export default function Requests() {
   const { user } = useAuth();
@@ -27,7 +31,8 @@ export default function Requests() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// FA President — Level 1. Full farmer detail; acts on Pending requests.
+// FA President — Level 1. Full farmer detail; endorses (or not) Pending
+// requests.
 // ═══════════════════════════════════════════════════════════════════════
 const FA_TABS = [
   { key: "pending", label: "Pending Review" },
@@ -46,7 +51,7 @@ function faTabRows(requests, key, currentUserId) {
       return requests.filter((r) => r.status === "Forwarded");
     case "final":
       // Reached a final ADMIN decision specifically — excludes requests FA
-      // rejected directly, which are final too but never reached Admin
+      // didn't endorse, which are final too but never reached Admin
       // (those show up under "My Decisions" instead).
       return requests.filter((r) => (r.status === "Approved" || r.status === "Rejected") && r.adminDecisionAt);
     default:
@@ -89,7 +94,7 @@ function FARequestsView({ currentUserId }) {
       const updated = await faReviewRequest(selected.id, { decision, notes: remarks || undefined });
       setRequests((prev) => prev.map((r) => (r.id === selected.id ? updated : r)));
       setRemarks("");
-      setToast({ tone: "success", message: decision === "approve" ? "Approved and forwarded to Admin." : "Request rejected." });
+      setToast({ tone: "success", message: decision === "approve" ? "Endorsed and sent to the MAO for approval." : "Request not endorsed." });
     } catch (err) {
       const message = friendlyError(err, "Couldn't save this decision. Please try again.");
       setActionError(message);
@@ -134,7 +139,7 @@ function FARequestsView({ currentUserId }) {
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
                     <td>{r.requestDate}</td>
-                    <td><Pill status={r.status} wrap>{reviewLabel(r)}</Pill></td>
+                    <td><Pill status={reviewLabel(r)} /></td>
                   </tr>
                 ))}
                 {loading && (
@@ -152,7 +157,7 @@ function FARequestsView({ currentUserId }) {
           <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
-              <Pill status={selected.status} wrap>{reviewLabel(selected)}</Pill>
+              <Pill status={reviewLabel(selected)} />
             </div>
 
             <div className="agri-detail-row"><div><div className="agri-detail-label">Farmer</div>{selected.farmerName}</div></div>
@@ -173,7 +178,7 @@ function FARequestsView({ currentUserId }) {
               <div className="agri-detail-row">
                 <div>
                   <div className="agri-detail-label">Admin Decision</div>
-                  {selected.status} on {selected.adminDecisionAt.slice(0, 10)}
+                  {selected.status} on {day(selected.adminDecisionAt)}
                 </div>
               </div>
             )}
@@ -185,7 +190,7 @@ function FARequestsView({ currentUserId }) {
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn btn-outline-danger flex-fill" onClick={() => act("reject")} disabled={saving}>Reject</button>
                   <button className="btn btn-agri-primary flex-fill d-flex align-items-center justify-content-center gap-2" onClick={() => act("approve")} disabled={saving}>
-                    <Send size={14} /> Approve &amp; Forward
+                    <Send size={14} /> Endorse
                   </button>
                 </div>
               </div>
@@ -194,7 +199,7 @@ function FARequestsView({ currentUserId }) {
             {!canAct && (
               <div className="agri-pill gray" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 14, padding: "8px 12px" }}>
                 <ShieldAlert size={13} />
-                {selected.status === "Forwarded" ? "Forwarded to Admin — awaiting final decision." : "This request has already been decided."}
+                {selected.status === "Forwarded" ? "Endorsed — waiting for the MAO's decision." : "This request has already been decided."}
               </div>
             )}
           </div>
@@ -207,16 +212,16 @@ function FARequestsView({ currentUserId }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// MAO Admin — Level 2. Only ever sees requests the FA President already
-// approved, and never sees who the farmer is — reviews the FA President's
-// judgment on its own merits. Sourced from requests_for_admin_review,
-// a view with no farmer column at all (see the migration).
+// MAO Admin — Level 2. Sees every request past the Farmers' Association
+// President's review, with the farmer who made it, and approves or rejects
+// the endorsed ones.
 // ═══════════════════════════════════════════════════════════════════════
 const ADMIN_TABS = [
   { key: "awaiting", label: "Awaiting Admin Review" },
   { key: "history", label: "Decision History" },
 ];
 
+// History: the final status — Approved, Rejected, or Not endorsed.
 function adminTabRows(requests, key) {
   return key === "awaiting"
     ? requests.filter((r) => r.status === "Forwarded")
@@ -241,24 +246,15 @@ function AdminRequestsView() {
 
   const selected = requests.find((r) => r.id === selectedId) ?? null;
   const canAct = selected?.status === "Forwarded";
+  const notEndorsed = selected?.rejectedBy === "fa";
 
   async function act(decision) {
     if (!selected) return;
     setActionError("");
     setSaving(true);
     try {
-      // adminReviewRequest returns the full base-table row shape (it
-      // updates public.requests directly); this view only renders a
-      // handful of those fields, so patch just those rather than
-      // replacing the row with a shape this list doesn't expect.
       const updated = await adminReviewRequest(selected.id, { decision, notes: remarks || undefined });
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === selected.id
-            ? { ...r, status: updated.status, maoRemarks: updated.maoRemarks, adminDecisionAt: updated.adminDecisionAt }
-            : r
-        )
-      );
+      setRequests((prev) => prev.map((r) => (r.id === selected.id ? updated : r)));
       setRemarks("");
       setToast({ tone: "success", message: `Request ${decision === "approve" ? "approved" : "rejected"}.` });
     } catch (err) {
@@ -292,16 +288,21 @@ function AdminRequestsView() {
           <div className="agri-table-wrap">
             <table className="agri-table">
               <thead>
-                <tr><th className="agri-wrap">Farmers' Association President</th><th>Commodity</th><th>Quantity</th><th className="agri-wrap">Farmers' Association President's Decision Date</th><th>Status</th></tr>
+                <tr><th>Farmer</th><th>Commodity</th><th>Quantity</th><th>Endorsed On</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {tabbed.map((r) => (
                   <tr key={r.id} {...rowLinkProps(() => setSelectedId(r.id), { selected: r.id === selectedId })}>
-                    <td><span className="agri-row-title">{r.faPresidentName}</span></td>
+                    <td>
+                      <span className="agri-farmer-cell">
+                        <FarmerAvatar url={r.avatarUrl} firstName={r.farmerFirstName} lastName={r.farmerLastName} size={28} />
+                        <span className="agri-row-title">{r.farmerName}</span>
+                      </span>
+                    </td>
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
-                    <td>{r.faDecisionAt?.slice(0, 10) ?? "—"}</td>
-                    <td><Pill status={r.status} wrap>{reviewLabel(r)}</Pill></td>
+                    <td>{day(r.forwardedToAdminAt)}</td>
+                    <td><Pill status={reviewLabel(r)} /></td>
                   </tr>
                 ))}
                 {loading && (
@@ -319,21 +320,31 @@ function AdminRequestsView() {
           <div className="agri-card" style={{ padding: 18, alignSelf: "flex-start" }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
-              <Pill status={selected.status} wrap>{reviewLabel(selected)}</Pill>
+              <Pill status={reviewLabel(selected)} />
             </div>
 
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Farmers' Association President</div>{selected.faPresidentName}</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity</div>{selected.commodity}</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Quantity</div>{selected.quantity.toLocaleString()} {selected.unit}</div></div>
             <div className="agri-detail-row">
               <div>
-                <div className="agri-detail-label">Farmers' Association President's Decision</div>
-                Approved on {selected.faDecisionAt?.slice(0, 10) ?? "—"}
+                <div className="agri-detail-label">Farmer</div>
+                {selected.farmerName}
+                <div className="agri-muted" style={{ fontSize: "0.78rem" }}>RSBSA No. {selected.rsbsaNo || "—"}</div>
               </div>
             </div>
-            {selected.faRemarks && (
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Farmers' Association President's Remarks</div>{selected.faRemarks}</div></div>
-            )}
+            <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity</div>{selected.commodity}</div></div>
+            <div className="agri-detail-row"><div><div className="agri-detail-label">Quantity</div>{selected.quantity.toLocaleString()} {selected.unit}</div></div>
+            <div className="agri-detail-row"><div><div className="agri-detail-label">Requested On</div>{selected.requestDate}</div></div>
+            <div className="agri-detail-row">
+              <div>
+                <div className="agri-detail-label">{notEndorsed ? "Not Endorsed By" : "Endorsed By"}</div>
+                {selected.faPresidentName} on {day(notEndorsed ? selected.faDecisionAt : selected.forwardedToAdminAt ?? selected.faDecisionAt)}
+              </div>
+            </div>
+            <div className="agri-detail-row">
+              <div>
+                <div className="agri-detail-label">{notEndorsed ? "Remarks" : "Endorsement Remarks"}</div>
+                {selected.faRemarks || <span className="agri-muted">None</span>}
+              </div>
+            </div>
             {selected.maoRemarks && (
               <div className="agri-detail-row"><div><div className="agri-detail-label">Your Remarks</div>{selected.maoRemarks}</div></div>
             )}
@@ -352,7 +363,8 @@ function AdminRequestsView() {
             )}
             {!canAct && (
               <div className="agri-pill gray" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 14, padding: "8px 12px" }}>
-                <ShieldAlert size={13} /> This request has already been decided.
+                <ShieldAlert size={13} />
+                {notEndorsed ? "Not endorsed by the Farmers' Association President, so it never reached the MAO." : "This request has already been decided."}
               </div>
             )}
           </div>

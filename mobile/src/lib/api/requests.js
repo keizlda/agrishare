@@ -2,9 +2,19 @@ import { supabase } from "../supabaseClient";
 import { dbStatusToLabel } from "../status";
 
 const SELECT = `
-  request_id, quantity_requested, reason, status, created_at,
+  request_id, quantity_requested, reason, status, created_at, forwarded_to_admin_at,
   commodities ( name, unit )
 `;
+
+// What the farmer sees: Pending -> Endorsed (by the Farmers' Association
+// President) -> Approved or Rejected (by the MAO), or Not endorsed when the
+// Farmers' Association President turned it down. forwarded_to_admin_at is
+// only set on endorsement, so it tells the two kinds of rejection apart.
+function statusLabel(row) {
+  if (row.status === "forwarded") return "Endorsed";
+  if (row.status === "rejected") return row.forwarded_to_admin_at ? "Rejected" : "Not endorsed";
+  return dbStatusToLabel(row.status);
+}
 
 function mapRequest(row) {
   return {
@@ -14,7 +24,7 @@ function mapRequest(row) {
     unit: row.commodities?.unit ?? "kg",
     reason: row.reason ?? "",
     requestDate: row.created_at?.slice(0, 10),
-    status: dbStatusToLabel(row.status),
+    status: statusLabel(row),
   };
 }
 

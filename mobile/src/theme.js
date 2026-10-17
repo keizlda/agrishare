@@ -35,6 +35,8 @@ export const colors = {
 
   blue: "#3b82f6",
   blueBg: "#eaf2fe",
+  // Text on blueBg (badges) — --agri-blue-text on web.
+  blueText: "#1f5fbf",
   red: "#e03131",
   redBg: "#fdeeee",
   // Lighter red used only for icon color on dark surfaces (e.g. error
@@ -53,17 +55,15 @@ export const colors = {
 // Status colors — mirrors web/src/components/ui/Pill.jsx's status→color map
 // and theme.css:427-432's color→hex pairs exactly.
 //
-// Note: web's 5th status role (Forwarded / For Review) is styled *purple*,
-// not blue — blue exists in the palette above as a general accent color but
-// isn't wired to any status label on the web app. Naming this role "info"
-// but backing it with purple matches what the web app actually renders;
-// forcing blue in here would be guessing a value the app doesn't use.
+// Note: web styles "For Review" *purple* (the "info" role here) and a
+// request's "Endorsed" *blue* (the "endorsed" role).
 // ---------------------------------------------------------------------------
 export const statusColors = {
   success: { fg: colors.primaryDark, bg: colors.primaryLight },
   danger: { fg: colors.red, bg: colors.redBg },
   warning: { fg: colors.orange, bg: colors.orangeBg },
   info: { fg: colors.purple, bg: colors.purpleBg },
+  endorsed: { fg: colors.blueText, bg: colors.blueBg },
   neutral: { fg: colors.gray, bg: colors.grayBg },
 };
 
@@ -86,8 +86,11 @@ export const statusColor = (status) => {
     case "Upcoming":
       return statusColors.warning;
     case "For Review":
-    case "Forwarded":
       return statusColors.info;
+    // Requests: Pending -> Endorsed -> Approved / Rejected; "Not endorsed"
+    // is gray (default), as on web.
+    case "Endorsed":
+      return statusColors.endorsed;
     // Mobile-only labels (commodity stock levels) that Pill.jsx doesn't
     // define on web — mapped by closest fit rather than pulled from web.
     case "In Stock":

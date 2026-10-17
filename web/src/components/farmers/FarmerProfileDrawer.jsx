@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pencil, X } from "lucide-react";
+import { X } from "lucide-react";
 import Pill from "../ui/Pill.jsx";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { getFarmerProfileExtras } from "../../lib/api/farmers.js";
@@ -30,12 +30,13 @@ function totalsByUnit(rows) {
   return Object.entries(totals).map(([unit, qty]) => `${qty.toLocaleString()} ${unit}`).join(" · ");
 }
 
-// Read-only Farmer Profile, opened from the Farmers table (row click or the
-// row menu's "View"). Right-side drawer; closes on ✕, Escape, or a click on
-// the backdrop. The fields are exactly the Add/Edit Farmer form's, in the
-// form's order and with its labels, read from `farmer` — the same list row
-// the form is filled from — so the panel mirrors what the admin entered.
-export default function FarmerProfileDrawer({ farmer, canEdit, showAccount, onEdit, onClose }) {
+// Read-only Farmer Profile, opened by clicking a row in the Farmers table
+// (editing is in the row's ⋯ menu). Right-side drawer; closes on ✕, Escape,
+// or a click on the backdrop. The fields are exactly the Add/Edit Farmer
+// form's, in the form's order and with its labels, read from `farmer` — the
+// same list row the form is filled from — so the panel mirrors what the
+// admin entered.
+export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
   const [extras, setExtras] = useState(null);
   const [history, setHistory] = useState(null);
   const [submissions, setSubmissions] = useState(null);
@@ -230,14 +231,6 @@ export default function FarmerProfileDrawer({ farmer, canEdit, showAccount, onEd
           </section>
         </div>
 
-        <footer className="agri-drawer-footer">
-          {canEdit && (
-            <button type="button" className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={onEdit}>
-              <Pencil size={15} /> Edit
-            </button>
-          )}
-          <button type="button" className="btn btn-outline-secondary" onClick={onClose}>Close</button>
-        </footer>
       </aside>
     </div>
   );

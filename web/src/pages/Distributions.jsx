@@ -308,6 +308,8 @@ export default function Distributions() {
 
             </div>
 
+            {/* Top to bottom: Mark as completed (Ongoing only), Edit | Delete,
+                Print. The Farmers' Association President sees only Print. */}
             <div className="agri-detail-actions">
               {isMAO && selected.status === "Ongoing" && (
                 <MarkCompletedButton
@@ -320,13 +322,6 @@ export default function Distributions() {
                   onError={(message) => setToast({ tone: "error", message })}
                 />
               )}
-
-              <button
-                className="btn btn-agri-primary agri-detail-btn w-100 d-flex align-items-center justify-content-center gap-2"
-                onClick={() => window.open(`/print/distributions/${selected.id}?autoPrint=1`, "_blank", "noopener,noreferrer")}
-              >
-                <Printer size={16} /> Print Distribution Report
-              </button>
 
               {isMAO && (
                 <div className="agri-detail-actions-row">
@@ -341,6 +336,14 @@ export default function Distributions() {
                   <DeleteDistributionButton distribution={selected} onDeleted={handleDeleted} onError={(message) => setToast({ tone: "error", message })} />
                 </div>
               )}
+
+              <button
+                type="button"
+                className="btn agri-detail-btn agri-detail-btn-print w-100 d-flex align-items-center justify-content-center gap-2"
+                onClick={() => window.open(`/print/distributions/${selected.id}?autoPrint=1`, "_blank", "noopener,noreferrer")}
+              >
+                <Printer size={16} /> Print Distribution Report
+              </button>
             </div>
           </div>
         )}
@@ -391,7 +394,7 @@ function MarkCompletedButton({ distribution, onSaved, onError }) {
     <>
       <button
         type="button"
-        className="btn agri-detail-btn agri-detail-btn-edit w-100 d-flex align-items-center justify-content-center gap-2"
+        className="btn btn-agri-primary agri-detail-btn w-100 d-flex align-items-center justify-content-center gap-2"
         disabled={saving}
         onClick={handleClick}
       >

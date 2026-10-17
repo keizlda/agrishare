@@ -152,7 +152,6 @@ export default function Validation() {
           validated as a person (their own status is only Active/Inactive). */}
       <div className="agri-page-title">
         <h1>Proof of Planting Validation</h1>
-        <p>Review farmers' proof-of-planting submissions. Tab counts are submissions.</p>
       </div>
 
       <div className="agri-card agri-fill-card" style={{ padding: 0, overflow: "hidden" }}>

@@ -207,9 +207,6 @@ export default function Farmers() {
 
   const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", farmer }
   const [viewing, setViewing] = useState(null); // farmer row shown in the read-only profile drawer
-  // The row that opened the drawer gets focus back when it closes, so a
-  // keyboard user stays in place in the table.
-  const openerRowRef = useRef(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [pendingReset, setPendingReset] = useState(null);
   const [resetting, setResetting] = useState(false);
@@ -328,16 +325,9 @@ export default function Farmers() {
             </thead>
             <tbody>
               {pageItems.map((f) => (
-                <tr
-                  key={f.id}
-                  {...rowLinkProps(
-                    (row) => {
-                      openerRowRef.current = row;
-                      setViewing(f);
-                    },
-                    { selected: viewing?.id === f.id },
-                  )}
-                >
+                // Clicking (or Enter on) the row focuses it, so the drawer hands
+                // focus back to this row when it closes.
+                <tr key={f.id} {...rowLinkProps(() => setViewing(f), { selected: viewing?.id === f.id })}>
                   <td>{f.rsbsaNo}</td>
                   <td>
                     <span className="agri-farmer-cell">
@@ -393,19 +383,7 @@ export default function Farmers() {
       </div>
 
       {viewing && (
-        <FarmerProfileDrawer
-          farmer={viewing}
-          canEdit={isMAO}
-          showAccount={isMAO}
-          onEdit={() => {
-            setModal({ mode: "edit", farmer: viewing });
-            setViewing(null);
-          }}
-          onClose={() => {
-            setViewing(null);
-            openerRowRef.current?.focus();
-          }}
-        />
+        <FarmerProfileDrawer farmer={viewing} showAccount={isMAO} onClose={() => setViewing(null)} />
       )}
 
       {modal && (
