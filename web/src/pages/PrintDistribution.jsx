@@ -4,11 +4,10 @@ import PrintLayout, { KV } from "../components/print/PrintLayout.jsx";
 import { useAutoPrint } from "../hooks/useAutoPrint.js";
 import { getDistribution, listPrintBeneficiaries } from "../lib/api/distributions.js";
 import { friendlyError } from "../lib/friendlyError.js";
-import { isReleased, receiptsLabel } from "../lib/distributionStatus.js";
+import { acknowledgementLabel, dateReceived } from "../lib/distributionStatus.js";
 
 const STATUS_DOT = {
   Ongoing: "#f08c00",
-  Distributed: "#3b82f6",
   Completed: "#2f9e44",
 };
 
@@ -53,7 +52,6 @@ export default function PrintDistribution() {
           <KV label="Barangay" value={d.barangay} />
           <KV label="Venue" value={d.venue} />
           <KV label="Funding Source" value={d.fundingSource} />
-          <KV label="Acknowledgement Receipts" value={receiptsLabel(d)} />
           <KV
             label="Status"
             value={
@@ -99,13 +97,6 @@ export default function PrintDistribution() {
   );
 }
 
-// "09/30/2026": event_date is a plain YYYY-MM-DD string, so reformat it
-// directly instead of going through Date (no time-zone day shifts).
-function shortDate(isoDate) {
-  const [y, m, d] = String(isoDate).split("-");
-  return y && m && d ? `${m}/${d}/${y}` : "";
-}
-
 // The report's only signature block. It sits at the very end of the
 // document (after the beneficiary list, or after the "no tagged
 // beneficiaries" note) and never splits across pages — if it doesn't fit
@@ -123,15 +114,16 @@ function Signatures() {
 // Page 2 onward: the masterlist of tagged farmers. Always starts on a new
 // page (the shared print header repeats there via PrintLayout's thead); the
 // table's own header row repeats on every page it continues onto, and rows
-// never split across pages. Date Received is the distribution date once the
-// items are released (Distributed or Completed), otherwise blank to be
-// filled in by hand.
+// never split across pages. Each farmer's Acknowledgement is "Acknowledged"
+// once the distribution is Completed, with the completion date as Date
+// Received; while Ongoing it reads "Pending" and the date is left blank.
 // The signature block follows the Total row (or the empty-list note).
 function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
   const farmerCount = new Set(beneficiaries.map((b) => b.farmerId)).size;
   const totalQty = beneficiaries.reduce((sum, b) => sum + b.quantity, 0);
   const sameUnit = beneficiaries.length > 0 && beneficiaries.every((b) => b.unit === beneficiaries[0].unit);
-  const received = isReleased(d) ? shortDate(d.date) : "";
+  const acknowledgement = acknowledgementLabel(d);
+  const received = dateReceived(d);
 
   return (
     <section className="pr-beneficiaries">
@@ -150,6 +142,7 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
             <col className="pr-bcol-commodity" />
             <col className="pr-bcol-qty" />
             <col className="pr-bcol-unit" />
+            <col className="pr-bcol-ack" />
             <col className="pr-bcol-date" />
             <col className="pr-bcol-sign" />
           </colgroup>
@@ -162,6 +155,7 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
               <th>Commodity</th>
               <th className="pr-num">Qty Received</th>
               <th className="pr-bnarrow">Unit</th>
+              <th>Acknow&shy;ledgement</th>
               <th>Date Received</th>
               <th>Signature</th>
             </tr>
@@ -176,6 +170,7 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
                 <td>{b.commodity}</td>
                 <td className="pr-num">{b.quantity.toLocaleString()}</td>
                 <td className="pr-bnarrow">{b.unit}</td>
+                <td className="pr-nowrap">{acknowledgement}</td>
                 <td className="pr-nowrap">{received}</td>
                 <td />
               </tr>
@@ -184,7 +179,7 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
               <td colSpan={5}>Total: {farmerCount} {farmerCount === 1 ? "farmer" : "farmers"}</td>
               <td className="pr-num">{totalQty.toLocaleString()}</td>
               <td className="pr-bnarrow">{sameUnit ? beneficiaries[0].unit : ""}</td>
-              <td colSpan={2} />
+              <td colSpan={3} />
             </tr>
           </tbody>
         </table>

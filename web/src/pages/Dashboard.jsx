@@ -23,7 +23,7 @@ import {
 } from "../data/mockData.js";
 import { listFarmers } from "../lib/api/farmers.js";
 import { listDistributions } from "../lib/api/distributions.js";
-import { isReleased } from "../lib/distributionStatus.js";
+import { isCompleted } from "../lib/distributionStatus.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { listSubmissions } from "../lib/api/cropValidation.js";
 import { listRequests, listRequestsForAdminReview } from "../lib/api/requests.js";
@@ -94,9 +94,11 @@ export default function Dashboard() {
     ? SUBMISSION_SEGMENTS.map((seg) => ({ name: seg.label, value: subStats[seg.key], color: seg.color }))
     : [{ name: "No submissions yet", value: 1, color: "var(--agri-divider)" }];
 
-  // Only quantities that actually reached farmers: Distributed + Completed.
-  const { year: trendYear, trend: distributionTrend } = computeDistributionTrend(distributions.filter(isReleased));
-  const distributionByCommodity = computeDistributionByCommodity(commodities, distributions, MAX_ROWS);
+  // Distribution Overview and Top Commodities count Completed distributions
+  // only (items released and signed for).
+  const completedDistributions = distributions.filter(isCompleted);
+  const { year: trendYear, trend: distributionTrend } = computeDistributionTrend(completedDistributions);
+  const distributionByCommodity = computeDistributionByCommodity(commodities, completedDistributions, MAX_ROWS);
   const rankedCommodities = [...distributionByCommodity].filter((c) => c.name !== "Others").sort((a, b) => b.value - a.value);
   const maxCommodity = rankedCommodities[0]?.value ?? 1;
 
@@ -107,12 +109,10 @@ export default function Dashboard() {
   const topCommodities = rankedCommodities.slice(0, commodityFit);
 
   const ongoing = distributions.filter((d) => d.status === "Ongoing").length;
-  const awaitingReceipts = distributions.filter((d) => d.status === "Distributed").length;
   const toReview = requests.filter((r) => r.status === (isMAO ? "Forwarded" : "Pending")).length;
   const chips = [
     isMAO && { count: subStats.pending, label: plural(subStats.pending, "submission to review", "submissions to review"), to: "/validation?status=Pending", dot: "var(--agri-orange)" },
     { count: ongoing, label: plural(ongoing, "ongoing distribution", "ongoing distributions"), to: "/distributions?status=Ongoing", dot: "var(--agri-teal)" },
-    { count: awaitingReceipts, label: plural(awaitingReceipts, "distribution awaiting receipts", "distributions awaiting receipts"), to: "/distributions?status=Distributed", dot: "var(--agri-purple)" },
     { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: `/requests?tab=${isMAO ? "awaiting" : "pending"}`, dot: "var(--agri-blue)" },
   ].filter((c) => c && c.count > 0);
 

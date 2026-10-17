@@ -8,10 +8,10 @@ import EmptyState from "../components/ui/EmptyState";
 import { colors, radius, shadows, spacing } from "../theme";
 import { listMyDistributions } from "../lib/api/distributions";
 
-// Ongoing -> Upcoming; Distributed/Completed -> Received (no acknowledgement
-// wording for farmers).
+// Ongoing -> Upcoming; Completed -> Received (no acknowledgement wording
+// for farmers).
 function recentBadge(status) {
-  if (status === "Distributed" || status === "Completed") return "Received";
+  if (status === "Completed") return "Received";
   if (status === "Ongoing") return "Upcoming";
   return status;
 }

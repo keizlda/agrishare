@@ -300,7 +300,7 @@
 .pr-beneficiary-table th,
 .pr-beneficiary-table td {
   border: 1px solid #c9d3cb;
-  padding: 2px 4px;
+  padding: 2px 3px;
   vertical-align: middle;
 }
 
@@ -311,8 +311,9 @@
   text-align: center;
 }
 
-/* Names and commodities stay on one line when the column allows; anything
-   longer wraps between words and a two-line cell still fits the row. */
+/* RSBSA No., Acknowledgement and Date Received always fit on one line.
+   Longer names and commodities wrap between words; a two-line cell still
+   fits the 32px row. */
 .pr-beneficiary-table td {
   overflow-wrap: break-word;
 }
@@ -341,12 +342,13 @@
 }
 
 .pr-beneficiary-table .pr-bcol-no { width: 3.5%; }
-.pr-beneficiary-table .pr-bcol-name { width: 16.25%; }
+.pr-beneficiary-table .pr-bcol-name { width: 12.5%; }
 .pr-beneficiary-table .pr-bcol-rsbsa { width: 16%; }
 .pr-beneficiary-table .pr-bcol-sex { width: 3.5%; }
-.pr-beneficiary-table .pr-bcol-commodity { width: 17.75%; }
-.pr-beneficiary-table .pr-bcol-qty { width: 7.5%; }
-.pr-beneficiary-table .pr-bcol-unit { width: 4.5%; }
+.pr-beneficiary-table .pr-bcol-commodity { width: 10.25%; }
+.pr-beneficiary-table .pr-bcol-qty { width: 7.75%; }
+.pr-beneficiary-table .pr-bcol-unit { width: 4.25%; }
+.pr-beneficiary-table .pr-bcol-ack { width: 11.25%; }
 .pr-beneficiary-table .pr-bcol-date { width: 9%; }
 .pr-beneficiary-table .pr-bcol-sign { width: 22%; }
 

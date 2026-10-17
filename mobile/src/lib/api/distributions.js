@@ -37,9 +37,8 @@ export async function listDistributions() {
 // tagged in (via distribution_claims, RLS-scoped to their own rows), each
 // with their own quantity, never another farmer's data.
 // ---------------------------------------------------------------------------
-// Farmers only see Upcoming (Ongoing) or Received (Distributed/Completed) —
-// the receipt-filing step (Distributed vs Completed) is office paperwork, so
-// no acknowledgement field is read here.
+// Farmers only see Upcoming (Ongoing) or Received (Completed), so no
+// acknowledgement field is read here.
 const MY_CLAIM_SELECT = `
   claim_id, quantity_received,
   commodities ( name, unit ),

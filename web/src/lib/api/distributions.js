@@ -2,7 +2,7 @@ import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 
 const SELECT = `
-  event_id, program_name, event_date, venue, barangay, funding_source, status, receipts_collected_at, remarks, beneficiaries_count,
+  event_id, program_name, event_date, venue, barangay, funding_source, status, completed_at, remarks, beneficiaries_count,
   distribution_event_items ( event_item_id, commodity_id, quantity_allocated, commodities ( name, category, unit ) )
 `;
 
@@ -22,11 +22,10 @@ function mapDistribution(row, summary) {
     barangay: row.barangay,
     beneficiaries: row.beneficiaries_count,
     taggedBeneficiaryCount: taggedCount,
-    // One status: Ongoing -> Distributed (items released) -> Completed
-    // (signed acknowledgement receipts collected, dated receiptsCollectedAt).
-    // Acknowledgement is part of it — see lib/distributionStatus.js.
+    // Ongoing or Completed. Each farmer's acknowledgement follows from it
+    // (Acknowledged on completedAt) — see lib/distributionStatus.js.
     status: dbStatusToLabel(row.status),
-    receiptsCollectedAt: row.receipts_collected_at ?? null,
+    completedAt: row.completed_at ?? null,
     venue: row.venue ?? "",
     program: row.program_name,
     fundingSource: row.funding_source ?? "",
@@ -70,7 +69,7 @@ export async function getDistribution(eventId) {
 // Beneficiary tagging (Phase 2)
 // ---------------------------------------------------------------------------
 const BENEFICIARY_SELECT = `
-  claim_id, farmer_id, quantity_received, acknowledgement_status, acknowledged_at, duplicate_override_reason,
+  claim_id, farmer_id, quantity_received, duplicate_override_reason,
   farmers ( rsbsa_no, first_name, surname, deleted_at, addresses ( barangay ), profiles!profile_id ( avatar_url ) )
 `;
 
@@ -89,8 +88,6 @@ function mapBeneficiary(row) {
     avatarUrl: row.farmers?.profiles?.avatar_url ?? null,
     farmerDeleted: !!row.farmers?.deleted_at,
     quantity: Number(row.quantity_received),
-    acknowledgementStatus: row.acknowledgement_status === "received" ? "Received" : "Pending",
-    acknowledgedAt: row.acknowledged_at,
     overrideReason: row.duplicate_override_reason,
   };
 }
@@ -173,12 +170,12 @@ const BENEFICIARY_REPORT_SELECT = `
   claim_id, farmer_id, event_id, quantity_received,
   farmers ( rsbsa_no, first_name, surname, addresses ( barangay ) ),
   commodities ( name ),
-  distribution_events ( event_id, event_date, program_name, status, receipts_collected_at, is_deleted )
+  distribution_events ( event_id, event_date, program_name, status, completed_at, is_deleted )
 `;
 
-// Status (and so acknowledgement: Completed = receipts collected) is one
-// value per distribution, not the unused per-claim column — every row from
-// the same distribution reports the same value.
+// Status, and so each farmer's acknowledgement (Completed = Acknowledged on
+// completedAt), is one value per distribution, not the unused per-claim
+// column — every row from the same distribution reports the same value.
 function mapBeneficiaryReportRow(row) {
   const event = row.distribution_events;
   return {
@@ -194,7 +191,7 @@ function mapBeneficiaryReportRow(row) {
     eventDate: event?.event_date,
     program: event?.program_name,
     status: dbStatusToLabel(event?.status ?? "ongoing"),
-    receiptsCollectedAt: event?.receipts_collected_at ?? null,
+    completedAt: event?.completed_at ?? null,
   };
 }
 
@@ -228,7 +225,6 @@ export async function saveDistributionBeneficiaries(eventId, commodityId, benefi
     p_beneficiaries: beneficiaries.map((b) => ({
       farmer_id: b.farmerId,
       quantity_received: b.quantity,
-      acknowledgement_status: b.acknowledgementStatus === "Received" ? "received" : "pending",
       duplicate_override_reason: b.overrideReason || null,
     })),
   });
@@ -240,7 +236,7 @@ export async function markAllBeneficiariesReceived(eventId) {
   if (error) throw error;
 }
 
-// taggedBeneficiaries: [{ farmerId, quantity, acknowledgementStatus, overrideReason }]
+// taggedBeneficiaries: [{ farmerId, quantity, overrideReason }]
 // — when non-empty, this is the source of truth for the item's total
 // quantity and the old beneficiaries_count is set to match (kept in sync so
 // anything still reading the legacy column isn't left stale).
@@ -260,7 +256,7 @@ export async function createDistribution({ program, venue, beneficiaries, commod
       beneficiaries_count: effectiveCount,
     })
     .select(
-      "event_id, program_name, event_date, venue, barangay, funding_source, status, receipts_collected_at, remarks, beneficiaries_count",
+      "event_id, program_name, event_date, venue, barangay, funding_source, status, completed_at, remarks, beneficiaries_count",
     )
     .single();
   if (eventErr) throw eventErr;

@@ -8,7 +8,7 @@ import { listBeneficiaryReport, listDistributions } from "../lib/api/distributio
 import { listCommodities } from "../lib/api/commodities.js";
 import { listSubmissions } from "../lib/api/cropValidation.js";
 import { friendlyError } from "../lib/friendlyError.js";
-import { isReleased, receiptsLabel } from "../lib/distributionStatus.js";
+import { acknowledgementLabel, dateReceived, isCompleted } from "../lib/distributionStatus.js";
 
 export default function PrintReport() {
   const [searchParams] = useSearchParams();
@@ -91,8 +91,9 @@ function filterDistributions(distributions, { barangay, commodity, dateFrom, dat
 
 // Built from tagged distribution_claims rows (Phase 2), not the farmers
 // table — a farmer only appears once per distribution they were actually
-// tagged in, with the real quantity they were given and the distribution's
-// status / acknowledgement receipts.
+// tagged in, with the real quantity they were given, the distribution's
+// status, and their acknowledgement (Acknowledged with the Date Received
+// once the distribution is Completed, otherwise Pending).
 // Older distributions recorded before per-farmer tagging only have a
 // numeric headcount and no claims at all — those still get one summary row
 // each (clearly marked as not individually tagged) instead of silently
@@ -113,7 +114,8 @@ function BeneficiaryList({ claims, distributions, filters }) {
             <th>Date</th>
             <th className="pr-num pr-col-pad-left">Qty</th>
             <th className="pr-col-pad-left">Status</th>
-            <th className="pr-col-pad-left">Acknowledgement Receipts</th>
+            <th className="pr-col-pad-left">Acknowledgement</th>
+            <th className="pr-col-pad-left">Date Received</th>
           </tr>
         </thead>
         <tbody>
@@ -126,7 +128,8 @@ function BeneficiaryList({ claims, distributions, filters }) {
               <td>{c.eventDate}</td>
               <td className="pr-num pr-col-pad-left">{c.quantity.toLocaleString()}</td>
               <td className="pr-col-pad-left">{c.status}</td>
-              <td className="pr-col-pad-left">{receiptsLabel(c)}</td>
+              <td className="pr-col-pad-left">{acknowledgementLabel(c)}</td>
+              <td className="pr-col-pad-left">{dateReceived({ ...c, date: c.eventDate })}</td>
             </tr>
           ))}
           {untaggedRows.map((d) => (
@@ -137,7 +140,8 @@ function BeneficiaryList({ claims, distributions, filters }) {
               <td>{d.date}</td>
               <td className="pr-num pr-col-pad-left">{d.items.reduce((s, i) => s + i.quantity, 0).toLocaleString()}</td>
               <td className="pr-col-pad-left">{d.status}</td>
-              <td className="pr-col-pad-left">{receiptsLabel(d)}</td>
+              <td className="pr-col-pad-left">{acknowledgementLabel(d)}</td>
+              <td className="pr-col-pad-left">{dateReceived(d)}</td>
             </tr>
           ))}
         </tbody>
@@ -164,7 +168,6 @@ function DistributionSummary({ distributions, filters }) {
             <th className="pr-num">Beneficiaries</th>
             <th className="pr-num pr-col-pad-left">Quantity</th>
             <th className="pr-col-pad-left">Status</th>
-            <th className="pr-col-pad-left">Acknowledgement Receipts</th>
           </tr>
         </thead>
         <tbody>
@@ -177,7 +180,6 @@ function DistributionSummary({ distributions, filters }) {
               <td className="pr-num">{d.taggedBeneficiaryCount > 0 ? d.taggedBeneficiaryCount : `${d.beneficiaries} (not tagged)`}</td>
               <td className="pr-num pr-col-pad-left">{distributionTotalQty(d).toLocaleString()} kg</td>
               <td className="pr-col-pad-left">{d.status}</td>
-              <td className="pr-col-pad-left">{receiptsLabel(d)}</td>
             </tr>
           ))}
         </tbody>
@@ -223,14 +225,10 @@ function AttendanceSheet({ claims, filters }) {
   );
 }
 
-// Only items that were actually released count: Distributed (signed
-// receipts not yet filed) and Completed (receipts collected), shown
-// separately so the liquidation states which totals are fully documented.
+// Only Completed distributions count (items released and signed for).
 function LiquidationReport({ commodities, distributions, filters }) {
-  const scoped = filterDistributions(distributions, filters).filter(isReleased);
+  const scoped = filterDistributions(distributions, filters).filter(isCompleted);
   const { totals } = computeCommodityStats(commodities, scoped);
-  const { totals: distributedTotals } = computeCommodityStats(commodities, scoped.filter((d) => d.status === "Distributed"));
-  const { totals: completedTotals } = computeCommodityStats(commodities, scoped.filter((d) => d.status === "Completed"));
 
   return (
     <div className="pr-section">
@@ -240,8 +238,6 @@ function LiquidationReport({ commodities, distributions, filters }) {
             <th>ID</th>
             <th>Name</th>
             <th>Category</th>
-            <th className="pr-num pr-col-pad-left">Distributed (receipts not yet collected)</th>
-            <th className="pr-num pr-col-pad-left">Completed (receipts collected)</th>
             <th className="pr-num pr-col-pad-left">Total Distributed</th>
           </tr>
         </thead>
@@ -251,8 +247,6 @@ function LiquidationReport({ commodities, distributions, filters }) {
               <td>{c.id}</td>
               <td>{c.name}</td>
               <td>{c.category}</td>
-              <td className="pr-num pr-col-pad-left">{(distributedTotals[c.name] ?? 0).toLocaleString()} kg</td>
-              <td className="pr-num pr-col-pad-left">{(completedTotals[c.name] ?? 0).toLocaleString()} kg</td>
               <td className="pr-num pr-col-pad-left">{(totals[c.name] ?? 0).toLocaleString()} kg</td>
             </tr>
           ))}
@@ -266,10 +260,9 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
   // Distribution-activity figures respect the report's date/status/barangay
   // filters (this is the period being reported on); the farmer roster and
   // commodity catalog are current-state counts, not scoped to a period.
-  const scoped = filterDistributions(distributions, filters);
-  const released = scoped.filter(isReleased);
-  const totalQty = released.reduce((sum, d) => sum + distributionTotalQty(d), 0);
-  const receiptsCollected = released.filter((d) => d.status === "Completed").length;
+  // Only Completed distributions count as accomplished.
+  const completed = filterDistributions(distributions, filters).filter(isCompleted);
+  const totalQty = completed.reduce((sum, d) => sum + distributionTotalQty(d), 0);
   const active = farmers.filter((f) => f.status === "Active").length;
   // Validation is per proof-of-planting submission, not per farmer.
   const validatedSubmissions = submissions.filter((s) => s.status === "Validated").length;
@@ -281,9 +274,8 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
         <KV label="Total Registered Farmers" value={farmers.length} />
         <KV label="Active Farmers" value={active} />
         <KV label="Proof of Planting Validated" value={`${validatedSubmissions} of ${submissions.length} submissions`} />
-        <KV label="Total Distribution Activities" value={scoped.length} />
+        <KV label="Completed Distribution Activities" value={completed.length} />
         <KV label="Total Quantity Distributed" value={`${totalQty.toLocaleString()} kg`} />
-        <KV label="Acknowledgement Receipts Collected" value={`${receiptsCollected} of ${released.length} distributions`} />
         <KV label="Commodity Types Available" value={commodities.filter((c) => !c.deletedAt).length} />
       </div>
     </div>

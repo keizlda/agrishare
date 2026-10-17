@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ClipboardCheck, PackageCheck, Pencil, Plus, Printer, Trash2, Truck, X } from "lucide-react";
+import { CheckCircle2, Pencil, Plus, Printer, Trash2, Truck, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
@@ -24,7 +24,7 @@ import {
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { friendlyError } from "../lib/friendlyError.js";
-import { DISTRIBUTION_STATUSES, receiptsLabel } from "../lib/distributionStatus.js";
+import { DISTRIBUTION_STATUSES, completedOn } from "../lib/distributionStatus.js";
 
 // New chips added during this edit split whatever's left after
 // already-edited/loaded rows' quantities are subtracted from the total —
@@ -49,30 +49,10 @@ function redistributeQuantities(rows, totalQuantity) {
   });
 }
 
-// One status, three steps: Ongoing -> Distributed (items released) ->
-// Completed (signed acknowledgement receipts collected). The details panel
-// offers the next step as a one-click action; the New/Edit form can set any
-// of the three.
-const NEXT_STEP = {
-  Ongoing: {
-    status: "Distributed",
-    label: "Mark as distributed",
-    icon: PackageCheck,
-    title: "Mark as distributed?",
-    message: "Items have been released to the farmers. Tagged farmers will be notified that they received them.",
-    confirmLabel: "Mark as distributed",
-  },
-  Distributed: {
-    status: "Completed",
-    label: "Mark receipts collected",
-    icon: ClipboardCheck,
-    title: "Mark receipts collected?",
-    message: "The signed acknowledgement receipts have been collected and filed. The status becomes Completed.",
-    confirmLabel: "Mark receipts collected",
-  },
-};
-
-const STATUS_HELP = "Distributed = items released. Completed = signed acknowledgement receipts collected.";
+// Two statuses: Ongoing -> Completed (items released and beneficiaries
+// signed). Completing a distribution records every tagged farmer as
+// Acknowledged on that date — see lib/distributionStatus.js.
+const STATUS_HELP = "Mark as Completed after the items are released and beneficiaries have signed.";
 
 const EMPTY_FORM = {
   commodityId: "",
@@ -89,8 +69,7 @@ export default function Distributions() {
   const isMAO = user?.role !== "FA President";
   const { data: distributions, setData: setDistributions, loading, error: loadError } = useSupabaseList(listDistributions);
   const [commodities, setCommodities] = useState([]);
-  // ?status= preselects the status filter (the Dashboard's "ongoing" and
-  // "awaiting receipts" chips).
+  // ?status= preselects the status filter (the Dashboard's "ongoing" chip).
   const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(() =>
     DISTRIBUTION_STATUSES.includes(searchParams.get("status")) ? searchParams.get("status") : "All",
@@ -262,9 +241,14 @@ export default function Distributions() {
 
         {selected && (
           <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
-            <div className="agri-panel-header">
+            <div className="agri-panel-header" style={{ alignItems: "flex-start" }}>
               <div style={{ fontWeight: 700 }}>Distribution Details</div>
-              <Pill status={selected.status} />
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                <Pill status={selected.status} />
+                {selected.status === "Completed" && (
+                  <div className="agri-muted" style={{ fontSize: "0.72rem", whiteSpace: "nowrap" }}>Completed on {completedOn(selected)}</div>
+                )}
+              </div>
             </div>
             <div className="agri-muted" style={{ fontSize: "0.8rem", marginBottom: 10 }}>
               {selected.date}
@@ -275,7 +259,6 @@ export default function Distributions() {
             <div className="agri-detail-row"><div><div className="agri-detail-label">Barangay</div>{selected.barangay}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Venue</div>{selected.venue}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Funding Source</div>{selected.fundingSource || "—"}</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Acknowledgement Receipts</div>{receiptsLabel(selected)}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Total Beneficiaries</div>{selected.beneficiaries} Farmers</div></div>
             {selected.remarks && (
               <div className="agri-detail-row"><div><div className="agri-detail-label">Remarks</div>{selected.remarks}</div></div>
@@ -325,13 +308,13 @@ export default function Distributions() {
             </div>
 
             <div className="agri-detail-actions">
-              {isMAO && NEXT_STEP[selected.status] && (
-                <StatusStepButton
-                  key={`${selected.id}-${selected.status}`}
+              {isMAO && selected.status === "Ongoing" && (
+                <MarkCompletedButton
+                  key={selected.id}
                   distribution={selected}
                   onSaved={(updated) => {
                     setDistributions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-                    setToast({ tone: "success", message: `Status updated to ${updated.status}.` });
+                    setToast({ tone: "success", message: "Distribution marked as completed." });
                   }}
                   onError={(message) => setToast({ tone: "error", message })}
                 />
@@ -377,18 +360,15 @@ export default function Distributions() {
   );
 }
 
-// The one-click next step for the selected distribution (MAO only):
-// Ongoing -> "Mark as distributed", Distributed -> "Mark receipts collected".
-// Both ask for confirmation first.
-function StatusStepButton({ distribution, onSaved, onError }) {
+// "Mark as completed" for an Ongoing distribution (MAO only), after a
+// confirmation. Completed distributions show "Completed on [date]" instead.
+function MarkCompletedButton({ distribution, onSaved, onError }) {
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
-  const step = NEXT_STEP[distribution.status];
-  const Icon = step.icon;
 
   function handleClick() {
     if ((distribution.taggedBeneficiaryCount ?? 0) === 0) {
-      onError(`Tag at least one beneficiary before marking this distribution as ${step.status}.`);
+      onError("Tag at least one beneficiary before marking this distribution as completed.");
       return;
     }
     setConfirming(true);
@@ -398,7 +378,7 @@ function StatusStepButton({ distribution, onSaved, onError }) {
     setConfirming(false);
     setSaving(true);
     try {
-      onSaved(await updateDistributionStatus(distribution.id, step.status));
+      onSaved(await updateDistributionStatus(distribution.id, "Completed"));
     } catch (err) {
       onError(friendlyError(err, "Failed to update status."));
     } finally {
@@ -414,14 +394,14 @@ function StatusStepButton({ distribution, onSaved, onError }) {
         disabled={saving}
         onClick={handleClick}
       >
-        <Icon size={16} /> {saving ? "Saving…" : step.label}
+        <CheckCircle2 size={16} /> {saving ? "Saving…" : "Mark as completed"}
       </button>
 
       {confirming && (
         <ConfirmDialog
-          title={step.title}
-          message={`${distribution.program} (${distribution.date}): ${step.message}`}
-          confirmLabel={step.confirmLabel}
+          title="Mark as completed?"
+          message={`${distribution.program} (${distribution.date}): the items have been released and the beneficiaries have signed. Each tagged farmer is recorded as Acknowledged today and notified that they received their items.`}
+          confirmLabel="Mark as completed"
           danger={false}
           onConfirm={handleConfirm}
           onCancel={() => setConfirming(false)}
@@ -520,7 +500,6 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
             status: "Active",
             farmerDeleted: r.farmerDeleted,
             quantity: r.quantity,
-            acknowledgementStatus: r.acknowledgementStatus,
             overrideReason: r.overrideReason ?? "",
             edited: true,
             duplicate: null,
@@ -583,7 +562,6 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
         avatarUrl: farmer.avatarUrl,
         status: farmer.status,
         quantity: 0,
-        acknowledgementStatus: "Pending",
         overrideReason: "",
         edited: false,
         duplicate: null,
@@ -645,13 +623,11 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     setFormError("");
     setSaving(true);
     try {
-      // acknowledgement_status stays "Pending" on every claim row (an unused
-      // per-farmer column) — acknowledgement is recorded once for the whole
-      // distribution through its status: Completed = receipts collected.
+      // Each farmer's acknowledgement isn't sent per row — it follows the
+      // distribution's status (Completed = Acknowledged).
       const taggedBeneficiaries = form.taggedBeneficiaries.map((r) => ({
         farmerId: r.farmerId,
         quantity: Number(r.quantity) || 0,
-        acknowledgementStatus: "Pending",
         overrideReason: r.duplicate ? overrideReason.trim() : r.overrideReason || "",
       }));
       const saved = editing

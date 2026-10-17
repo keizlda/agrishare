@@ -1,28 +1,41 @@
-// A distribution has ONE status with three steps (see migration
-// 20261017000000_single_distribution_status.sql):
-//   Ongoing     – scheduled or in progress
-//   Distributed – items released to farmers; signed acknowledgement
-//                 receipts not yet filed
-//   Completed   – signed acknowledgement receipts collected and filed
-// Acknowledgement is part of that status: Completed = acknowledged, with the
-// date in receiptsCollectedAt.
-export const DISTRIBUTION_STATUSES = ["Ongoing", "Distributed", "Completed"];
+// A distribution has TWO statuses (paper Sections 1.5.1 and 3.2.1; migration
+// 20261017020000_two_distribution_statuses.sql):
+//   Ongoing   – scheduled or in progress
+//   Completed – items released and beneficiaries signed the acknowledgement
+//               receipt
+// Each tagged farmer's acknowledgement follows from it: Pending while
+// Ongoing, Acknowledged on the completion date (completedAt) once Completed.
+// The database's distribution_beneficiary_acknowledgement view gives the
+// same values.
+export const DISTRIBUTION_STATUSES = ["Ongoing", "Completed"];
 
-// Items have reached farmers (counts toward "quantity distributed").
-export function isReleased(distribution) {
-  return distribution.status === "Distributed" || distribution.status === "Completed";
+export function isCompleted(distribution) {
+  return distribution.status === "Completed";
 }
 
-// "Collected on October 5, 2026" / "Not yet collected", for reports, the
-// printed Distribution Report and the details panel.
-export function receiptsLabel({ status, receiptsCollectedAt }) {
-  if (status !== "Completed") return "Not yet collected";
-  if (!receiptsCollectedAt) return "Collected";
-  const date = new Date(receiptsCollectedAt).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "Asia/Manila",
-  });
-  return `Collected on ${date}`;
+function manilaDate(timestamp, options) {
+  return new Date(timestamp).toLocaleDateString("en-US", { ...options, timeZone: "Asia/Manila" });
+}
+
+// "October 5, 2026" — when the distribution was marked Completed.
+export function completedOn({ status, completedAt, date }) {
+  if (status !== "Completed") return "";
+  if (!completedAt) return date ?? "";
+  return manilaDate(completedAt, { month: "long", day: "numeric", year: "numeric" });
+}
+
+// Per-farmer acknowledgement for reports and the printed beneficiary list.
+export function acknowledgementLabel({ status }) {
+  return status === "Completed" ? "Acknowledged" : "Pending";
+}
+
+// "10/05/2026" — the Date Received printed per farmer (the completion date),
+// blank while the distribution is still Ongoing.
+export function dateReceived({ status, completedAt, date }) {
+  if (status !== "Completed") return "";
+  if (!completedAt) {
+    const [y, m, d] = String(date ?? "").split("-");
+    return y && m && d ? `${m}/${d}/${y}` : "";
+  }
+  return manilaDate(completedAt, { month: "2-digit", day: "2-digit", year: "numeric" });
 }

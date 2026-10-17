@@ -11,7 +11,6 @@ export const STATUS_COLOR = {
   Rejected: "red",
   Pending: "orange",
   Ongoing: "orange",
-  Distributed: "blue",
   Partial: "orange",
   Received: "green",
   Complete: "green",

@@ -15,11 +15,10 @@ import { useTabBarHeight } from "../hooks/useTabBarHeight";
 
 const ANNOUNCEMENT_ROWS = 3;
 
-// Distributed/Completed -> "Received" (they got it); Ongoing -> "Upcoming"
-// (scheduled or in progress). Farmers never see acknowledgement wording —
-// filing the signed receipts (Completed) is office paperwork.
+// Completed -> "Received" (they got it); Ongoing -> "Upcoming" (scheduled
+// or in progress). Farmers never see acknowledgement wording.
 function recentBadge(status) {
-  if (status === "Distributed" || status === "Completed") return "Received";
+  if (status === "Completed") return "Received";
   if (status === "Ongoing") return "Upcoming";
   return status;
 }
