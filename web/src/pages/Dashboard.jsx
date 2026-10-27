@@ -24,6 +24,7 @@ import {
 import { listFarmers } from "../lib/api/farmers.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { isCompleted } from "../lib/distributionStatus.js";
+import { formatDate } from "../lib/dates.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { listSubmissions } from "../lib/api/cropValidation.js";
 import { listRequests, listRequestsForAdminReview } from "../lib/api/requests.js";
@@ -226,7 +227,7 @@ export default function Dashboard() {
                     <div style={{ minWidth: 0 }}>
                       <div className="agri-dash-list-title">{shortName}</div>
                       <div className="agri-muted agri-dash-list-sub">
-                        {distributionTotalQty(d).toLocaleString()} {primaryItem.unit} · {d.date}
+                        {distributionTotalQty(d).toLocaleString()} {primaryItem.unit} · {formatDate(d.date)}
                       </div>
                     </div>
                     <span className="agri-pill green">{d.beneficiaries} Farmers</span>

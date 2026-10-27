@@ -9,7 +9,10 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
+import { useCardLabels } from "../hooks/useCardLabels.js";
+import { useRevealDetail } from "../hooks/useRevealDetail.js";
 import { listRequests, listRequestsForAdminReview, faReviewRequest, adminReviewRequest } from "../lib/api/requests.js";
+import { formatDate } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
@@ -24,8 +27,6 @@ function reviewLabel(r) {
   if (r.status === "Rejected" && r.rejectedBy === "fa") return "Not endorsed";
   return r.status;
 }
-
-const day = (timestamp) => timestamp?.slice(0, 10) ?? "—";
 
 export default function Requests() {
   const { user } = useAuth();
@@ -85,6 +86,9 @@ function FARequestsView({ currentUserId }) {
   // Rows per page = however many fit in the full-height table area (min 5).
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
+  useCardLabels(tableRef);
+  const detailRef = useRef(null);
+  const revealDetail = useRevealDetail(detailRef);
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
 
   useEffect(() => {
@@ -136,17 +140,17 @@ function FARequestsView({ currentUserId }) {
           </div>
 
           <div className="agri-table-wrap" ref={tableRef}>
-            <table className="agri-table">
+            <table className="agri-table agri-table-cards">
               <thead>
                 <tr><th>Farmer</th><th>Commodity</th><th>Quantity</th><th>Date Requested</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {pageItems.map((r) => (
-                  <tr key={r.id} {...rowLinkProps(() => setSelectedId(r.id), { selected: r.id === selectedId })}>
+                  <tr key={r.id} {...rowLinkProps(() => { setSelectedId(r.id); revealDetail(); }, { selected: r.id === selectedId })}>
                     <td><span className="agri-row-title">{r.farmerName}</span></td>
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
-                    <td>{r.requestDate}</td>
+                    <td>{formatDate(r.requestDate)}</td>
                     <td><Pill status={reviewLabel(r)} /></td>
                   </tr>
                 ))}
@@ -163,7 +167,7 @@ function FARequestsView({ currentUserId }) {
         </div>
 
         {selected && (
-          <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
+          <div ref={detailRef} className="agri-card agri-fill-card" style={{ padding: 18 }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
               <Pill status={reviewLabel(selected)} />
@@ -175,7 +179,7 @@ function FARequestsView({ currentUserId }) {
             <div className="agri-detail-row"><div><div className="agri-detail-label">Barangay</div>{selected.barangay}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity Requested</div>{selected.commodity}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Quantity</div>{selected.quantity.toLocaleString()} {selected.unit}</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Date Requested</div>{selected.requestDate}</div></div>
+            <div className="agri-detail-row"><div><div className="agri-detail-label">Date Requested</div>{formatDate(selected.requestDate)}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Reason</div>{selected.reason}</div></div>
 
             {selected.faRemarks && (
@@ -188,7 +192,7 @@ function FARequestsView({ currentUserId }) {
               <div className="agri-detail-row">
                 <div>
                   <div className="agri-detail-label">Admin Decision</div>
-                  {selected.status} on {day(selected.adminDecisionAt)}
+                  {selected.status} on {formatDate(selected.adminDecisionAt)}
                 </div>
               </div>
             )}
@@ -256,6 +260,9 @@ function AdminRequestsView() {
   // Rows per page = however many fit in the full-height table area (min 5).
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: tabbed.length > 0 });
+  useCardLabels(tableRef);
+  const detailRef = useRef(null);
+  const revealDetail = useRevealDetail(detailRef);
   const { page, setPage, totalPages, pageItems } = usePagination(tabbed, pageSize);
 
   useEffect(() => {
@@ -304,13 +311,13 @@ function AdminRequestsView() {
             </div>
           )}
           <div className="agri-table-wrap" ref={tableRef}>
-            <table className="agri-table">
+            <table className="agri-table agri-table-cards">
               <thead>
                 <tr><th>Farmer</th><th>Commodity</th><th>Quantity</th><th>Endorsed On</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {pageItems.map((r) => (
-                  <tr key={r.id} {...rowLinkProps(() => setSelectedId(r.id), { selected: r.id === selectedId })}>
+                  <tr key={r.id} {...rowLinkProps(() => { setSelectedId(r.id); revealDetail(); }, { selected: r.id === selectedId })}>
                     <td>
                       <span className="agri-farmer-cell">
                         <FarmerAvatar url={r.avatarUrl} firstName={r.farmerFirstName} lastName={r.farmerLastName} size={28} />
@@ -319,7 +326,7 @@ function AdminRequestsView() {
                     </td>
                     <td>{r.commodity}</td>
                     <td>{r.quantity.toLocaleString()} {r.unit}</td>
-                    <td>{day(r.forwardedToAdminAt)}</td>
+                    <td>{formatDate(r.forwardedToAdminAt)}</td>
                     <td><Pill status={reviewLabel(r)} /></td>
                   </tr>
                 ))}
@@ -336,7 +343,7 @@ function AdminRequestsView() {
         </div>
 
         {selected && (
-          <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
+          <div ref={detailRef} className="agri-card agri-fill-card" style={{ padding: 18 }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
               <Pill status={reviewLabel(selected)} />
@@ -352,11 +359,11 @@ function AdminRequestsView() {
             </div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity</div>{selected.commodity}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Quantity</div>{selected.quantity.toLocaleString()} {selected.unit}</div></div>
-            <div className="agri-detail-row"><div><div className="agri-detail-label">Requested On</div>{selected.requestDate}</div></div>
+            <div className="agri-detail-row"><div><div className="agri-detail-label">Requested On</div>{formatDate(selected.requestDate)}</div></div>
             <div className="agri-detail-row">
               <div>
                 <div className="agri-detail-label">{notEndorsed ? "Not Endorsed By" : "Endorsed By"}</div>
-                {selected.faPresidentName} on {day(notEndorsed ? selected.faDecisionAt : selected.forwardedToAdminAt ?? selected.faDecisionAt)}
+                {selected.faPresidentName} on {formatDate(notEndorsed ? selected.faDecisionAt : selected.forwardedToAdminAt ?? selected.faDecisionAt)}
               </div>
             </div>
             <div className="agri-detail-row">

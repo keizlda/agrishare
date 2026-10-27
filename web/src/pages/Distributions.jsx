@@ -6,12 +6,15 @@ import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Toast from "../components/ui/Toast.jsx";
+import DateInput from "../components/ui/DateInput.jsx";
 import FarmerTagInput from "../components/distributions/FarmerTagInput.jsx";
 import { distributionTotalQty } from "../data/mockData.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
+import { useCardLabels } from "../hooks/useCardLabels.js";
+import { useRevealDetail } from "../hooks/useRevealDetail.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import {
   checkDuplicateDistribution,
@@ -23,6 +26,7 @@ import {
   updateDistributionStatus,
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
+import { formatDate } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { DISTRIBUTION_STATUSES, completedOn } from "../lib/distributionStatus.js";
 import { rowLinkProps } from "../lib/rowLink.js";
@@ -141,6 +145,9 @@ export default function Distributions() {
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
+  useCardLabels(tableRef);
+  const detailRef = useRef(null);
+  const revealDetail = useRevealDetail(detailRef);
 
   const selected = distributions.find((d) => d.id === selectedId) ?? null;
 
@@ -178,33 +185,39 @@ export default function Distributions() {
               {loadError}
             </div>
           )}
-          <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center", flexWrap: "wrap" }}>
+          <div className="agri-toolbar">
             {isMAO && (
               <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setModal({ mode: "add" })}>
                 <Plus size={16} /> New Distribution
               </button>
             )}
 
-            <select className="form-select" style={{ width: 160 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "160px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="All">All Status</option>
               {DISTRIBUTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
 
-            <select className="form-select" style={{ width: 200 }} value={programFilter} onChange={(e) => setProgramFilter(e.target.value)}>
+            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "200px" }} value={programFilter} onChange={(e) => setProgramFilter(e.target.value)}>
               <option value="All">All Programs</option>
               {programOptions.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
 
           <div className="agri-table-wrap" ref={tableRef}>
-            <table className="agri-table">
+            <table className="agri-table agri-table-cards">
               <thead>
                 <tr><th>Date</th><th>Crop Type</th><th>Program</th><th>Beneficiaries</th><th>Quantity</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {pageItems.map((d) => (
-                  <tr key={d.id} {...rowLinkProps(() => setSelectedId(d.id), { selected: d.id === selectedId })}>
-                    <td>{d.date}</td>
+                  <tr
+                    key={d.id}
+                    {...rowLinkProps(() => {
+                      setSelectedId(d.id);
+                      revealDetail();
+                    }, { selected: d.id === selectedId })}
+                  >
+                    <td>{formatDate(d.date)}</td>
                     <td>{d.cropType}</td>
                     <td className="agri-cell-truncate" title={d.program || undefined}>
                       {d.program ? <span className="agri-row-title">{d.program}</span> : <span className="agri-muted">—</span>}
@@ -238,7 +251,7 @@ export default function Distributions() {
         </div>
 
         {selected && (
-          <div className="agri-card agri-fill-card" style={{ padding: 18 }}>
+          <div ref={detailRef} className="agri-card agri-fill-card" style={{ padding: 18 }}>
             <div className="agri-panel-header" style={{ alignItems: "flex-start" }}>
               <div style={{ fontWeight: 700 }}>Distribution Details</div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
@@ -249,7 +262,7 @@ export default function Distributions() {
               </div>
             </div>
             <div className="agri-muted" style={{ fontSize: "0.8rem", marginBottom: 10 }}>
-              {selected.date}
+              {formatDate(selected.date)}
             </div>
 
             <div className="agri-detail-body">
@@ -401,7 +414,7 @@ function MarkCompletedButton({ distribution, onSaved, onError }) {
       {confirming && (
         <ConfirmDialog
           title="Mark as completed?"
-          message={`${distribution.program} (${distribution.date}): the items have been released and the beneficiaries have signed. Each tagged farmer is recorded as Acknowledged today and notified that they received their items.`}
+          message={`${distribution.program} (${formatDate(distribution.date)}): the items have been released and the beneficiaries have signed. Each tagged farmer is recorded as Acknowledged today and notified that they received their items.`}
           confirmLabel="Mark as completed"
           danger={false}
           onConfirm={handleConfirm}
@@ -664,13 +677,20 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
-      <div className="agri-card" style={{ width: 460, maxWidth: "92vw", padding: 22, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
-        <div className="agri-panel-header">
-          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{editing ? "Edit Distribution" : "New Distribution"}</div>
+    <div className="agri-modal-backdrop" onClick={onClose}>
+      <form
+        className="agri-card agri-modal agri-modal-full"
+        style={{ "--agri-modal-width": "460px" }}
+        role="dialog"
+        aria-label={editing ? "Edit Distribution" : "New Distribution"}
+        onSubmit={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="agri-modal-header">
+          <div className="agri-modal-title">{editing ? "Edit Distribution" : "New Distribution"}</div>
           <button type="button" className="agri-icon-btn" aria-label="Close" onClick={onClose}><X size={16} /></button>
         </div>
-        <form onSubmit={handleSubmit}>
+        <div className="agri-modal-body">
           {formError && (
             <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
               {formError}
@@ -679,11 +699,11 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
 
           {editing && (
             <div className="row g-3 mb-3">
-              <div className="col-6">
+              <div className="col-12 col-sm-6">
                 <label className="agri-form-label">Date</label>
-                <input required type="date" className="form-control" value={form.date} onChange={(e) => update("date", e.target.value)} />
+                <DateInput required value={form.date} onChange={(v) => update("date", v)} aria-label="Distribution date" />
               </div>
-              <div className="col-6">
+              <div className="col-12 col-sm-6">
                 <label className="agri-form-label">Barangay</label>
                 <input required className="form-control" value={form.barangay} onChange={(e) => update("barangay", e.target.value)} />
               </div>
@@ -753,7 +773,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                           {row.farmerDeleted && <span className="agri-muted"> (removed)</span>}
                           {row.duplicate && (
                             <div className="agri-beneficiary-duplicate-warning">
-                              Already received {row.duplicate.quantity} from {row.duplicate.program} on {row.duplicate.date}
+                              Already received {row.duplicate.quantity} from {row.duplicate.program} on {formatDate(row.duplicate.date)}
                             </div>
                           )}
                         </td>
@@ -811,14 +831,14 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
           <div className="mb-3" />
 
           <label className="agri-form-label">Funding Source</label>
-          <input className="form-control mb-3" placeholder="e.g. DA Regional Field Office IX" value={form.fundingSource} onChange={(e) => update("fundingSource", e.target.value)} />
+          <input className="form-control" placeholder="e.g. DA Regional Field Office IX" value={form.fundingSource} onChange={(e) => update("fundingSource", e.target.value)} />
+        </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : editing ? "Save Changes" : "Save Distribution"}</button>
-          </div>
-        </form>
-      </div>
+        <div className="agri-modal-footer">
+          <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : editing ? "Save Changes" : "Save Distribution"}</button>
+        </div>
+      </form>
     </div>
   );
 }

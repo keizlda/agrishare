@@ -8,7 +8,7 @@ function mapCommodity(row) {
     category: row.category,
     unit: row.unit,
     status: dbStatusToLabel(row.status),
-    dateAdded: row.created_at?.slice(0, 10),
+    dateAdded: row.created_at,
     deletedAt: row.deleted_at,
   };
 }

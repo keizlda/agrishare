@@ -7,14 +7,17 @@ import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
+import DateInput from "../components/ui/DateInput.jsx";
 import FarmerProfileDrawer from "../components/farmers/FarmerProfileDrawer.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
+import { useCardLabels } from "../hooks/useCardLabels.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { commodityCategories } from "../data/mockData.js";
+import { formatDate } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowActionsCellProps, rowLinkProps } from "../lib/rowLink.js";
 import {
@@ -165,7 +168,7 @@ function validateFarmerForm(form) {
   if (!form.lastName.trim()) errors.lastName = "Last name is required.";
   if (!form.sex) errors.sex = "Sex is required.";
   if (!form.birthDate) {
-    errors.birthDate = "Birth date is required.";
+    errors.birthDate = "Enter the birth date as MM/DD/YYYY.";
   } else if (new Date(form.birthDate).getFullYear() >= new Date().getFullYear()) {
     errors.birthDate = "Enter a realistic birth date — not this year or in the future.";
   }
@@ -234,6 +237,7 @@ export default function Farmers() {
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
+  useCardLabels(tableRef);
 
   async function handleDelete(id) {
     setActionError("");
@@ -285,24 +289,23 @@ export default function Farmers() {
             {loadError || actionError}
           </div>
         )}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 16 }}>
-          <div style={{ position: "relative", flex: "1 1 220px" }}>
-            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--agri-icon-muted)" }} />
+        <div className="agri-toolbar" style={{ marginBottom: 16 }}>
+          <div className="agri-toolbar-search">
+            <Search size={15} />
             <input
               className="form-control"
               placeholder="Search farmer by name or RSBSA no."
-              style={{ paddingLeft: 32 }}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
-          <select className="form-select" style={{ width: 170 }} value={commodityFilter} onChange={(e) => setCommodityFilter(e.target.value)}>
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "170px" }} value={commodityFilter} onChange={(e) => setCommodityFilter(e.target.value)}>
             <option value="All">All Commodities</option>
             {FARMER_COMMODITY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
 
-          <select className="form-select" style={{ width: 150 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "150px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="All">All Status</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
@@ -316,7 +319,7 @@ export default function Farmers() {
         </div>
 
         <div className="agri-table-wrap" ref={tableRef}>
-          <table className="agri-table">
+          <table className="agri-table agri-table-cards">
             <thead>
               <tr>
                 <th>RSBSA No.</th><th>Full Name</th><th>Sex</th><th>Birth Date</th><th>Contact No.</th>
@@ -336,7 +339,7 @@ export default function Farmers() {
                     </span>
                   </td>
                   <td>{f.sex}</td>
-                  <td>{f.birthDate}</td>
+                  <td>{formatDate(f.birthDate)}</td>
                   <td>{f.contactNo}</td>
                   <td>{f.barangay}</td>
                   <td>{f.commodity}</td>
@@ -583,21 +586,20 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
   }
 
   return (
-    <div
-      style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}
-      onClick={onClose}
-    >
+    <div className="agri-modal-backdrop" onClick={onClose}>
       <div
-        className="agri-card"
-        style={{ width: 640, maxWidth: "94vw", maxHeight: "88vh", display: "flex", flexDirection: "column" }}
+        className="agri-card agri-modal agri-modal-full"
+        style={{ "--agri-modal-width": "640px" }}
+        role="dialog"
+        aria-label={mode === "edit" ? "Edit Farmer" : "Add Farmer"}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="agri-panel-header" style={{ margin: 0, padding: "18px 22px", borderBottom: "1px solid var(--agri-divider)" }}>
-          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>{mode === "edit" ? "Edit Farmer" : "Add Farmer"}</div>
-          <button className="agri-icon-btn" onClick={onClose}><X size={16} /></button>
+        <div className="agri-modal-header">
+          <div className="agri-modal-title">{mode === "edit" ? "Edit Farmer" : "Add Farmer"}</div>
+          <button type="button" className="agri-icon-btn" aria-label="Close" onClick={onClose}><X size={16} /></button>
         </div>
 
-        <div style={{ padding: "18px 22px", overflowY: "auto", flex: 1 }}>
+        <div className="agri-modal-body">
           {duplicate && (
             <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "10px 12px" }}>
               A farmer with matching RSBSA number / name and birthdate already exists.
@@ -622,7 +624,7 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
             </div>
           )}
 
-          <form id="farmer-form" onSubmit={handleSubmit}>
+          <form id="farmer-form" onSubmit={handleSubmit} noValidate>
             <Section title="Identification">
               <Field label="RSBSA Number" col={12} required error={errors.rsbsaNo}>
                 <input
@@ -649,7 +651,7 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
                 </select>
               </Field>
               <Field label="Birth Date" col={4} required error={errors.birthDate}>
-                <input type="date" className="form-control" value={form.birthDate} onChange={(e) => update("birthDate", e.target.value)} />
+                <DateInput value={form.birthDate} onChange={(v) => update("birthDate", v)} invalid={!!errors.birthDate} aria-label="Birth date" />
               </Field>
               <Field label="Contact No." col={4} required error={errors.contactNo}>
                 <input type="tel" inputMode="numeric" className="form-control" value={form.contactNo} onChange={(e) => update("contactNo", e.target.value)} placeholder="09XX XXX XXXX" />
@@ -708,7 +710,7 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
           </form>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "16px 22px", borderTop: "1px solid var(--agri-divider)" }}>
+        <div className="agri-modal-footer">
           <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
           <button type="submit" form="farmer-form" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : "Save Farmer"}</button>
         </div>
@@ -733,9 +735,10 @@ function Section({ title, children, last }) {
   );
 }
 
+// One column on phones; `col` (of 12) from 576px up.
 function Field({ label, col, required, error, children }) {
   return (
-    <div className={`col-${col}`}>
+    <div className={`col-12 col-sm-${col}`}>
       <label className="agri-form-label">
         {label}
         {required && <span style={{ color: "var(--agri-red)" }}> *</span>}

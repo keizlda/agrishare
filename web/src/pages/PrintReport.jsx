@@ -9,6 +9,7 @@ import { listCommodities } from "../lib/api/commodities.js";
 import { listSubmissions } from "../lib/api/cropValidation.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { acknowledgementLabel, dateReceived, isCompleted } from "../lib/distributionStatus.js";
+import { formatDate, formatDateNumeric } from "../lib/dates.js";
 
 export default function PrintReport() {
   const [searchParams] = useSearchParams();
@@ -44,9 +45,9 @@ export default function PrintReport() {
   }
 
   const subtitleParts = [];
-  if (dateFrom && dateTo) subtitleParts.push(`Date Range: ${dateFrom} to ${dateTo}`);
-  else if (dateFrom) subtitleParts.push(`From: ${dateFrom}`);
-  else if (dateTo) subtitleParts.push(`Through: ${dateTo}`);
+  if (dateFrom && dateTo) subtitleParts.push(`Date Range: ${formatDate(dateFrom)} to ${formatDate(dateTo)}`);
+  else if (dateFrom) subtitleParts.push(`From: ${formatDate(dateFrom)}`);
+  else if (dateTo) subtitleParts.push(`Through: ${formatDate(dateTo)}`);
   if (status !== "All Status") subtitleParts.push(`Status: ${status}`);
   if (barangay !== "All Barangays") subtitleParts.push(`Barangay: ${barangay}`);
   if (commodity !== "All Commodities") subtitleParts.push(`Commodity: ${commodity}`);
@@ -125,7 +126,7 @@ function BeneficiaryList({ claims, distributions, filters }) {
               <td>{c.firstName} {c.lastName}</td>
               <td>{c.barangay}</td>
               <td>{c.commodity}</td>
-              <td>{c.eventDate}</td>
+              <td>{formatDateNumeric(c.eventDate)}</td>
               <td className="pr-num pr-col-pad-left">{c.quantity.toLocaleString()}</td>
               <td className="pr-col-pad-left">{c.status}</td>
               <td className="pr-col-pad-left">{acknowledgementLabel(c)}</td>
@@ -137,7 +138,7 @@ function BeneficiaryList({ claims, distributions, filters }) {
               <td colSpan={2} className="agri-muted">{d.beneficiaries} beneficiaries (not individually tagged)</td>
               <td>{d.barangay}</td>
               <td>{d.items.map((i) => i.name).join(", ")}</td>
-              <td>{d.date}</td>
+              <td>{formatDateNumeric(d.date)}</td>
               <td className="pr-num pr-col-pad-left">{d.items.reduce((s, i) => s + i.quantity, 0).toLocaleString()}</td>
               <td className="pr-col-pad-left">{d.status}</td>
               <td className="pr-col-pad-left">{acknowledgementLabel(d)}</td>
@@ -174,7 +175,7 @@ function DistributionSummary({ distributions, filters }) {
           {rows.map((d) => (
             <tr key={d.id}>
               <td>{d.id}</td>
-              <td>{d.date}</td>
+              <td>{formatDateNumeric(d.date)}</td>
               <td>{d.program}</td>
               <td>{d.barangay}</td>
               <td className="pr-num">{d.taggedBeneficiaryCount > 0 ? d.taggedBeneficiaryCount : `${d.beneficiaries} (not tagged)`}</td>

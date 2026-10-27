@@ -57,12 +57,3 @@ export const myRequests = [
   { id: "REQ-1", commodity: "Rice Seeds (NSIC Rc222)", quantity: 50, unit: "kg", reason: "For upcoming wet season planting on additional farm area.", requestDate: "2024-05-21", status: "Pending" },
   { id: "REQ-0", commodity: "Fertilizer", quantity: 20, unit: "kg", reason: "Needed for second cropping cycle top-dressing.", requestDate: "2024-04-30", status: "Approved" },
 ];
-
-export const cropValidationSample = {
-  farmerName: "Juan Dela Cruz",
-  rsbsaNo: "1234-5678-9101-1121",
-  barangay: "Langapud",
-  commodityReceived: "Hybrid Rice Seeds",
-  distributionDate: "2024-05-15",
-  status: "PENDING VALIDATION",
-};

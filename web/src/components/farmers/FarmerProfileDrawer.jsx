@@ -5,16 +5,11 @@ import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { getFarmerProfileExtras } from "../../lib/api/farmers.js";
 import { listFarmerDistributionHistory } from "../../lib/api/distributions.js";
 import { listSubmissionsForFarmer } from "../../lib/api/cropValidation.js";
+import { formatDate } from "../../lib/dates.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
 const DASH = "—";
 const show = (v) => (v === null || v === undefined || v === "" ? DASH : v);
-
-function formatDate(value) {
-  if (!value) return DASH;
-  const d = new Date(value.length === 10 ? `${value}T00:00:00` : value);
-  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
 
 function ageOn(birthDate, today = new Date()) {
   if (!birthDate) return null;

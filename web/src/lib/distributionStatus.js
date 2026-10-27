@@ -1,3 +1,5 @@
+import { formatDateLong, formatDateNumeric } from "./dates.js";
+
 // A distribution has TWO statuses (paper Sections 1.5.1 and 3.2.1; migration
 // 20261017020000_two_distribution_statuses.sql):
 //   Ongoing   – scheduled or in progress
@@ -13,15 +15,11 @@ export function isCompleted(distribution) {
   return distribution.status === "Completed";
 }
 
-function manilaDate(timestamp, options) {
-  return new Date(timestamp).toLocaleDateString("en-US", { ...options, timeZone: "Asia/Manila" });
-}
-
-// "October 5, 2026" — when the distribution was marked Completed.
+// "October 5, 2026" — when the distribution was marked Completed (the
+// distribution date for older records without a completion time).
 export function completedOn({ status, completedAt, date }) {
   if (status !== "Completed") return "";
-  if (!completedAt) return date ?? "";
-  return manilaDate(completedAt, { month: "long", day: "numeric", year: "numeric" });
+  return formatDateLong(completedAt ?? date, "");
 }
 
 // Per-farmer acknowledgement for reports and the printed beneficiary list.
@@ -33,9 +31,5 @@ export function acknowledgementLabel({ status }) {
 // blank while the distribution is still Ongoing.
 export function dateReceived({ status, completedAt, date }) {
   if (status !== "Completed") return "";
-  if (!completedAt) {
-    const [y, m, d] = String(date ?? "").split("-");
-    return y && m && d ? `${m}/${d}/${y}` : "";
-  }
-  return manilaDate(completedAt, { month: "2-digit", day: "2-digit", year: "numeric" });
+  return formatDateNumeric(completedAt ?? date);
 }

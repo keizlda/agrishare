@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, BellOff, CheckCircle2, Inbox, MailOpen, Mail, MoreHorizontal, Package, ShieldCheck, Trash2, X, XCircle } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog.jsx";
+import { formatDate } from "../../lib/dates.js";
 import Toast from "../ui/Toast.jsx";
 import {
   clearReadNotifications,
@@ -34,7 +35,7 @@ function relativeTime(iso) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatDate(iso);
 }
 
 function groupLabel(iso) {

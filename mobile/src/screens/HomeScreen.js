@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { listMyDistributions } from "../lib/api/distributions";
 import { listAnnouncements, markAnnouncementRead } from "../lib/api/announcements";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
+import { formatDate } from "../lib/dates";
 
 const ANNOUNCEMENT_ROWS = 3;
 
@@ -23,13 +24,11 @@ function recentBadge(status) {
   return status;
 }
 
-// "Oct 23 · 9:00 AM · Langapud Covered Court" for distribution posts, the
+// "Oct 23, 2026 · 9:00 AM · Langapud Covered Court" for distribution posts, the
 // first line of the details for general notices.
 function announcementLine(a) {
   if (a.isGeneralNotice) return (a.body ?? "").split("\n").find((l) => l.trim()) ?? "";
-  const date = a.distributionDate
-    ? new Date(`${a.distributionDate}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-    : null;
+  const date = a.distributionDate ? formatDate(a.distributionDate) : null;
   let time = null;
   if (a.distributionTime) {
     const [h, m] = a.distributionTime.split(":").map(Number);
@@ -176,7 +175,7 @@ export default function HomeScreen({ navigation }) {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.distTitle}>{d.program}</Text>
                   <Text style={styles.distSub}>
-                    {d.date} · {d.venue} · {d.item} · {d.quantity.toLocaleString()} {d.unit}
+                    {formatDate(d.date)} · {d.venue} · {d.item} · {d.quantity.toLocaleString()} {d.unit}
                   </Text>
                 </View>
                 <Pill status={recentBadge(d.status)} />
@@ -199,7 +198,7 @@ const styles = StyleSheet.create({
   sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4, marginBottom: 8 },
   viewAllRow: { flexDirection: "row", alignItems: "center", gap: 2, paddingVertical: 4 },
   viewAll: { fontSize: 11.5, color: colors.primaryDark, fontWeight: "600" },
-  emptyText: { fontSize: 11.5, color: colors.textMuted, padding: 14, textAlign: "center" },
+  emptyText: { alignSelf: "stretch", fontSize: 11.5, color: colors.textMuted, padding: 14, textAlign: "center" },
 
   requestCard: {
     flexDirection: "row",

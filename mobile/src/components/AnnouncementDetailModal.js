@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Pin, X } from "lucide-react-native";
 import { colors, radius, spacing } from "../theme";
 import { getAnnouncementImageUrl, isTaggedInDistribution } from "../lib/api/announcements";
+import { formatDate } from "../lib/dates";
 
 // Full-screen details for one announcement — opened from the Announcements
 // screen and from the Announcements card on Home. Loads the post's image and
@@ -64,7 +65,7 @@ export default function AnnouncementDetailModal({ announcement: open, onClose })
 
             {!open.isGeneralNotice && (
               <View style={styles.detailKvGroup}>
-                <DetailRow label="Distribution Date" value={open.distributionDate} />
+                <DetailRow label="Distribution Date" value={open.distributionDate ? formatDate(open.distributionDate) : null} />
                 <DetailRow label="Time" value={open.distributionTime} />
                 <DetailRow label="Venue" value={open.venue} />
                 <DetailRow label="Type of Assistance" value={open.assistanceType} />
@@ -121,7 +122,8 @@ const styles = StyleSheet.create({
   includedText: { fontSize: 12.5, fontWeight: "700", color: colors.primaryDark, flex: 1 },
 
   detailKvGroup: { marginTop: 16 },
-  detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
-  detailLabel: { fontSize: 11.5, color: colors.textMuted },
-  detailValue: { fontSize: 12.5, color: colors.text, fontWeight: "600", flexShrink: 1, textAlign: "right" },
+  detailRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
+  // Label: a fixed 40% of the row, not its measured width (ProfileScreen Row).
+  detailLabel: { width: "38%", fontSize: 11.5, color: colors.textMuted },
+  detailValue: { flex: 1, fontSize: 12.5, color: colors.text, fontWeight: "600", textAlign: "right" },
 });

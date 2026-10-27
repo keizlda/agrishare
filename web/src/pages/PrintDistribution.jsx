@@ -5,6 +5,7 @@ import { useAutoPrint } from "../hooks/useAutoPrint.js";
 import { getDistribution, listPrintBeneficiaries } from "../lib/api/distributions.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { acknowledgementLabel, dateReceived } from "../lib/distributionStatus.js";
+import { formatDate, formatDateLong } from "../lib/dates.js";
 
 const STATUS_DOT = {
   Ongoing: "#f08c00",
@@ -37,7 +38,7 @@ export default function PrintDistribution() {
   }
 
   const d = distribution;
-  const eventDateLong = new Date(d.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const eventDateLong = formatDateLong(d.date);
   const sameUnit = d.items.length > 0 && d.items.every((i) => i.unit === d.items[0].unit);
   const totalQty = d.items.reduce((sum, i) => sum + i.quantity, 0);
 
@@ -48,7 +49,7 @@ export default function PrintDistribution() {
         <div className="pr-kv-grid">
           <KV label="Distribution ID" value={d.id} />
           <KV label="Program" value={d.program} />
-          <KV label="Date" value={d.date} />
+          <KV label="Date" value={formatDate(d.date)} />
           <KV label="Barangay" value={d.barangay} />
           <KV label="Venue" value={d.venue} />
           <KV label="Funding Source" value={d.fundingSource} />

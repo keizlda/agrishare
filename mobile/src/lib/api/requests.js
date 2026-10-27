@@ -23,7 +23,7 @@ function mapRequest(row) {
     quantity: Number(row.quantity_requested),
     unit: row.commodities?.unit ?? "kg",
     reason: row.reason ?? "",
-    requestDate: row.created_at?.slice(0, 10),
+    requestDate: row.created_at,
     status: statusLabel(row),
   };
 }

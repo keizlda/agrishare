@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { Printer } from "lucide-react";
 import maoSeal from "../../assets/mao-seal-print.png";
 import "./print.css";
+import { formatDateTime } from "../../lib/dates.js";
 
 const SEAL_LOAD_TIMEOUT_MS = 3000;
 
@@ -18,7 +19,7 @@ const SEAL_LOAD_TIMEOUT_MS = 3000;
 // data, not a static string. The in-flow .pr-footer below is the on-screen
 // stand-in and is hidden when printing.
 export default function PrintLayout({ title, subtitle, children }) {
-  const generatedAt = useMemo(() => new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }), []);
+  const generatedAt = useMemo(() => formatDateTime(new Date()), []);
 
   // Both the toolbar button and the pages' auto-print call window.print()
   // directly (the latter on a fixed timer, not tied to the image). While this

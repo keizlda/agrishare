@@ -7,6 +7,7 @@ import { colors, radius, shadows, sizes } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listCommodities } from "../lib/api/commodities";
 import { createRequest, listMyRequests } from "../lib/api/requests";
+import { formatDate } from "../lib/dates";
 
 // A route param (route.params.presetCommodity) lets other screens deep-link
 // straight into the form with a commodity pre-picked.
@@ -136,7 +137,7 @@ export default function RequestsScreen({ navigation, route }) {
               <Text style={styles.cardTitle}>{r.commodity}</Text>
               <Pill status={r.status} />
             </View>
-            <Text style={styles.cardSub}>{r.quantity.toLocaleString()} {r.unit} · Requested {r.requestDate}</Text>
+            <Text style={styles.cardSub}>{r.quantity.toLocaleString()} {r.unit} · Requested {formatDate(r.requestDate)}</Text>
             <Text style={styles.cardReason} numberOfLines={2}>{r.reason}</Text>
           </View>
         )}

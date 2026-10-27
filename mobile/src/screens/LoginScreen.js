@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: { fontSize: 20, fontWeight: "800", color: colors.primaryDarker },
-  subtitle: { fontSize: 12.5, color: colors.textMuted, marginTop: 2, marginBottom: 18 },
+  subtitle: { alignSelf: "stretch", textAlign: "center", fontSize: 12.5, color: colors.textMuted, marginTop: 2, marginBottom: 18 },
   error: { color: colors.red, fontSize: 12, marginBottom: 10 },
   fieldLabel: { width: "100%", fontSize: 11.5, fontWeight: "700", color: colors.text, marginBottom: 4 },
   inputWrap: {
@@ -208,5 +208,5 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   loginBtnText: { color: "#fff", fontWeight: "700", fontSize: 14.5 },
-  footnote: { fontSize: 10.5, color: colors.textMuted, textAlign: "center", marginTop: 16, lineHeight: 15 },
+  footnote: { alignSelf: "stretch", fontSize: 10.5, color: colors.textMuted, textAlign: "center", marginTop: 16, lineHeight: 15 },
 });

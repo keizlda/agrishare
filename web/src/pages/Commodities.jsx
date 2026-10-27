@@ -9,10 +9,13 @@ import { commodityCategories, computeCommodityStats } from "../data/mockData.js"
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
+import { useCardLabels } from "../hooks/useCardLabels.js";
+import { useRevealDetail } from "../hooks/useRevealDetail.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard.js";
 import { createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
+import { formatDate } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
@@ -68,6 +71,9 @@ export default function Commodities() {
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
+  useCardLabels(tableRef);
+  const detailRef = useRef(null);
+  const revealDetail = useRevealDetail(detailRef);
 
   const selected = commodities.find((c) => c.id === selectedId) ?? null;
   const { totals } = computeCommodityStats(commodities, distributions);
@@ -84,10 +90,14 @@ export default function Commodities() {
   }
 
   function selectRow(id) {
-    if (id === selectedId) return;
+    if (id === selectedId) {
+      revealDetail();
+      return;
+    }
     const go = () => {
       stopEditing();
       setSelectedId(id);
+      revealDetail();
     };
     if (dirty) setPendingLeave(() => go);
     else go();
@@ -166,19 +176,19 @@ export default function Commodities() {
               {loadError || actionError}
             </div>
           )}
-          <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
+          <div className="agri-toolbar">
             <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setAdding(true)}>
               <Plus size={16} /> Add Commodity
             </button>
-            <div style={{ position: "relative", flex: 1 }}>
-              <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--agri-icon-muted)" }} />
-              <input className="form-control" placeholder="Search commodity" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} />
+            <div className="agri-toolbar-search">
+              <Search size={15} />
+              <input className="form-control" placeholder="Search commodity" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <select className="form-select" style={{ width: 150 }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "150px" }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
               <option value="All">All Categories</option>
               {commodityCategories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <select className="form-select" style={{ width: 130 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "130px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="All">All Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
@@ -186,7 +196,7 @@ export default function Commodities() {
           </div>
 
           <div className="agri-table-wrap" ref={tableRef}>
-            <table className="agri-table">
+            <table className="agri-table agri-table-cards">
               <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th></tr></thead>
               <tbody>
                 {pageItems.map((c) => (
@@ -194,7 +204,7 @@ export default function Commodities() {
                     <td><span className="agri-row-title">{c.name}</span></td>
                     <td>{c.category}</td>
                     <td><Pill status={c.status} /></td>
-                    <td>{c.dateAdded}</td>
+                    <td>{formatDate(c.dateAdded)}</td>
                   </tr>
                 ))}
                 {loading && (
@@ -214,7 +224,7 @@ export default function Commodities() {
         </div>
 
         {selected && (
-          <Card className="agri-card agri-fill-card" style={{ padding: 18 }} {...(edit ? { onSubmit: saveEdit, noValidate: true } : {})}>
+          <Card ref={detailRef} className="agri-card agri-fill-card" style={{ padding: 18 }} {...(edit ? { onSubmit: saveEdit, noValidate: true } : {})}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>{edit ? "Edit Commodity" : "Commodity Details"}</div>
               <Pill status={selected.status} />
@@ -245,7 +255,7 @@ export default function Commodities() {
                 </>
               )}
               <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{selectedDistributedQty.toLocaleString()} kg</div></div>
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{selected.dateAdded}</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{formatDate(selected.dateAdded)}</div></div>
 
               <label className="agri-form-label" style={{ marginTop: 14 }} htmlFor="commodity-status-select">Status</label>
               {edit ? (
@@ -371,13 +381,20 @@ function AddCommodityModal({ onClose, onSaved }) {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(20,40,25,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
-      <div className="agri-card" style={{ width: 420, maxWidth: "92vw", padding: 22 }} onClick={(e) => e.stopPropagation()}>
-        <div className="agri-panel-header">
-          <div style={{ fontWeight: 700, fontSize: "1.05rem" }}>Add Commodity</div>
+    <div className="agri-modal-backdrop" onClick={onClose}>
+      <form
+        className="agri-card agri-modal"
+        style={{ "--agri-modal-width": "420px" }}
+        role="dialog"
+        aria-label="Add Commodity"
+        onSubmit={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="agri-modal-header">
+          <div className="agri-modal-title">Add Commodity</div>
           <button type="button" className="agri-icon-btn" aria-label="Close" onClick={onClose}><X size={16} /></button>
         </div>
-        <form onSubmit={handleSubmit}>
+        <div className="agri-modal-body">
           {formError && (
             <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
               {formError}
@@ -388,16 +405,15 @@ function AddCommodityModal({ onClose, onSaved }) {
           <input required className="form-control mb-3" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Rice Seeds (NSIC Rc222)" />
 
           <label className="agri-form-label">Category</label>
-          <select className="form-select mb-3" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
+          <select className="form-select" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
             {commodityCategories.map((c) => <option key={c}>{c}</option>)}
           </select>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : "Save Commodity"}</button>
-          </div>
-        </form>
-      </div>
+        </div>
+        <div className="agri-modal-footer">
+          <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="submit" className="btn btn-agri-primary" disabled={saving}>{saving ? "Saving…" : "Save Commodity"}</button>
+        </div>
+      </form>
     </div>
   );
 }

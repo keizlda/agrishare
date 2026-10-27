@@ -7,33 +7,40 @@ import { colors, radii, sizes, spacing, typography } from "../../theme";
 // web/src/theme.css:45-53's `outline: 2px solid var(--agri-primary)`.
 // Taller than web's default (48px vs Bootstrap's ~38px) per the touch-target
 // rule. Number fields use keyboardType, never a stepper — RN TextInput has
-// no native steppers to begin with.
-export default function Input({ label, value, onChangeText, multiline, height, style, inputStyle, ...props }) {
+// no native steppers to begin with. `right`: a button inside the field's
+// right end (e.g. PasswordInput's eye). `error`: red border + message below.
+export default function Input({ label, value, onChangeText, multiline, height, style, inputStyle, right, error, ...props }) {
   const [focused, setFocused] = useState(false);
   return (
     <View style={style}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <TextInput
-        style={[
-          styles.input,
-          multiline ? { height: height ?? 90, textAlignVertical: "top", paddingTop: spacing.sm } : { height: sizes.inputHeight },
-          focused && styles.focused,
-          inputStyle,
-        ]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholderTextColor={colors.textFaint}
-        multiline={multiline}
-        onFocus={(e) => {
-          setFocused(true);
-          props.onFocus?.(e);
-        }}
-        onBlur={(e) => {
-          setFocused(false);
-          props.onBlur?.(e);
-        }}
-        {...props}
-      />
+      <View>
+        <TextInput
+          style={[
+            styles.input,
+            multiline ? { height: height ?? 90, textAlignVertical: "top", paddingTop: spacing.sm } : { height: sizes.inputHeight },
+            focused && styles.focused,
+            !!error && styles.invalid,
+            !!right && styles.withRight,
+            inputStyle,
+          ]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholderTextColor={colors.textFaint}
+          multiline={multiline}
+          onFocus={(e) => {
+            setFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            props.onBlur?.(e);
+          }}
+          {...props}
+        />
+        {right && <View style={styles.right}>{right}</View>}
+      </View>
+      {!!error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
 }
@@ -50,4 +57,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   focused: { borderColor: colors.primary, borderWidth: 1.5 },
+  invalid: { borderColor: colors.red },
+  withRight: { paddingRight: sizes.minTouchTarget },
+  right: { position: "absolute", top: 0, right: 0, bottom: 0, width: sizes.minTouchTarget, alignItems: "center", justifyContent: "center" },
+  error: { color: colors.red, fontSize: 12, marginTop: spacing.xs },
 });

@@ -13,5 +13,5 @@ export default function EmptyState({ icon: Icon, message, style }) {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", justifyContent: "center", paddingVertical: spacing.xxl, gap: spacing.sm },
-  text: { fontSize: typography.body.fontSize, color: colors.textMuted, textAlign: "center" },
+  text: { alignSelf: "stretch", fontSize: typography.body.fontSize, color: colors.textMuted, textAlign: "center" },
 });

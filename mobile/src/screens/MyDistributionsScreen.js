@@ -7,6 +7,7 @@ import Pill from "../components/Pill";
 import EmptyState from "../components/ui/EmptyState";
 import { colors, radius, shadows, spacing } from "../theme";
 import { listMyDistributions } from "../lib/api/distributions";
+import { formatDate } from "../lib/dates";
 
 // Ongoing -> Upcoming; Completed -> Received (no acknowledgement wording
 // for farmers).
@@ -75,7 +76,7 @@ export default function MyDistributionsScreen({ navigation }) {
             <TouchableOpacity activeOpacity={0.7} onPress={() => setOpen(item)} style={styles.card}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{item.program}</Text>
-                <Text style={styles.cardSub}>{item.date} · {item.venue}</Text>
+                <Text style={styles.cardSub}>{formatDate(item.date)} · {item.venue}</Text>
                 <Text style={styles.cardSub}>{item.item} · {item.quantity.toLocaleString()} {item.unit}</Text>
               </View>
               <Pill status={recentBadge(item.status)} />
@@ -104,7 +105,7 @@ export default function MyDistributionsScreen({ navigation }) {
               <View style={styles.detailKvGroup}>
                 <DetailRow label="Commodity" value={open.item} />
                 <DetailRow label="Quantity" value={`${open.quantity.toLocaleString()} ${open.unit}`} />
-                <DetailRow label="Date" value={open.date} />
+                <DetailRow label="Date" value={formatDate(open.date)} />
                 <DetailRow label="Venue" value={open.venue} />
                 <DetailRow label="Funding Source" value={open.fundingSource || "—"} last />
               </View>
@@ -150,7 +151,8 @@ const styles = StyleSheet.create({
   detailContent: { padding: spacing.base, paddingBottom: 48 },
   detailTitle: { fontSize: 20, fontWeight: "800", color: colors.text, lineHeight: 26, marginBottom: 8 },
   detailKvGroup: { marginTop: 18 },
-  detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  detailLabel: { fontSize: 12, color: colors.textMuted },
-  detailValue: { fontSize: 12.5, color: colors.text, fontWeight: "600" },
+  detailRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  // Label: a fixed 40% of the row, not its measured width (ProfileScreen Row).
+  detailLabel: { width: "40%", paddingRight: 8, fontSize: 12, color: colors.textMuted },
+  detailValue: { flex: 1, textAlign: "right", fontSize: 12.5, color: colors.text, fontWeight: "600" },
 });

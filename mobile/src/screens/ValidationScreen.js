@@ -9,14 +9,11 @@ import { colors, radius, spacing } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { getSignedPhotoUrl, listMyCropValidations } from "../lib/api/cropValidation";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
+import { formatDate as fmtDate, formatDateTime as fmtDateTime } from "../lib/dates";
 
 // Proof of Planting tab: a prominent "Submit" card that opens the existing
 // CropValidation flow, a tracker for the latest submission, and the older
 // ones as History. Every submission opens full details (photo, GPS, remarks).
-
-const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—");
-const fmtDateTime = (iso) =>
-  iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
 
 // Crop type and area for a submission: the linked farm crop when there is
 // one, else what the farmer typed on the form (kept in their note while the
@@ -445,7 +442,7 @@ const styles = StyleSheet.create({
   connectorOn: { backgroundColor: colors.primary },
   stepCircle: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   stepNumber: { fontSize: 12, fontWeight: "700", color: colors.textFaint },
-  stepLabel: { fontSize: 10.5, color: colors.text, textAlign: "center", marginTop: 6, paddingHorizontal: 2, lineHeight: 14 },
+  stepLabel: { alignSelf: "stretch", fontSize: 10.5, color: colors.text, textAlign: "center", marginTop: 6, paddingHorizontal: 2, lineHeight: 14 },
   stepLabelCurrent: { fontWeight: "800", color: colors.orangeText },
   stepLabelRejected: { fontWeight: "800", color: colors.red },
   stepLabelTodo: { color: colors.textMuted },
@@ -479,7 +476,7 @@ const styles = StyleSheet.create({
   thumbPlaceholder: { backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
 
   emptyWrap: { alignItems: "center", gap: 8, paddingVertical: 28, paddingHorizontal: 24 },
-  emptyText: { fontSize: 12.5, color: colors.textMuted, textAlign: "center", lineHeight: 18 },
+  emptyText: { alignSelf: "stretch", fontSize: 12.5, color: colors.textMuted, textAlign: "center", lineHeight: 18 },
   skeleton: { backgroundColor: colors.grayBg, borderRadius: 6 },
 
   detail: { flex: 1, backgroundColor: colors.bg },
@@ -490,9 +487,10 @@ const styles = StyleSheet.create({
   detailTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
   detailTitle: { flex: 1, fontSize: 20, fontWeight: "800", color: colors.text },
   detailKvGroup: { marginTop: 18 },
-  detailRow: { flexDirection: "row", justifyContent: "space-between", gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
-  detailLabel: { fontSize: 11.5, color: colors.textMuted },
-  detailValue: { fontSize: 12.5, color: colors.text, fontWeight: "600", flexShrink: 1, textAlign: "right" },
+  detailRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
+  // Label: a fixed 40% of the row, not its measured width (ProfileScreen Row).
+  detailLabel: { width: "38%", fontSize: 11.5, color: colors.textMuted },
+  detailValue: { flex: 1, fontSize: 12.5, color: colors.text, fontWeight: "600", textAlign: "right" },
   mapLink: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-end", paddingVertical: 8 },
   mapLinkText: { fontSize: 12, fontWeight: "700", color: colors.primaryDark },
 

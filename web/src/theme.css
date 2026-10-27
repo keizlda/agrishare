@@ -255,8 +255,12 @@ textarea:focus-visible,
   font-size: 0.85rem;
 }
 
-/* ---------- Topbar: mobile nav ---------- */
-/* Scoped under .agri-topbar-row (specificity 0,2,0) so this reliably beats
+/* ---------- Topbar: menu button on narrower screens ---------- */
+/* The full nav row needs ~1100px (less the date, which goes first, below
+   1280px). Narrower desktop-shell screens — tablets, or a phone browser in
+   "desktop site" mode (~980px) — get the menu button and a dropdown
+   instead of a nav that runs off both edges.
+   Scoped under .agri-topbar-row (specificity 0,2,0) so this reliably beats
    .agri-icon-btn's own `display: inline-flex` (0,1,0) regardless of which
    rule comes first in the file — same class of bug as the print report
    column-width issue from earlier in this project. */
@@ -268,7 +272,13 @@ textarea:focus-visible,
   display: none;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1279.98px) {
+  .agri-date-pill {
+    display: none;
+  }
+}
+
+@media (max-width: 1099.98px) {
   .agri-topbar {
     padding: 12px 16px;
   }
@@ -280,6 +290,10 @@ textarea:focus-visible,
   }
   .agri-topnav {
     display: none;
+  }
+  /* The nav's flex: 1 no longer pushes these to the right edge. */
+  .agri-topbar-right {
+    margin-left: auto;
   }
   .agri-date-pill,
   .agri-avatar-name {
@@ -861,6 +875,20 @@ textarea:focus-visible,
   }
 }
 
+/* Settings: General Information | Change Password; stacked on narrow screens. */
+.agri-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 861px) {
+  .agri-settings-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+}
+
 /* ---------- Tables ---------- */
 .agri-table-wrap {
   overflow-x: auto;
@@ -886,16 +914,227 @@ textarea:focus-visible,
    with or without pagination. */
 .agri-table-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   min-height: 34px;
   margin-top: 12px;
   font-size: 0.78rem;
 }
 
+/* Too narrow for one line (small phones): the page buttons drop below,
+   still on the right. */
 .agri-table-footer .agri-pagination {
   margin-top: 0;
+  margin-left: auto;
+}
+
+/* ---------- List toolbars (main action, search, filters) ----------
+   One line on wide screens. Narrower ones wrap instead of running off the
+   edge; on phones the search and each button get a full line and the
+   filters share one. A filter's desktop width comes from
+   --agri-filter-width. */
+.agri-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.agri-toolbar-search {
+  position: relative;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.agri-toolbar-search > svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--agri-icon-muted);
+  pointer-events: none;
+}
+
+.agri-toolbar-search > .form-control {
+  padding-left: 32px;
+}
+
+.agri-toolbar-filter {
+  flex: 0 1 auto;
+  width: var(--agri-filter-width, 160px);
+  min-width: 0;
+}
+
+.agri-toolbar-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.agri-toolbar-dates > .agri-date-input {
+  width: 160px;
+}
+
+@media (max-width: 575.98px) {
+  .agri-toolbar > * {
+    flex: 1 1 100%;
+  }
+  .agri-toolbar > .agri-toolbar-filter {
+    flex: 1 1 170px;
+    width: auto;
+  }
+  .agri-toolbar > .btn {
+    justify-content: center;
+  }
+  .agri-toolbar-dates > .agri-date-input {
+    flex: 1 1 150px;
+    width: auto;
+  }
+}
+
+/* ---------- Date fields (DateInput.jsx) ----------
+   Typed MM/DD/YYYY; the browser's date picker sits invisibly over the
+   calendar icon, so clicking the icon opens it. */
+.agri-date-input {
+  position: relative;
+  min-width: 0;
+}
+
+.agri-date-input > .form-control,
+.agri-date-input > .form-control.is-invalid {
+  padding-right: 40px;
+  background-image: none;
+}
+
+.agri-date-input-picker {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Chrome: the whole hidden input opens the picker, not just its own icon. */
+.agri-date-input-picker::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  cursor: pointer;
+}
+
+.agri-date-input-icon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--agri-icon-muted);
+  pointer-events: none;
+}
+
+.agri-date-input-picker:hover + .agri-date-input-icon {
+  color: var(--agri-primary-dark);
+}
+
+.agri-date-input-picker:disabled {
+  cursor: default;
+}
+
+.agri-date-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 150px keeps all of "MM/DD/YYYY" visible; narrower, they stack. */
+.agri-date-range > .agri-date-input {
+  flex: 1 1 150px;
+}
+
+/* ---------- Phone card rows ----------
+   On phones each row of a list table (.agri-table-cards) becomes a card:
+   one line per column, its heading (data-label, see useCardLabels.js) on
+   the left and the value on the right, with the row's ⋯ menu in the top
+   corner. Wider screens keep the table. */
+@media (max-width: 575.98px) {
+  .agri-mshell table.agri-table-cards,
+  .agri-mshell table.agri-table-cards > tbody,
+  .agri-mshell table.agri-table-cards > tbody > tr,
+  .agri-mshell table.agri-table-cards > tbody > tr > td {
+    display: block;
+  }
+  .agri-mshell table.agri-table-cards > thead {
+    display: none;
+  }
+  .agri-mshell table.agri-table-cards > tbody > tr {
+    position: relative;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--agri-divider);
+  }
+  .agri-mshell table.agri-table-cards > tbody > tr > td {
+    position: relative;
+    min-height: 26px;
+    padding: 4px 10px 4px 40%;
+    border: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .agri-mshell table.agri-table-cards > tbody > tr > td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 10px;
+    top: 6px;
+    width: calc(40% - 18px);
+    color: var(--agri-text-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  /* "Loading…" and "Nothing here" rows. */
+  .agri-mshell table.agri-table-cards > tbody > tr > td:not([data-label]) {
+    padding-left: 10px;
+    text-align: center;
+  }
+  .agri-mshell table.agri-table-cards > tbody > tr > td:not([data-label])::before {
+    content: none;
+  }
+  /* The ⋯ menu (its column has no heading). */
+  .agri-mshell table.agri-table-cards > tbody > tr > td[data-label=""] {
+    position: absolute;
+    top: 8px;
+    right: 6px;
+    padding: 0;
+  }
+  .agri-mshell table.agri-table-cards > tbody > tr > td[data-label=""]::before {
+    content: none;
+  }
+  .agri-mshell table.agri-table-cards > tbody > tr:has(> td[data-label=""]) > td:first-child {
+    padding-right: 48px;
+  }
+  .agri-mshell table.agri-table-cards .agri-cell-truncate {
+    white-space: nowrap;
+  }
+}
+
+/* iPhones zoom into any field under 16px when it's tapped. */
+.agri-mshell .form-control-sm,
+.agri-mshell .form-select-sm,
+.agri-mshell .agri-beneficiary-qty-input {
+  font-size: 16px;
 }
 
 table.agri-table {
@@ -2482,6 +2721,89 @@ table.agri-table thead th {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.25;
+}
+
+/* ---------- Form dialogs (Farmer, Commodity, Distribution, Announcement) ----------
+   A centered card whose title and buttons always stay in view; only the
+   middle scrolls. It's sized to the backdrop, which covers exactly the
+   visible screen, so a phone browser's address and tool bars can't push
+   the buttons out of reach. .agri-modal-full: fills the screen on phones. */
+.agri-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(20, 40, 25, 0.35);
+}
+
+.agri-modal {
+  width: var(--agri-modal-width, 560px);
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agri-modal-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--agri-divider);
+}
+
+.agri-modal-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.agri-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 22px;
+}
+
+.agri-modal-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--agri-divider);
+}
+
+@media (max-width: 575.98px) {
+  .agri-modal-backdrop:has(> .agri-modal-full) {
+    padding: 0;
+    align-items: stretch;
+  }
+  .agri-modal-full {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+  }
+  .agri-modal-full > .agri-modal-header {
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+  }
+  .agri-modal-full > .agri-modal-body {
+    padding: 16px;
+  }
+  .agri-modal-full > .agri-modal-footer {
+    padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  }
+  .agri-modal-footer > .btn {
+    flex: 1 1 0;
+    white-space: nowrap;
+  }
 }
 
 /* ---------- Side drawer (Farmer Profile) ---------- */

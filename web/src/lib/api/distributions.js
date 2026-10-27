@@ -1,5 +1,6 @@
 import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
+import { todayIso } from "../dates.js";
 
 const SELECT = `
   event_id, program_name, event_date, venue, barangay, funding_source, status, completed_at, remarks, beneficiaries_count,
@@ -249,7 +250,7 @@ export async function createDistribution({ program, venue, beneficiaries, commod
     .from("distribution_events")
     .insert({
       program_name: program,
-      event_date: new Date().toISOString().slice(0, 10),
+      event_date: todayIso(),
       venue,
       funding_source: fundingSource || null,
       status: labelToDbStatus(status || "Ongoing"),

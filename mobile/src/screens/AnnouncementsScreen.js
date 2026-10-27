@@ -10,6 +10,7 @@ import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listAnnouncements, markAnnouncementRead, subscribeToAnnouncements } from "../lib/api/announcements";
 import { deleteNotification, listMyNotifications, markAllNotificationsRead, markNotificationRead } from "../lib/api/userNotifications";
+import { formatDate } from "../lib/dates";
 
 const UPDATES_TAB = "My Updates";
 const TABS = ["Announcements", "Unread", UPDATES_TAB];
@@ -145,7 +146,7 @@ export default function AnnouncementsScreen({ navigation }) {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.rowBetween}>
-                    <Text style={styles.date}>{new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</Text>
+                    <Text style={styles.date}>{formatDate(u.createdAt)}</Text>
                     {!u.isRead && <View style={styles.unreadDot} />}
                   </View>
                   <Text style={[styles.title, !u.isRead && { fontWeight: "800" }]}>{u.title}</Text>

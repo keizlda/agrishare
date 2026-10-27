@@ -20,6 +20,7 @@ import { usePagination } from "../hooks/usePagination.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { getSignedPhotoUrl, listSubmissions, rejectSubmission, validateSubmission } from "../lib/api/cropValidation.js";
 import { listFarmers } from "../lib/api/farmers.js";
+import { formatDate, formatDateTime } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 
 const PAGE_SIZE = 15;
@@ -272,7 +273,7 @@ function SubmissionRow({ submission, active, unread, flagged, onClick }) {
         <div className="agri-submission-name">{submission.farmer?.fullName ?? "Unknown farmer"}</div>
         <div className="agri-submission-sub">{submission.crop || "—"}</div>
         <div className="agri-submission-time">
-          Submitted {new Date(submission.submittedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          Submitted {formatDate(submission.submittedAt)}
           {relativeTime(submission.submittedAt) && ` · ${relativeTime(submission.submittedAt)}`}
         </div>
       </div>
@@ -347,7 +348,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
           <KV label="RSBSA Number" value={f?.rsbsaNo} />
           <KV label="Full Name" value={f?.fullName} />
           <KV label="Sex" value={f?.sex} />
-          <KV label="Birth Date" value={f?.birthDate} />
+          <KV label="Birth Date" value={f?.birthDate ? formatDate(f.birthDate) : null} />
           <KV label="Contact No." value={f?.contactNo || "—"} />
           <KV label="Address" value={f?.address || "—"} />
           <KV label="Commodity" value={f?.commodity || "—"} />
@@ -374,7 +375,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
           <div className="agri-proof-photo agri-proof-photo-empty"><ImageIcon size={28} color="var(--agri-icon-faint)" /></div>
         )}
         <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>
-          Captured {submission.capturedAt ? new Date(submission.capturedAt).toLocaleString() : "—"}
+          Captured {formatDateTime(submission.capturedAt)}
         </div>
       </Section>
 
@@ -389,7 +390,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
             />
             <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>
               {submission.latitude.toFixed(6)}, {submission.longitude.toFixed(6)} · captured{" "}
-              {submission.capturedAt ? new Date(submission.capturedAt).toLocaleString() : "—"}
+              {formatDateTime(submission.capturedAt)}
             </div>
             {distanceKm != null && (
               <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 2 }}>
@@ -419,7 +420,7 @@ function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarm
             </div>
             <div className="agri-muted" style={{ fontSize: "0.8rem", marginTop: 6 }}>
               Reviewed by {submission.reviewedBy ?? "—"}
-              {submission.reviewedAt ? ` on ${new Date(submission.reviewedAt).toLocaleString()}` : ""}
+              {submission.reviewedAt ? ` on ${formatDateTime(submission.reviewedAt)}` : ""}
             </div>
             {submission.remarks && submission.status === "Rejected" && (
               <div className="agri-rejection-callout">

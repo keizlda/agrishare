@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Image, Linking, Modal, PixelRatio, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -8,9 +8,10 @@ import { captureRef } from "react-native-view-shot";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Pill from "../components/Pill";
 import { colors, radius, shadows, sizes } from "../theme";
-import { cropValidationSample } from "../data/mockData";
 import { useAuth } from "../context/AuthContext";
 import { submitCropValidation, uploadCropPhoto } from "../lib/api/cropValidation";
+import { listMyDistributions } from "../lib/api/distributions";
+import { formatDate, formatDateLong, formatDateTime, maskTypedDate, todayIso, typedToIso } from "../lib/dates";
 
 const CROP_TYPES = ["Rice", "Corn", "Vegetables", "Other"];
 
@@ -83,10 +84,15 @@ function mapEmbedHtml(latitude, longitude) {
 export default function CropValidationScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { farmer } = useAuth();
-  const s = cropValidationSample;
+  // The farmer's most recent received distribution (what they're proving
+  // was planted): undefined while loading, null if none yet.
+  const [received, setReceived] = useState(undefined);
   const [cropType, setCropType] = useState("Rice");
   const [areaPlanted, setAreaPlanted] = useState("0.50");
-  const [plantingDate, setPlantingDate] = useState(s.distributionDate);
+  // Typed MM/DD/YYYY; plantingIso is the real date it spells, or null.
+  const [plantingDate, setPlantingDate] = useState("");
+  const plantingIso = typedToIso(plantingDate);
+  const plantingInFuture = !!plantingIso && plantingIso > todayIso();
   const [remarks, setRemarks] = useState("");
   const [photoCaptured, setPhotoCaptured] = useState(false);
   const [photoPath, setPhotoPath] = useState(null);
@@ -98,6 +104,20 @@ export default function CropValidationScreen({ navigation }) {
   const [submitting, setSubmitting] = useState(false);
   const [photoBoxSize, setPhotoBoxSize] = useState(null);
   const stampRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listMyDistributions()
+      .then((rows) => {
+        if (!cancelled) setReceived(rows.find((d) => d.status === "Completed") ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setReceived(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const checklist = [
     { label: "GPS successfully captured", done: !!location },
@@ -158,7 +178,7 @@ export default function CropValidationScreen({ navigation }) {
         placeLabel,
         bearing,
         distanceKm: haversineKm(latitude, longitude, LANGAPUD_REF.lat, LANGAPUD_REF.lng),
-        capturedAt: new Date(position.timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }),
+        capturedAt: formatDateTime(new Date(position.timestamp)),
       });
     } catch (err) {
       Alert.alert("Couldn't get your location", err.message);
@@ -271,6 +291,13 @@ export default function CropValidationScreen({ navigation }) {
       Alert.alert("Incomplete", "Please capture a crop photo before submitting.");
       return;
     }
+    if (!plantingIso || plantingInFuture) {
+      Alert.alert(
+        "Check the planting date",
+        plantingInFuture ? "The planting date can't be after today." : "Enter the planting date as month, day, year — for example 01/17/2026.",
+      );
+      return;
+    }
     if (location.distanceKm > FAR_THRESHOLD_KM) {
       Alert.alert(
         "Far from Barangay Langapud",
@@ -294,7 +321,7 @@ export default function CropValidationScreen({ navigation }) {
         latitude: location.latitude,
         longitude: location.longitude,
         gpsAccuracyMeters: location.accuracy,
-        remarks: remarks || `${cropType} · ${areaPlanted} ha · planted ${plantingDate}`,
+        remarks: remarks || `${cropType} · ${areaPlanted} ha · planted ${formatDate(plantingIso)}`,
       });
       Alert.alert("Submitted", "Your crop validation has been submitted for review by the MAO and your Farmers' Association President.");
       navigation.goBack();
@@ -319,11 +346,14 @@ export default function CropValidationScreen({ navigation }) {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Card title="Farmer Information" icon="person-outline">
-          <InfoRow label="Farmer Name" value={s.farmerName} />
-          <InfoRow label="RSBSA Number" value={s.rsbsaNo} />
-          <InfoRow label="Barangay" value={s.barangay} />
-          <InfoRow label="Commodity Received" value={s.commodityReceived} />
-          <InfoRow label="Distribution Date" value={s.distributionDate} last />
+          <InfoRow label="Farmer Name" value={farmer ? `${farmer.firstName} ${farmer.lastName}` : "—"} />
+          <InfoRow label="RSBSA Number" value={farmer?.rsbsaNo ?? "—"} />
+          <InfoRow label="Barangay" value={farmer?.barangay ?? "—"} />
+          <InfoRow
+            label="Commodity Received"
+            value={received === undefined ? "Loading…" : received ? `${received.item} · ${received.quantity.toLocaleString()} ${received.unit}` : "None yet"}
+          />
+          <InfoRow label="Distribution Date" value={received ? formatDate(received.date) : "—"} last />
         </Card>
 
         <Card
@@ -483,8 +513,22 @@ export default function CropValidationScreen({ navigation }) {
           <Text style={styles.fieldLabel}>Area Planted (hectares)</Text>
           <TextInput style={styles.input} value={areaPlanted} onChangeText={setAreaPlanted} keyboardType="decimal-pad" />
 
-          <Text style={styles.fieldLabel}>Planting Date</Text>
-          <TextInput style={styles.input} value={plantingDate} onChangeText={setPlantingDate} placeholder="YYYY-MM-DD" />
+          <Text style={styles.fieldLabel}>Planting Date (Month / Day / Year)</Text>
+          <TextInput
+            style={[styles.input, plantingDate.length === 10 && (!plantingIso || plantingInFuture) && styles.inputInvalid]}
+            value={plantingDate}
+            onChangeText={(text) => setPlantingDate(maskTypedDate(text))}
+            placeholder="MM/DD/YYYY"
+            placeholderTextColor={colors.textFaint}
+            keyboardType="number-pad"
+            maxLength={10}
+            accessibilityLabel="Planting date, month day year"
+          />
+          {plantingDate.length === 10 && (
+            <Text style={[styles.fieldHint, (!plantingIso || plantingInFuture) && styles.fieldHintError]}>
+              {!plantingIso ? "Not a real date. Use MM/DD/YYYY, e.g. 01/17/2026." : plantingInFuture ? "The planting date can't be after today." : `Planted on ${formatDateLong(plantingIso)}`}
+            </Text>
+          )}
 
           <Text style={styles.fieldLabel}>Remarks (Optional)</Text>
           <TextInput
@@ -532,6 +576,9 @@ function Card({ title, icon, children, style, action }) {
   );
 }
 
+// Labels get a fixed 40% of the row, not just their own measured width:
+// on some Samsung phones text is drawn wider than it was measured, which
+// cut "Barangay" to "Baranga" and dropped the second word of others.
 function InfoRow({ label, value, small, last, warn }) {
   return (
     <View style={[styles.infoRow, last && { borderBottomWidth: 0 }]}>
@@ -588,13 +635,13 @@ const styles = StyleSheet.create({
 
   infoRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "flex-start",
     paddingVertical: 5,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  infoLabel: { fontSize: 10.5, color: colors.textMuted },
-  infoValue: { fontSize: 11.5, color: colors.text, fontWeight: "600" },
+  infoLabel: { width: "40%", paddingRight: 8, fontSize: 10.5, color: colors.textMuted },
+  infoValue: { flex: 1, textAlign: "right", fontSize: 11.5, color: colors.text, fontWeight: "600" },
 
   mapPlaceholder: {
     height: 110,
@@ -701,9 +748,13 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: colors.text,
   },
+  inputInvalid: { borderColor: colors.red },
+  fieldHint: { fontSize: 11, color: colors.textMuted, marginTop: 4 },
+  fieldHintError: { color: colors.red },
 
   checkRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 },
-  checkLabel: { fontSize: 12, color: colors.text },
+  // flex: 1 — the full width, not just the measured text (see InfoRow).
+  checkLabel: { flex: 1, fontSize: 12, color: colors.text },
 
   submitBtn: {
     flexDirection: "row",

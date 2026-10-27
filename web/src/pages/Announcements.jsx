@@ -11,6 +11,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
+import { useCardLabels } from "../hooks/useCardLabels.js";
+import { formatDate } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import {
   deleteAnnouncement,
@@ -19,11 +21,6 @@ import {
   setAnnouncementPinned,
   setAnnouncementStatus,
 } from "../lib/api/announcements.js";
-
-
-function formatDate(iso) {
-  return iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
-}
 
 export default function Announcements() {
   const { user } = useAuth();
@@ -49,6 +46,7 @@ export default function Announcements() {
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
+  useCardLabels(tableRef);
   const filtersActive = search || statusFilter !== "All";
 
   function resetFilters() {
@@ -109,17 +107,17 @@ export default function Announcements() {
           <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>{loadError}</div>
         )}
 
-        <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="agri-toolbar">
           {isMAO && (
             <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setModal({})}>
               <Plus size={16} /> New Announcement
             </button>
           )}
-          <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-            <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--agri-icon-muted)" }} />
-            <input className="form-control" placeholder="Search announcements" style={{ paddingLeft: 32 }} value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="agri-toolbar-search">
+            <Search size={15} />
+            <input className="form-control" placeholder="Search announcements" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <select className="form-select" style={{ width: 140 }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "140px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
             <option value="All">All Status</option>
             <option>Published</option>
             <option>Draft</option>
@@ -127,7 +125,7 @@ export default function Announcements() {
         </div>
 
         <div className="agri-table-wrap" ref={tableRef}>
-          <table className="agri-table">
+          <table className="agri-table agri-table-cards">
             <thead>
               <tr><th>Announcement</th><th>Date / Venue</th><th>Recipients</th><th>Status</th><th></th></tr>
             </thead>

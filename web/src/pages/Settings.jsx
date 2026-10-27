@@ -21,7 +21,7 @@ export default function Settings() {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
+    <div className="agri-settings-grid">
       <GeneralInformation />
       <ChangePassword />
     </div>
@@ -107,7 +107,7 @@ function GeneralInformation() {
       <div style={{ fontWeight: 700, marginBottom: 16 }}>System Preferences</div>
       <div className="row g-3">
         <Field label="Date Format" col={4}>
-          <select className="form-select"><option>MM/DD/YYYY</option><option>DD/MM/YYYY</option></select>
+          <select className="form-select"><option>MM/DD/YYYY</option></select>
         </Field>
         <Field label="Time Format" col={4}>
           <select className="form-select"><option>12-Hour (AM/PM)</option><option>24-Hour</option></select>
@@ -150,20 +150,19 @@ function ChangePassword() {
   async function handleSubmit(e) {
     e.preventDefault();
     const found = validate();
-    if (Object.keys(found).length > 0) {
-      setErrors(found);
-      return;
-    }
-    setErrors({});
     setSaving(true);
     try {
-      // No dedicated "verify current password" API — re-authenticating with
-      // it is the standard way to confirm it's correct before changing it.
-      const { error: verifyError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
-      if (verifyError) {
-        setErrors({ current: "Current password is incorrect." });
-        return;
+      // The current password is checked even when another field has a
+      // problem, so every error shows at once. No dedicated "verify current
+      // password" API — re-authenticating with it is the standard way to
+      // confirm it's correct before changing it.
+      if (currentPassword) {
+        const { error: verifyError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
+        if (verifyError) found.current = "Current password is incorrect.";
       }
+      setErrors(found);
+      if (Object.keys(found).length > 0) return;
+
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       if (updateError) throw updateError;
       setToast({ tone: "success", message: "Password updated" });
@@ -253,9 +252,10 @@ function PasswordField({ label, placeholder, value, onChange, show, onToggleShow
   );
 }
 
+// One column on phones; `col` (of 12) from 576px up.
 function Field({ label, col, children }) {
   return (
-    <div className={`col-${col}`}>
+    <div className={`col-12 col-sm-${col}`}>
       <label className="agri-form-label">{label}</label>
       {children}
     </div>

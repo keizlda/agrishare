@@ -214,6 +214,9 @@ function Section({ title, children }) {
   );
 }
 
+// The label gets a fixed 40% of the row, not just its own measured width:
+// on some Samsung phones text is drawn wider than it was measured, which
+// cut "Barangay" to "Baranga" and "Contact Number" to "Contact".
 function Row({ label, value, last }) {
   return (
     <View style={[styles.itemRow, styles.dataRow, last && { borderBottomWidth: 0 }]}>
@@ -272,8 +275,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  name: { fontSize: 17, fontWeight: "800", color: colors.text },
-  subtitle: { fontSize: 12, color: colors.textMuted, marginTop: 2, marginBottom: 8 },
+  // Full card width, centered text (see Row for why not the measured width).
+  name: { alignSelf: "stretch", textAlign: "center", paddingHorizontal: 12, fontSize: 17, fontWeight: "800", color: colors.text },
+  subtitle: { alignSelf: "stretch", textAlign: "center", paddingHorizontal: 12, fontSize: 12, color: colors.textMuted, marginTop: 2, marginBottom: 8 },
 
   section: { marginBottom: 16 },
   sectionTitle: { fontSize: 12, fontWeight: "700", color: colors.textMuted, marginBottom: 6, textTransform: "uppercase" },
@@ -286,9 +290,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   itemLabel: { flex: 1, fontSize: 12.5, color: colors.text },
-  dataRow: { justifyContent: "space-between" },
-  rowLabel: { fontSize: 11.5, color: colors.textMuted },
-  rowValue: { fontSize: 12.5, color: colors.text, fontWeight: "600" },
+  dataRow: { alignItems: "flex-start" },
+  rowLabel: { width: "40%", paddingRight: 8, fontSize: 11.5, color: colors.textMuted },
+  rowValue: { flex: 1, textAlign: "right", fontSize: 12.5, color: colors.text, fontWeight: "600" },
 
   note: {
     flexDirection: "row",
