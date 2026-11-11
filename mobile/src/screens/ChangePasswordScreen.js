@@ -7,6 +7,7 @@ import Toast from "../components/ui/Toast";
 import { colors, spacing } from "../theme";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../context/AuthContext";
+import { friendlyError } from "../lib/friendlyError";
 
 // Same minimum as the web system's Change Password (web/src/pages/Settings.jsx).
 const MIN_PASSWORD_LENGTH = 8;
@@ -49,7 +50,13 @@ export default function ChangePasswordScreen({ navigation }) {
           email: userData.user.email,
           password: currentPassword,
         });
-        if (verifyErr) found.current = "Your current password is incorrect.";
+        // Only a rejected password means "incorrect" — no connection or a
+        // server problem is reported as what it is (the catch below).
+        if (verifyErr?.code === "invalid_credentials" || verifyErr?.message === "Invalid login credentials") {
+          found.current = "Your current password is incorrect.";
+        } else if (verifyErr) {
+          throw verifyErr;
+        }
       }
       setErrors(found);
       if (Object.keys(found).length > 0) return;
@@ -57,19 +64,18 @@ export default function ChangePasswordScreen({ navigation }) {
       const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
       if (updateErr) throw updateErr;
 
-      // Clears the "using the default password" banner on Home. Non-fatal
-      // if it fails — the password itself is already changed either way.
-      await supabase.from("profiles").update({ must_change_password: false }).eq("id", userData.user.id).then(
-        () => refreshFarmer(),
-        () => {},
-      );
+      // Clears the "using the default password" banner on Home (a database
+      // function: farmers can only update their own photo directly).
+      // Non-fatal if it fails — the password itself is already changed.
+      const { error: flagErr } = await supabase.rpc("clear_must_change_password");
+      if (!flagErr) await refreshFarmer().catch(() => {});
 
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setToast({ visible: true, message: "Password updated.", tone: "success" });
     } catch (err) {
-      setToast({ visible: true, message: err.message || "Couldn't update password.", tone: "error" });
+      setToast({ visible: true, message: friendlyError(err, "Couldn't update your password. Please try again."), tone: "error" });
     } finally {
       setSubmitting(false);
     }
