@@ -68,9 +68,28 @@ export async function forwardAnnouncementToFarmers(id) {
   return mapAnnouncement(data);
 }
 
-export function validateImageFile(file) {
-  if (!file.type.startsWith("image/")) return "Please choose an image file (PNG, JPG, WebP…).";
+// The types the announcement-images bucket accepts (it refuses others too).
+export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+// How each allowed type's file starts. A file's type comes from its name, so
+// a program renamed photo.jpg still says image/jpeg — its bytes don't.
+const SIGNATURES = [
+  [0xff, 0xd8, 0xff], // JPEG
+  [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], // PNG
+  [0x47, 0x49, 0x46, 0x38], // GIF
+];
+
+async function looksLikeImage(file) {
+  const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const ascii = (from, to) => String.fromCharCode(...head.slice(from, to));
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return true;
+  return SIGNATURES.some((sig) => sig.every((byte, i) => head[i] === byte));
+}
+
+export async function validateImageFile(file) {
+  if (!IMAGE_TYPES.includes(file.type)) return "Please choose a JPG, PNG, WebP or GIF image.";
   if (file.size > MAX_IMAGE_BYTES) return "Image must be 5 MB or smaller.";
+  if (!(await looksLikeImage(file))) return "That file isn't a real image. Please choose a JPG, PNG, WebP or GIF photo.";
   return null;
 }
 

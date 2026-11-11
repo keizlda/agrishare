@@ -4,6 +4,7 @@ import DateInput from "../ui/DateInput.jsx";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { formatDate } from "../../lib/dates.js";
 import {
+  IMAGE_TYPES,
   RECIPIENTS,
   MAX_BODY,
   MAX_TITLE,
@@ -45,6 +46,8 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(null); // null | "Draft" | "Published"
   const fileRef = useRef(null);
+  // Blocks a second Publish/Save while one is still running.
+  const savingRef = useRef(false);
 
   const [distributions, setDistributions] = useState([]);
   const [commodities, setCommodities] = useState([]);
@@ -138,11 +141,11 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
     }));
   }
 
-  function pickImage(e) {
+  async function pickImage(e) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    const problem = validateImageFile(file);
+    const problem = await validateImageFile(file);
     if (problem) {
       setErrors((er) => ({ ...er, image: problem }));
       return;
@@ -182,11 +185,13 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
   }
 
   async function submit(status) {
+    if (savingRef.current) return;
     const found = validate();
     if (Object.keys(found).length > 0) {
       setErrors(found);
       return;
     }
+    savingRef.current = true;
     setSaving(status);
     setErrors({});
     try {
@@ -208,6 +213,8 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
     } catch (err) {
       setErrors({ form: friendlyError(err, "Couldn't save the announcement. Please try again.") });
       setSaving(null);
+    } finally {
+      savingRef.current = false;
     }
   }
 
@@ -401,7 +408,7 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
               <span className="agri-muted" style={{ fontSize: "0.72rem" }}>PNG or JPG, up to 5 MB</span>
             </button>
           )}
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickImage} />
+          <input ref={fileRef} type="file" accept={IMAGE_TYPES.join(",")} hidden onChange={pickImage} />
           {errors.image && <div style={{ color: "var(--agri-red)", fontSize: "0.78rem", marginTop: 4 }}>{errors.image}</div>}
 
           <div className="form-check form-switch mt-3 mb-3">
