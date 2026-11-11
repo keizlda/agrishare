@@ -5,11 +5,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Check, Clock, MapPin, RefreshCw, Sprout, X } from "lucide-react-native";
 import TabScreenLayout, { PageTitle, tabCard } from "../components/TabScreenLayout";
 import Pill from "../components/Pill";
+import ErrorBanner from "../components/ui/ErrorBanner";
 import { colors, radius, spacing } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { getSignedPhotoUrl, listMyCropValidations } from "../lib/api/cropValidation";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
 import { formatDate as fmtDate, formatDateTime as fmtDateTime } from "../lib/dates";
+import { friendlyError } from "../lib/friendlyError";
 
 // Proof of Planting tab: a prominent "Submit" card that opens the existing
 // CropValidation flow, a tracker for the latest submission, and the older
@@ -46,6 +48,8 @@ export default function ValidationScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [open, setOpen] = useState(null); // submission shown in the details sheet
   const [viewerUri, setViewerUri] = useState(null);
+  // Shown with Try again instead of an empty history when loading fails.
+  const [loadError, setLoadError] = useState("");
 
   // Refetches on every focus, not just first mount: this screen sits under
   // the CropValidation modal in the stack and never unmounts, so a plain
@@ -55,14 +59,16 @@ export default function ValidationScreen({ navigation }) {
     try {
       const rows = await listMyCropValidations();
       setItems(rows);
+      setLoadError("");
       rows.forEach((r) => {
         if (!r.photoPath) return;
         getSignedPhotoUrl(r.photoPath)
           .then((url) => setThumbs((prev) => ({ ...prev, [r.id]: url })))
           .catch(() => {});
       });
-    } catch {
+    } catch (err) {
       setItems((prev) => prev ?? []);
+      setLoadError(friendlyError(err, "Your submissions couldn't be loaded. Please try again."));
     } finally {
       setRefreshing(false);
     }
@@ -95,6 +101,8 @@ export default function ValidationScreen({ navigation }) {
         }
       >
         <PageTitle>Proof of Planting</PageTitle>
+
+        {!!loadError && <ErrorBanner message={loadError} onRetry={load} />}
 
         <Pressable
           onPress={() => navigation.navigate("CropValidation")}

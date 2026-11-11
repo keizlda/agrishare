@@ -11,6 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import { listAnnouncements, markAnnouncementRead, subscribeToAnnouncements } from "../lib/api/announcements";
 import { deleteNotification, listMyNotifications, markAllNotificationsRead, markNotificationRead } from "../lib/api/userNotifications";
 import { formatDate } from "../lib/dates";
+import { friendlyError } from "../lib/friendlyError";
 
 const UPDATES_TAB = "My Updates";
 const TABS = ["Announcements", "Unread", UPDATES_TAB];
@@ -42,8 +43,8 @@ export default function AnnouncementsScreen({ navigation }) {
     try {
       setItems(await listAnnouncements());
       setError("");
-    } catch {
-      setError("Couldn't load announcements. Pull down to try again.");
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't load announcements. Pull down to try again."));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -56,7 +57,7 @@ export default function AnnouncementsScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       load();
-      listMyNotifications().then(setUpdates).catch(() => {});
+      listMyNotifications().then(setUpdates).catch((err) => setError(friendlyError(err, "Couldn't load your updates. Pull down to try again.")));
     }, [load])
   );
 
@@ -65,7 +66,7 @@ export default function AnnouncementsScreen({ navigation }) {
   function onRefresh() {
     setRefreshing(true);
     load();
-    listMyNotifications().then(setUpdates).catch(() => {});
+    listMyNotifications().then(setUpdates).catch((err) => setError(friendlyError(err, "Couldn't load your updates. Pull down to try again.")));
   }
 
   function openAnnouncement(a) {

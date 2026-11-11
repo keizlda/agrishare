@@ -30,7 +30,7 @@ export default function ScreenHeader({ title, showLogo, onBellPress, onBack }) {
         )}
       </View>
       {onBellPress && (
-        <TouchableOpacity onPress={onBellPress} style={styles.bellBtn}>
+        <TouchableOpacity onPress={onBellPress} style={styles.bellBtn} accessibilityRole="button" accessibilityLabel="Notifications">
           <Bell size={20} color={colors.text} />
           <View style={styles.dot} />
         </TouchableOpacity>

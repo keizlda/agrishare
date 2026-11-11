@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { CheckCircle2, ChevronRight, Leaf, Megaphone, Package, Pin } from "lucide-react-native";
 import TabScreenLayout, { tabCard } from "../components/TabScreenLayout";
@@ -7,12 +7,14 @@ import AnnouncementDetailModal from "../components/AnnouncementDetailModal";
 import Avatar from "../components/Avatar";
 import Pill from "../components/Pill";
 import ReminderBanner from "../components/ReminderBanner";
+import ErrorBanner from "../components/ui/ErrorBanner";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listMyDistributions } from "../lib/api/distributions";
 import { listAnnouncements, markAnnouncementRead } from "../lib/api/announcements";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
 import { formatDate } from "../lib/dates";
+import { friendlyError } from "../lib/friendlyError";
 
 const ANNOUNCEMENT_ROWS = 3;
 
@@ -43,17 +45,33 @@ export default function HomeScreen({ navigation }) {
   const [distributions, setDistributions] = useState([]);
   const [announcements, setAnnouncements] = useState(null); // null while loading
   const [openAnnouncement, setOpenAnnouncement] = useState(null);
+  // Shown with Try again when either list fails to load (instead of empty
+  // lists that would read as "no distributions").
+  const [loadError, setLoadError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    const [mine, posts] = await Promise.allSettled([listMyDistributions(), listAnnouncements()]);
+    if (mine.status === "fulfilled") setDistributions(mine.value);
+    if (posts.status === "fulfilled") setAnnouncements(posts.value);
+    else setAnnouncements((prev) => prev ?? []);
+    const failed = [mine, posts].find((r) => r.status === "rejected");
+    setLoadError(failed ? friendlyError(failed.reason, "Some of your information couldn't be loaded. Please try again.") : "");
+  }, []);
 
   // Refetched on every focus so read dots and new posts are current after
   // coming back from the Announcements screen or another tab.
   useFocusEffect(
     useCallback(() => {
-      listMyDistributions().then(setDistributions).catch(() => {});
-      listAnnouncements()
-        .then(setAnnouncements)
-        .catch(() => setAnnouncements((prev) => prev ?? []));
-    }, [])
+      load();
+    }, [load])
   );
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
 
   const recent = distributions.slice(0, 3);
   // Pinned first, then newest (listAnnouncements' order).
@@ -72,7 +90,10 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <TabScreenLayout navigation={navigation}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 16 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
+      >
         <View style={styles.welcomeRow}>
           {/* Keyed by uri so a new upload shows immediately (see Avatar.js). */}
           <Avatar uri={farmer?.avatarUrl} size={48} key={farmer?.avatarUrl ?? "none"} />
@@ -86,6 +107,8 @@ export default function HomeScreen({ navigation }) {
             onPress={() => navigation.navigate("ChangePassword")}
           />
         )}
+
+        {!!loadError && <ErrorBanner message={loadError} onRetry={load} style={{ marginTop: 12, marginBottom: 0 }} />}
 
         <TouchableOpacity style={[styles.requestCard, farmer?.mustChangePassword && { marginTop: 12 }]} onPress={() => navigation.navigate("Requests")}>
           <View style={styles.requestIcon}>

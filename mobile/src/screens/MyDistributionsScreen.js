@@ -5,9 +5,11 @@ import { useFocusEffect } from "@react-navigation/native";
 import ScreenHeader from "../components/ScreenHeader";
 import Pill from "../components/Pill";
 import EmptyState from "../components/ui/EmptyState";
+import ErrorBanner from "../components/ui/ErrorBanner";
 import { colors, radius, shadows, spacing } from "../theme";
 import { listMyDistributions } from "../lib/api/distributions";
 import { formatDate } from "../lib/dates";
+import { friendlyError } from "../lib/friendlyError";
 
 // Ongoing -> Upcoming; Completed -> Received (no acknowledgement wording
 // for farmers).
@@ -39,12 +41,15 @@ export default function MyDistributionsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [open, setOpen] = useState(null);
+  const [loadError, setLoadError] = useState("");
 
   const load = useCallback(async () => {
     try {
       setDistributions(await listMyDistributions());
-    } catch {
-      // leave the previous list in place; pull-to-refresh can retry
+      setLoadError("");
+    } catch (err) {
+      // Keep the previous list; the banner's Try again (or pull-to-refresh) retries.
+      setLoadError(friendlyError(err, "Your distributions couldn't be loaded. Please try again."));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -69,6 +74,7 @@ export default function MyDistributionsScreen({ navigation }) {
         keyExtractor={(r) => r.key}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        ListHeaderComponent={loadError ? <ErrorBanner message={loadError} onRetry={load} /> : null}
         renderItem={({ item }) =>
           item.rowType === "header" ? (
             <Text style={styles.yearHeader}>{item.year}</Text>
