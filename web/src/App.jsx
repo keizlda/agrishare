@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout.jsx";
+import ErrorBoundary from "./components/ui/ErrorBoundary.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Farmers from "./pages/Farmers.jsx";
@@ -14,27 +15,32 @@ import ActivityLog from "./pages/ActivityLog.jsx";
 import PrintDistribution from "./pages/PrintDistribution.jsx";
 import PrintReport from "./pages/PrintReport.jsx";
 
+// Two crash screens: this outer one catches anything outside a page (the
+// layout, the print pages, Login); AppLayout puts one around each page so
+// the top bar stays usable when a page breaks.
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/print/distributions/:id" element={<PrintDistribution />} />
-      <Route path="/print/reports" element={<PrintReport />} />
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/print/distributions/:id" element={<PrintDistribution />} />
+        <Route path="/print/reports" element={<PrintReport />} />
 
-      <Route element={<AppLayout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/farmers" element={<Farmers />} />
-        <Route path="/validation" element={<Validation />} />
-        <Route path="/distributions" element={<Distributions />} />
-        <Route path="/requests" element={<Requests />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/commodities" element={<Commodities />} />
-        <Route path="/announcements" element={<Announcements />} />
-        <Route path="/activity-log" element={<ActivityLog />} />
-        <Route path="/settings" element={<Settings />} />
-      </Route>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/farmers" element={<Farmers />} />
+          <Route path="/validation" element={<Validation />} />
+          <Route path="/distributions" element={<Distributions />} />
+          <Route path="/requests" element={<Requests />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/commodities" element={<Commodities />} />
+          <Route path="/announcements" element={<Announcements />} />
+          <Route path="/activity-log" element={<ActivityLog />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
 
-      <Route path="*" element={<Login />} />
-    </Routes>
+        <Route path="*" element={<Login />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }

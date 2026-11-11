@@ -2806,6 +2806,34 @@ table.agri-table thead th {
   }
 }
 
+/* ---------- Crash screen (ErrorBoundary.jsx) ---------- */
+.agri-crash {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.agri-crash-card {
+  width: 420px;
+  max-width: 100%;
+  padding: 26px 22px;
+  text-align: center;
+}
+
+.agri-crash-icon {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--agri-red-bg);
+  color: var(--agri-red);
+}
+
 /* ---------- Side drawer (Farmer Profile) ---------- */
 .agri-drawer-backdrop {
   position: fixed;

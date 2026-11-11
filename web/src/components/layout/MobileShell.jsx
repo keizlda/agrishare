@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronRight,
   FileBarChart2,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import NotificationBell from "./NotificationBell.jsx";
+import ErrorBoundary from "../ui/ErrorBoundary.jsx";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 
 // Mirrors the mobile app's MainTabs (Home/Farmers/Distributions always
@@ -43,6 +44,7 @@ const MORE_ITEMS = [
 export default function MobileShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const role = user?.role ?? "MAO Admin";
   const moreItems = MORE_ITEMS.filter((item) => item.roles.includes(role));
 
@@ -72,7 +74,9 @@ export default function MobileShell() {
       </header>
 
       <main className="agri-mshell-content">
-        <Outlet />
+        <ErrorBoundary key={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       <nav className="agri-mshell-tabbar">

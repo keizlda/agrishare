@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import Topbar from "./Topbar.jsx";
 import MobileShell from "./MobileShell.jsx";
+import ErrorBoundary from "../ui/ErrorBoundary.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useIsMobile } from "../../hooks/useIsMobile.js";
 
@@ -53,7 +54,9 @@ export default function AppLayout() {
     >
       <Topbar />
       <div className="agri-content">
-        <Outlet />
+        <ErrorBoundary key={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </div>
     </div>
   );
