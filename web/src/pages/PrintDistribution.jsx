@@ -31,7 +31,7 @@ export default function PrintDistribution() {
   useAutoPrint(!!distribution && !!beneficiaries, searchParams.get("autoPrint") === "1");
 
   if (error) {
-    return <div className="pr-page">Could not load this distribution: {error}</div>;
+    return <div className="pr-page" role="alert">{error}</div>;
   }
   if (!distribution || !beneficiaries) {
     return <div className="pr-page">Loading…</div>;

@@ -26,6 +26,7 @@ export default function Reports() {
   const [status, setStatus] = useState("All Status");
   const [commodity, setCommodity] = useState("All Commodities");
   const [barangay, setBarangay] = useState("All Barangays");
+  const [rangeError, setRangeError] = useState("");
   const tableRef = useRef(null);
   useCardLabels(tableRef);
 
@@ -43,6 +44,12 @@ export default function Reports() {
 
   function handleGenerate(e) {
     e.preventDefault();
+    // Dates are "YYYY-MM-DD", so they compare correctly as text.
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      setRangeError("The \"From\" date must be on or before the \"To\" date.");
+      return;
+    }
+    setRangeError("");
     const id = `RPT-${String(reports.length + 29).padStart(3, "0")}`;
     setReports((prev) => [
       {
@@ -96,10 +103,11 @@ export default function Reports() {
             <div>
               <label className="agri-form-label">Date Range</label>
               <div className="agri-muted" style={{ fontSize: "0.72rem", marginBottom: 4 }}>Leave blank to include every date.</div>
-              <div className="agri-date-range mb-3">
-                <DateInput value={dateFrom} onChange={setDateFrom} aria-label="From date" />
-                <DateInput value={dateTo} onChange={setDateTo} aria-label="To date" />
+              <div className={`agri-date-range ${rangeError ? "mb-1" : "mb-3"}`}>
+                <DateInput value={dateFrom} onChange={(v) => { setDateFrom(v); setRangeError(""); }} invalid={!!rangeError} aria-label="From date" />
+                <DateInput value={dateTo} onChange={(v) => { setDateTo(v); setRangeError(""); }} invalid={!!rangeError} aria-label="To date" />
               </div>
+              {rangeError && <div className="mb-3" style={{ color: "var(--agri-red)", fontSize: "0.78rem" }} role="alert">{rangeError}</div>}
 
               <label className="agri-form-label">Barangay</label>
               <select className="form-select mb-3" value={barangay} onChange={(e) => setBarangay(e.target.value)}>

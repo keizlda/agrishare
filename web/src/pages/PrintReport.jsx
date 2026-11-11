@@ -38,7 +38,7 @@ export default function PrintReport() {
   useAutoPrint(!!data, searchParams.get("autoPrint") === "1");
 
   if (error) {
-    return <div className="pr-page">Could not load this report: {error}</div>;
+    return <div className="pr-page" role="alert">{error}</div>;
   }
   if (!data) {
     return <div className="pr-page">Loading…</div>;
