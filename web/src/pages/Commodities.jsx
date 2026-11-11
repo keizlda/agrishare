@@ -24,9 +24,23 @@ function editFormFor(commodity) {
   return { name: commodity.name, category: commodity.category, unit: commodity.unit ?? "kg", status: commodity.status };
 }
 
-function validateEdit(form) {
+const MAX_NAME_LENGTH = 80;
+const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+// Name rules shared by Add and Edit: required, a sensible length, and not
+// another active commodity's name (ignoring case and spaces — the database
+// refuses duplicates too). `others`: the other commodities.
+function nameError(name, others) {
+  if (!name.trim()) return "Enter the commodity name.";
+  if (name.trim().length > MAX_NAME_LENGTH) return `Keep the name to ${MAX_NAME_LENGTH} characters or fewer.`;
+  if (others.some((c) => sameName(c.name, name))) return "A commodity with this name already exists.";
+  return null;
+}
+
+function validateEdit(form, others) {
   const errors = {};
-  if (!form.name.trim()) errors.name = "Enter the commodity name.";
+  const name = nameError(form.name, others);
+  if (name) errors.name = name;
   if (!form.unit.trim()) errors.unit = "Enter a unit, e.g. kg, bag or set.";
   return errors;
 }
@@ -111,12 +125,12 @@ export default function Commodities() {
   async function saveEdit(e) {
     e.preventDefault();
     if (saving) return;
-    const errors = validateEdit(edit);
+    const errors = validateEdit(edit, commodities.filter((c) => c.id !== selected.id));
     setEditErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
-      const saved = await updateCommodity(selected.id, { name: edit.name.trim(), category: edit.category, unit: edit.unit.trim(), status: edit.status });
+      const saved = await updateCommodity(selected.id, { name: edit.name.trim().replace(/\s+/g, " "), category: edit.category, unit: edit.unit.trim(), status: edit.status });
       setCommodities((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
       stopEditing();
       setToast({ tone: "success", message: "Commodity updated." });
@@ -236,7 +250,7 @@ export default function Commodities() {
               {edit ? (
                 <>
                   <EditField label="Name" id="commodity-name" error={editErrors.name}>
-                    <input id="commodity-name" className={`form-control form-control-sm${editErrors.name ? " is-invalid" : ""}`} value={edit.name} onChange={(e) => updateField("name", e.target.value)} disabled={saving} autoFocus />
+                    <input id="commodity-name" maxLength={MAX_NAME_LENGTH} className={`form-control form-control-sm${editErrors.name ? " is-invalid" : ""}`} value={edit.name} onChange={(e) => updateField("name", e.target.value)} disabled={saving} autoFocus />
                   </EditField>
                   <EditField label="Category" id="commodity-category">
                     <select id="commodity-category" className="form-select form-select-sm" value={edit.category} onChange={(e) => updateField("category", e.target.value)} disabled={saving}>
@@ -307,6 +321,7 @@ export default function Commodities() {
 
       {adding && (
         <AddCommodityModal
+          existing={commodities}
           onClose={() => setAdding(false)}
           onSaved={(saved) => {
             setCommodities((prev) => [saved, ...prev]);
@@ -360,22 +375,30 @@ function EditField({ label, id, error, children }) {
   );
 }
 
-function AddCommodityModal({ onClose, onSaved }) {
+function AddCommodityModal({ existing, onClose, onSaved }) {
   const [form, setForm] = useState({ name: "", category: "Rice" });
   const [formError, setFormError] = useState("");
+  const [nameErrorText, setNameErrorText] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   useEscapeToClose(true, onClose);
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (savingRef.current) return;
     setFormError("");
+    const problem = nameError(form.name, existing);
+    setNameErrorText(problem ?? "");
+    if (problem) return;
+    savingRef.current = true;
     setSaving(true);
     try {
-      onSaved(await createCommodity(form));
+      onSaved(await createCommodity({ ...form, name: form.name.trim().replace(/\s+/g, " ") }));
     } catch (err) {
       setFormError(friendlyError(err, "Couldn't save this commodity. Please try again."));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -388,6 +411,7 @@ function AddCommodityModal({ onClose, onSaved }) {
         role="dialog"
         aria-label="Add Commodity"
         onSubmit={handleSubmit}
+        noValidate
         onClick={(e) => e.stopPropagation()}
       >
         <div className="agri-modal-header">
@@ -402,7 +426,18 @@ function AddCommodityModal({ onClose, onSaved }) {
           )}
 
           <label className="agri-form-label">Commodity Name</label>
-          <input required className="form-control mb-3" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Rice Seeds (NSIC Rc222)" />
+          <input
+            required
+            maxLength={MAX_NAME_LENGTH}
+            className={`form-control${nameErrorText ? " is-invalid" : ""}`}
+            value={form.name}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, name: e.target.value }));
+              setNameErrorText("");
+            }}
+            placeholder="e.g. Rice Seeds (NSIC Rc222)"
+          />
+          <div className="mb-3" style={{ color: "var(--agri-red)", fontSize: "0.78rem", marginTop: 4, minHeight: 4 }}>{nameErrorText}</div>
 
           <label className="agri-form-label">Category</label>
           <select className="form-select" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
