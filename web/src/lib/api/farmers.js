@@ -1,5 +1,6 @@
 import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
+import { friendlyError } from "../friendlyError.js";
 
 // Official RSBSA Enrollment Form (Revised 01-2024) format:
 // RR-PP-MM-BBB-NNNNNN. Exported so the form's live mask, its submit-time
@@ -141,104 +142,75 @@ export async function findDeletedFarmerByRsbsa(rsbsaNo) {
   return data ? { id: data.farmer_id, firstName: data.first_name, lastName: data.surname } : null;
 }
 
-export async function createFarmer(form) {
-  const farmSize = Number(form.farmSize) || 0;
-
-  const { data: farmerRow, error: farmerErr } = await supabase
-    .from("farmers")
-    .insert({
-      rsbsa_no: form.rsbsaNo,
-      surname: form.lastName,
-      first_name: form.firstName,
-      middle_name: form.middleName || null,
-      sex: form.sex.toLowerCase(),
-      birth_date: form.birthDate,
-      contact_no: form.contactNo,
-      household_head: form.householdHead === "Yes",
-      household_members: form.householdMembers ? Number(form.householdMembers) : null,
-      org_affiliation: form.orgAffiliation || null,
-      status: labelToDbStatus(form.status || "Active"),
-    })
-    .select(
-      "farmer_id, rsbsa_no, surname, first_name, middle_name, sex, birth_date, contact_no, household_head, household_members, org_affiliation, status, created_at",
-    )
-    .single();
-  if (farmerErr) throw farmerErr;
-
-  const { error: addrErr } = await supabase.from("addresses").insert({
-    farmer_id: farmerRow.farmer_id,
+// What save_farmer (database function) takes: the farmer, address, first
+// farm parcel and its crop, written in one transaction.
+function toSavePayload(form) {
+  return {
+    rsbsa_no: form.rsbsaNo,
+    first_name: form.firstName,
+    middle_name: form.middleName || null,
+    surname: form.lastName,
+    sex: form.sex.toLowerCase(),
+    birth_date: form.birthDate,
+    contact_no: form.contactNo,
+    org_affiliation: form.orgAffiliation || null,
+    status: labelToDbStatus(form.status || "Active"),
     street: form.sitioPurok || null,
     barangay: form.barangay,
     municipality: form.municipality,
     province: form.province,
-  });
-  if (addrErr) throw addrErr;
+    farm_location: form.farmLocation,
+    farm_size_hectares: Number(form.farmSize) || 0,
+    ownership_type: form.ownershipType || null,
+    is_pcic_insured: pcicDbValue(form.pcicInsured),
+    crop_type: form.commodity,
+  };
+}
 
-  const { data: parcel, error: parcelErr } = await supabase
-    .from("farm_parcels")
-    .insert({
-      farmer_id: farmerRow.farmer_id,
-      farm_location: form.farmLocation,
-      farm_size_hectares: farmSize,
-      ownership_type: form.ownershipType || null,
-      is_pcic_insured: pcicDbValue(form.pcicInsured),
-      livestock_details: form.livestockDetails || null,
-    })
-    .select("parcel_id")
-    .single();
-  if (parcelErr) throw parcelErr;
+async function readFarmer(farmerId) {
+  const { data, error } = await supabase.from("farmers").select(SELECT).eq("farmer_id", farmerId).single();
+  if (error) throw error;
+  return mapFarmer(data);
+}
 
-  const { error: cropErr } = await supabase
-    .from("crops")
-    .insert({ parcel_id: parcel.parcel_id, crop_type: form.commodity, area_planted: farmSize });
-  if (cropErr) throw cropErr;
+export async function createFarmer(form) {
+  const { data: farmerId, error } = await supabase.rpc("save_farmer", { p_farmer_id: null, p_farmer: toSavePayload(form) });
+  if (error) throw error;
 
   // Account creation (manage-farmer-account) happens only once the farmer
-  // record itself is fully written. A same-last-6-digits conflict here means
-  // "no farmer without an account" would be violated, so the whole farmer
-  // record (and its cascaded address/parcel/crop rows) is rolled back rather
-  // than left half-provisioned. An out-of-format RSBSA (pre-existing records
-  // being corrected later) just skips account creation for now — updateFarmer
-  // creates the account the moment the number becomes valid.
+  // record itself is fully written. If it fails (e.g. the last-6-digit login
+  // ID is already taken), the new farmer record (and its cascaded
+  // address/parcel/crop rows) is removed again rather than left without an
+  // account. An out-of-format RSBSA (pre-existing records being corrected
+  // later) just skips account creation for now — updateFarmer creates the
+  // account the moment the number becomes valid.
   let account = null;
   if (isValidRsbsaFormat(form.rsbsaNo)) {
     try {
       account = await invokeAccountFn("create", {
-        farmerId: farmerRow.farmer_id,
+        farmerId,
         rsbsaNo: form.rsbsaNo,
         fullName: `${form.firstName} ${form.lastName}`,
         contactNo: form.contactNo,
       });
     } catch (err) {
-      await supabase.from("farmers").delete().eq("farmer_id", farmerRow.farmer_id).catch(() => {});
+      await supabase.from("farmers").delete().eq("farmer_id", farmerId);
       throw err;
     }
   }
 
-  return {
-    ...mapFarmer({
-      ...farmerRow,
-      profile_id: account?.profileId ?? null,
-      addresses: [{ street: form.sitioPurok, barangay: form.barangay, municipality: form.municipality, province: form.province }],
-      farm_parcels: [
-        {
-          farm_location: form.farmLocation,
-          farm_size_hectares: farmSize,
-          ownership_type: form.ownershipType,
-          is_pcic_insured: pcicDbValue(form.pcicInsured),
-          livestock_details: form.livestockDetails,
-          crops: [{ crop_type: form.commodity }],
-        },
-      ],
-    }),
-    loginId: account?.loginId ?? null,
-    tempPassword: account?.password ?? null,
-  };
+  let saved;
+  try {
+    saved = await readFarmer(farmerId);
+  } catch {
+    // Saved, but the fresh copy couldn't be read back (connection dropped):
+    // show what was entered rather than an error that invites a re-save.
+    saved = { ...form, id: farmerId, profileId: account?.profileId ?? null, rsbsaValid: isValidRsbsaFormat(form.rsbsaNo) };
+  }
+  return { ...saved, loginId: account?.loginId ?? null, tempPassword: account?.password ?? null };
 }
 
 export async function updateFarmer(farmerId, form) {
-  const farmSize = Number(form.farmSize) || 0;
-
   const { data: previous, error: prevErr } = await supabase
     .from("farmers")
     .select("rsbsa_no, profile_id")
@@ -246,54 +218,8 @@ export async function updateFarmer(farmerId, form) {
     .single();
   if (prevErr) throw prevErr;
 
-  const { error: farmerErr } = await supabase
-    .from("farmers")
-    .update({
-      rsbsa_no: form.rsbsaNo,
-      surname: form.lastName,
-      first_name: form.firstName,
-      middle_name: form.middleName || null,
-      sex: form.sex.toLowerCase(),
-      birth_date: form.birthDate,
-      contact_no: form.contactNo,
-      household_head: form.householdHead === "Yes",
-      household_members: form.householdMembers ? Number(form.householdMembers) : null,
-      org_affiliation: form.orgAffiliation || null,
-      status: labelToDbStatus(form.status || "Active"),
-    })
-    .eq("farmer_id", farmerId);
-  if (farmerErr) throw farmerErr;
-
-  const { error: addrErr } = await supabase
-    .from("addresses")
-    .update({
-      street: form.sitioPurok || null,
-      barangay: form.barangay,
-      municipality: form.municipality,
-      province: form.province,
-    })
-    .eq("farmer_id", farmerId);
-  if (addrErr) throw addrErr;
-
-  const { data: parcel, error: parcelErr } = await supabase
-    .from("farm_parcels")
-    .update({
-      farm_location: form.farmLocation,
-      farm_size_hectares: farmSize,
-      ownership_type: form.ownershipType || null,
-      is_pcic_insured: pcicDbValue(form.pcicInsured),
-      livestock_details: form.livestockDetails || null,
-    })
-    .eq("farmer_id", farmerId)
-    .select("parcel_id")
-    .single();
-  if (parcelErr) throw parcelErr;
-
-  const { error: cropErr } = await supabase
-    .from("crops")
-    .update({ crop_type: form.commodity, area_planted: farmSize })
-    .eq("parcel_id", parcel.parcel_id);
-  if (cropErr) throw cropErr;
+  const { error } = await supabase.rpc("save_farmer", { p_farmer_id: farmerId, p_farmer: toSavePayload(form) });
+  if (error) throw error;
 
   // The farmer record is already saved by this point, so a problem here is
   // reported back as a non-fatal notice rather than thrown — the edit itself
@@ -317,13 +243,17 @@ export async function updateFarmer(farmerId, form) {
         accountNotice = { type: "account-created", loginId: result.loginId, password: result.password };
       }
     } catch (err) {
-      accountNotice = { type: "error", message: err.message };
+      accountNotice = { type: "error", message: friendlyError(err, "Please try again from the farmer's ⋯ menu.") };
     }
   }
 
-  const { data: fresh, error: fetchErr } = await supabase.from("farmers").select(SELECT).eq("farmer_id", farmerId).single();
-  if (fetchErr) throw fetchErr;
-  return { ...mapFarmer(fresh), accountNotice };
+  let saved;
+  try {
+    saved = await readFarmer(farmerId);
+  } catch {
+    saved = { ...form, id: farmerId, profileId: previous.profile_id, rsbsaValid: isValidRsbsaFormat(form.rsbsaNo) };
+  }
+  return { ...saved, accountNotice };
 }
 
 // Soft delete: marks the farmer removed and disables their mobile login,

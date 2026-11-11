@@ -17,7 +17,7 @@ import { useCardLabels } from "../hooks/useCardLabels.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { commodityCategories } from "../data/mockData.js";
-import { formatDate } from "../lib/dates.js";
+import { formatDate, todayIso } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowActionsCellProps, rowLinkProps } from "../lib/rowLink.js";
 import {
@@ -156,6 +156,46 @@ function findDuplicateFarmer(farmers, form, excludeId) {
   });
 }
 
+// Input rules. Names: letters (including ñ and accented letters), spaces,
+// and . ' - ("Ma.", "O'Brien-Dela Cruz") — no digits, symbols or emoji.
+// RSBSA registrants are adults, so ages 18–100 are accepted.
+const NAME_PATTERN = /^\p{L}[\p{L}\p{M} .'-]*$/u;
+const MAX_LENGTH = { name: 50, sitioPurok: 100, farmLocation: 150, orgAffiliation: 120 };
+const MIN_AGE = 18;
+const MAX_AGE = 100;
+const MAX_FARM_HECTARES = 1000;
+
+function ageOn(birthIso, todayIsoDate) {
+  const [by, bm, bd] = birthIso.split("-").map(Number);
+  const [ty, tm, td] = todayIsoDate.split("-").map(Number);
+  return ty - by - (tm < bm || (tm === bm && td < bd) ? 1 : 0);
+}
+
+function nameError(value, label, required) {
+  const v = value.trim();
+  if (!v) return required ? `${label} is required.` : null;
+  if (v.length > MAX_LENGTH.name) return `${label} can't be longer than ${MAX_LENGTH.name} characters.`;
+  if (!NAME_PATTERN.test(v)) return `${label} can only have letters, spaces, and . ' -`;
+  return null;
+}
+
+// Trimmed copy for saving (and for the duplicate check): no leading/trailing
+// spaces, single spaces inside names, digits only in the contact number.
+function cleanFarmerForm(form) {
+  const squeeze = (v) => v.trim().replace(/\s+/g, " ");
+  return {
+    ...form,
+    rsbsaNo: form.rsbsaNo.trim(),
+    firstName: squeeze(form.firstName),
+    middleName: squeeze(form.middleName),
+    lastName: squeeze(form.lastName),
+    contactNo: form.contactNo.replace(/\s+/g, ""),
+    sitioPurok: form.sitioPurok.trim(),
+    farmLocation: form.farmLocation.trim(),
+    orgAffiliation: form.orgAffiliation.trim(),
+  };
+}
+
 function validateFarmerForm(form) {
   const errors = {};
   const trimmedRsbsa = form.rsbsaNo.trim();
@@ -164,13 +204,19 @@ function validateFarmerForm(form) {
   } else if (!RSBSA_PATTERN.test(trimmedRsbsa)) {
     errors.rsbsaNo = "Enter the complete RSBSA number (format: 09-73-12-021-000143).";
   }
-  if (!form.firstName.trim()) errors.firstName = "First name is required.";
-  if (!form.lastName.trim()) errors.lastName = "Last name is required.";
+  for (const [field, label, required] of [["firstName", "First name", true], ["middleName", "Middle name", false], ["lastName", "Last name", true]]) {
+    const err = nameError(form[field], label, required);
+    if (err) errors[field] = err;
+  }
   if (!form.sex) errors.sex = "Sex is required.";
   if (!form.birthDate) {
     errors.birthDate = "Enter the birth date as MM/DD/YYYY.";
-  } else if (new Date(form.birthDate).getFullYear() >= new Date().getFullYear()) {
-    errors.birthDate = "Enter a realistic birth date — not this year or in the future.";
+  } else {
+    const today = todayIso();
+    const age = ageOn(form.birthDate, today);
+    if (form.birthDate > today) errors.birthDate = "Enter a realistic birth date — not in the future.";
+    else if (age < MIN_AGE) errors.birthDate = `The farmer must be at least ${MIN_AGE} years old.`;
+    else if (age > MAX_AGE) errors.birthDate = `Enter a realistic birth date — that's over ${MAX_AGE} years old.`;
   }
 
   const cleanedContact = form.contactNo.replace(/\s+/g, "");
@@ -180,8 +226,14 @@ function validateFarmerForm(form) {
     errors.contactNo = "Enter an 11-digit number starting with 09 (e.g. 09XX XXX XXXX).";
   }
 
-  if (!(Number(form.farmSize) > 0)) {
+  const size = Number(form.farmSize);
+  if (!(size > 0)) {
     errors.farmSize = "Farm size must be a positive number.";
+  } else if (size > MAX_FARM_HECTARES) {
+    errors.farmSize = `Enter a realistic farm size (up to ${MAX_FARM_HECTARES.toLocaleString()} ha).`;
+  }
+  for (const [field, label] of [["sitioPurok", "Sitio / Purok"], ["farmLocation", "Farm location"], ["orgAffiliation", "Organization affiliation"]]) {
+    if (form[field].trim().length > MAX_LENGTH[field]) errors[field] = `${label} can't be longer than ${MAX_LENGTH[field]} characters.`;
   }
 
   return errors;
@@ -516,6 +568,9 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
   const [deletedDuplicate, setDeletedDuplicate] = useState(null);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  // Blocks a second Save while the first is still running (the duplicate
+  // and login-ID checks run before the save itself).
+  const savingRef = useRef(false);
 
   useEscapeToClose(true, onClose);
 
@@ -525,6 +580,18 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      await submit();
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
+
+  async function submit() {
     setFormError("");
     setDuplicate(null);
     setDeletedDuplicate(null);
@@ -533,14 +600,15 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
     setErrors(fieldErrors);
     if (Object.keys(fieldErrors).length > 0) return;
 
+    const cleanForm = cleanFarmerForm(form);
     const excludeId = mode === "edit" ? farmer.id : null;
-    const match = findDuplicateFarmer(farmers, form, excludeId);
+    const match = findDuplicateFarmer(farmers, cleanForm, excludeId);
     if (match) {
       setDuplicate(match);
       return;
     }
 
-    const rsbsaTrimmed = form.rsbsaNo.trim();
+    const rsbsaTrimmed = cleanForm.rsbsaNo;
     const rsbsaChanged = rsbsaTrimmed !== (mode === "edit" ? farmer.rsbsaNo : null);
 
     if (rsbsaChanged) {
@@ -572,16 +640,11 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
       }
     }
 
-    const cleanForm = { ...form, contactNo: form.contactNo.replace(/\s+/g, "") };
-
-    setSaving(true);
     try {
       const saved = mode === "edit" ? await updateFarmer(farmer.id, cleanForm) : await createFarmer(cleanForm);
       onSaved(saved);
     } catch (err) {
       setFormError(friendlyError(err, "Couldn't save this farmer. Please try again."));
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -637,13 +700,13 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
                 />
               </Field>
               <Field label="First Name" col={4} required error={errors.firstName}>
-                <input className="form-control" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} />
+                <input className="form-control" maxLength={MAX_LENGTH.name} value={form.firstName} onChange={(e) => update("firstName", e.target.value)} />
               </Field>
-              <Field label="Middle Name" col={4}>
-                <input className="form-control" value={form.middleName} onChange={(e) => update("middleName", e.target.value)} />
+              <Field label="Middle Name" col={4} error={errors.middleName}>
+                <input className="form-control" maxLength={MAX_LENGTH.name} value={form.middleName} onChange={(e) => update("middleName", e.target.value)} />
               </Field>
               <Field label="Last Name" col={4} required error={errors.lastName}>
-                <input className="form-control" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} />
+                <input className="form-control" maxLength={MAX_LENGTH.name} value={form.lastName} onChange={(e) => update("lastName", e.target.value)} />
               </Field>
               <Field label="Sex" col={4} required error={errors.sex}>
                 <select className="form-select" value={form.sex} onChange={(e) => update("sex", e.target.value)}>
@@ -659,8 +722,8 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
             </Section>
 
             <Section title="Address">
-              <Field label="Sitio / Purok" col={6}>
-                <input className="form-control" value={form.sitioPurok} onChange={(e) => update("sitioPurok", e.target.value)} />
+              <Field label="Sitio / Purok" col={6} error={errors.sitioPurok}>
+                <input className="form-control" maxLength={MAX_LENGTH.sitioPurok} value={form.sitioPurok} onChange={(e) => update("sitioPurok", e.target.value)} />
               </Field>
               <Field label="Barangay" col={6}>
                 <input className="form-control" value={form.barangay} readOnly />
@@ -682,8 +745,8 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
               <Field label="Farm Size (ha)" col={6} error={errors.farmSize}>
                 <input type="number" step="0.01" min="0" className="form-control" value={form.farmSize} onChange={(e) => update("farmSize", e.target.value)} />
               </Field>
-              <Field label="Farm Location" col={12}>
-                <input className="form-control" placeholder="Sitio or parcel description" value={form.farmLocation} onChange={(e) => update("farmLocation", e.target.value)} />
+              <Field label="Farm Location" col={12} error={errors.farmLocation}>
+                <input className="form-control" maxLength={MAX_LENGTH.farmLocation} placeholder="Sitio or parcel description" value={form.farmLocation} onChange={(e) => update("farmLocation", e.target.value)} />
               </Field>
               <Field label="Ownership / Tenurial Status" col={6}>
                 <select className="form-select" value={form.ownershipType} onChange={(e) => update("ownershipType", e.target.value)}>
@@ -698,8 +761,8 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
             </Section>
 
             <Section title="Affiliation & Status" last>
-              <Field label="Organization Affiliation" col={6}>
-                <input className="form-control" placeholder="Farmers' association name" value={form.orgAffiliation} onChange={(e) => update("orgAffiliation", e.target.value)} />
+              <Field label="Organization Affiliation" col={6} error={errors.orgAffiliation}>
+                <input className="form-control" maxLength={MAX_LENGTH.orgAffiliation} placeholder="Farmers' association name" value={form.orgAffiliation} onChange={(e) => update("orgAffiliation", e.target.value)} />
               </Field>
               <Field label="Status" col={6}>
                 <select className="form-select" value={form.status} onChange={(e) => update("status", e.target.value)}>
