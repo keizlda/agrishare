@@ -1,13 +1,29 @@
-import { useEffect, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Pill from "../components/Pill";
+import ErrorBanner from "../components/ui/ErrorBanner";
 import { colors, radius, shadows, sizes } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listCommodities } from "../lib/api/commodities";
 import { createRequest, listMyRequests } from "../lib/api/requests";
 import { formatDate } from "../lib/dates";
+import { friendlyError } from "../lib/friendlyError";
+
+const MAX_QUANTITY = 10000;
+const MAX_REASON = 300;
+
+// The first problem with the request, in plain words, or "" when it can
+// be sent. (The database also refuses a quantity of 0 or less.)
+function requestProblem(quantity, reason) {
+  if (!quantity.trim() || !reason.trim()) return "Please enter a quantity and reason for your request.";
+  if (!/^\d+(\.\d{1,2})?$/.test(quantity.trim())) return "Enter the quantity as a number, for example 25.";
+  const qty = Number(quantity);
+  if (qty <= 0) return "Enter a quantity greater than 0.";
+  if (qty > MAX_QUANTITY) return `That quantity looks too large. Enter up to ${MAX_QUANTITY.toLocaleString()}.`;
+  return "";
+}
 
 // A route param (route.params.presetCommodity) lets other screens deep-link
 // straight into the form with a commodity pre-picked.
@@ -22,18 +38,37 @@ export default function RequestsScreen({ navigation, route }) {
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Blocks a second Send while the first is still going.
+  const submittingRef = useRef(false);
+  const [loadError, setLoadError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    listMyRequests().then(setRequests).catch(() => {});
-    listCommodities().then((rows) => {
-      setCommodities(rows);
-      setCommodity((c) => c || rows[0]?.name || "");
-    }).catch(() => {});
+  const load = useCallback(async () => {
+    const [mine, items] = await Promise.allSettled([listMyRequests(), listCommodities()]);
+    if (mine.status === "fulfilled") setRequests(mine.value);
+    if (items.status === "fulfilled") {
+      setCommodities(items.value);
+      setCommodity((c) => c || items.value[0]?.name || "");
+    }
+    const failed = [mine, items].find((r) => r.status === "rejected");
+    setLoadError(failed ? friendlyError(failed.reason, "Your requests couldn't be loaded. Please try again.") : "");
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
+
   async function handleSubmit() {
-    if (!quantity || !reason) {
-      Alert.alert("Missing details", "Please enter a quantity and reason for your request.");
+    if (submittingRef.current) return;
+    const problem = requestProblem(quantity, reason);
+    if (problem) {
+      Alert.alert("Check your request", problem);
       return;
     }
     const selectedCommodity = commodities.find((c) => c.name === commodity);
@@ -41,13 +76,14 @@ export default function RequestsScreen({ navigation, route }) {
       Alert.alert("Pick a commodity", "Please choose a commodity to request.");
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const newRequest = await createRequest({
         farmerId: farmer.farmerId,
         commodityId: selectedCommodity.id,
-        quantity,
-        reason,
+        quantity: Number(quantity),
+        reason: reason.trim(),
       });
       setRequests((prev) => [newRequest, ...prev]);
       setQuantity("");
@@ -55,8 +91,9 @@ export default function RequestsScreen({ navigation, route }) {
       setShowForm(false);
       Alert.alert("Request Sent", "Your commodity request has been sent to your Farmers' Association President for review.");
     } catch (err) {
-      Alert.alert("Request failed", err.message);
+      Alert.alert("Request not sent", friendlyError(err, "Your request couldn't be sent. Please try again."));
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -75,8 +112,10 @@ export default function RequestsScreen({ navigation, route }) {
         data={requests}
         keyExtractor={(r) => r.id}
         contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
         ListHeaderComponent={
           <>
+            {!!loadError && <ErrorBanner message={loadError} onRetry={load} />}
             {!showForm && (
               <TouchableOpacity style={styles.newBtn} onPress={() => setShowForm(true)}>
                 <Ionicons name="add-circle" size={16} color="#fff" />
@@ -117,6 +156,7 @@ export default function RequestsScreen({ navigation, route }) {
                   value={reason}
                   onChangeText={setReason}
                   multiline
+                  maxLength={MAX_REASON}
                   placeholder="Explain why you need this commodity"
                   placeholderTextColor={colors.textFaint}
                 />
