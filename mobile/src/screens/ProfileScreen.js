@@ -12,6 +12,7 @@ import { colors, radius, shadows, spacing } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { removeAvatar, uploadAvatar } from "../lib/api/profile";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
+import { friendlyError } from "../lib/friendlyError";
 
 const AVATAR_SIZE = 96;
 const BANNER_HEIGHT = 70;
@@ -71,7 +72,7 @@ export default function ProfileScreen({ navigation }) {
   async function handleCropConfirm(finalUri, err) {
     setCropUri(null);
     if (!finalUri) {
-      if (err) showToast(err.message || "Couldn't process that photo.", "error");
+      if (err) showToast(friendlyError(err, "Couldn't process that photo."), "error");
       return;
     }
     setUploading(true);
@@ -80,7 +81,7 @@ export default function ProfileScreen({ navigation }) {
       updateAvatarUrl(url);
       showToast("Profile picture updated.");
     } catch (uploadErr) {
-      showToast(uploadErr.message || "Couldn't update your profile picture.", "error");
+      showToast(friendlyError(uploadErr, "Couldn't update your profile picture."), "error");
     } finally {
       setUploading(false);
     }
@@ -94,7 +95,7 @@ export default function ProfileScreen({ navigation }) {
       updateAvatarUrl(null);
       showToast("Profile picture removed.");
     } catch (err) {
-      showToast(err.message || "Couldn't remove your profile picture.", "error");
+      showToast(friendlyError(err, "Couldn't remove your profile picture."), "error");
     } finally {
       setUploading(false);
     }

@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { submitCropValidation, uploadCropPhoto } from "../lib/api/cropValidation";
 import { listMyDistributions } from "../lib/api/distributions";
 import { formatDate, formatDateLong, formatDateTime, maskTypedDate, todayIso, typedToIso } from "../lib/dates";
+import { friendlyError } from "../lib/friendlyError";
 
 const CROP_TYPES = ["Rice", "Corn", "Vegetables", "Other"];
 
@@ -181,7 +182,7 @@ export default function CropValidationScreen({ navigation }) {
         capturedAt: formatDateTime(new Date(position.timestamp)),
       });
     } catch (err) {
-      Alert.alert("Couldn't get your location", err.message);
+      Alert.alert("Couldn't get your location", friendlyError(err, "Your location couldn't be read. Go outside or near a window and try again."));
     } finally {
       setLocatingGps(false);
     }
@@ -221,7 +222,7 @@ export default function CropValidationScreen({ navigation }) {
 
       setStampJob({ uri: result.assets[0].uri });
     } catch (err) {
-      Alert.alert("Photo capture failed", err.message);
+      Alert.alert("Photo not taken", friendlyError(err, "The camera couldn't take the photo. Please try again."));
     }
   }
 
@@ -278,7 +279,7 @@ export default function CropValidationScreen({ navigation }) {
       setPhotoCaptured(true);
     } catch (err) {
       setStampJob(null);
-      Alert.alert("Photo stamping failed", err.message);
+      Alert.alert("Photo not saved", friendlyError(err, "The photo couldn't be saved. Please retake it."));
     }
   }
 
@@ -326,7 +327,7 @@ export default function CropValidationScreen({ navigation }) {
       Alert.alert("Submitted", "Your crop validation has been submitted for review by the MAO and your Farmers' Association President.");
       navigation.goBack();
     } catch (err) {
-      Alert.alert("Submission failed", err.message);
+      Alert.alert("Not submitted", friendlyError(err, "Your proof of planting couldn't be submitted. Please try again."));
     } finally {
       setSubmitting(false);
     }
