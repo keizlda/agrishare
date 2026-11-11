@@ -26,7 +26,7 @@ import {
   updateDistributionStatus,
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
-import { formatDate } from "../lib/dates.js";
+import { formatDate, todayIso } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { DISTRIBUTION_STATUSES, completedOn } from "../lib/distributionStatus.js";
 import { rowLinkProps } from "../lib/rowLink.js";
@@ -488,6 +488,11 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loadingBeneficiaries, setLoadingBeneficiaries] = useState(editing);
+  // Editing with the tagged farmers not loaded would save an empty list
+  // (removing them all), so a load failure blocks Save.
+  const [beneficiaryLoadError, setBeneficiaryLoadError] = useState("");
+  // Blocks a second Save while the first is still running.
+  const savingRef = useRef(false);
   const [pendingFarmer, setPendingFarmer] = useState(null);
   const [overrideReason, setOverrideReason] = useState("");
 
@@ -520,7 +525,9 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
           })),
         }));
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (!cancelled) setBeneficiaryLoadError(friendlyError(err, "Couldn't load the tagged farmers."));
+      })
       .finally(() => {
         if (!cancelled) setLoadingBeneficiaries(false);
       });
@@ -615,26 +622,45 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
 
   const taggedTotal = form.taggedBeneficiaries.reduce((sum, r) => sum + (Number(r.quantity) || 0), 0);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.commodityId) {
-      setFormError("Add a commodity in Commodities before recording a distribution.");
-      return;
-    }
-    const program = form.program.trim();
-    if (!program) {
-      setFormError("Program name is required.");
-      return;
+  // The first problem with the form, in plain words, or "" when it can be
+  // saved. (save_distribution checks the same rules again.)
+  function validate() {
+    if (beneficiaryLoadError) return `${beneficiaryLoadError} Close this form and open it again before saving.`;
+    if (!form.commodityId) return "Add a commodity in Commodities before recording a distribution.";
+    if (!form.program.trim()) return "Program name is required.";
+    if (!form.venue.trim()) return "Venue is required.";
+    if (editing) {
+      const today = todayIso();
+      const [y, m, d] = today.split("-");
+      if (!form.date) return "Enter the distribution date as MM/DD/YYYY.";
+      if (!form.barangay.trim()) return "Barangay is required.";
+      if (form.status === "Completed" && form.date > today) return "A completed distribution can't have a future date.";
+      if (form.date > `${Number(y) + 1}-${m}-${d}`) return "Enter a date within the next year.";
     }
     if (hasUnresolvedDuplicate && !overrideReason.trim()) {
-      setFormError("One or more tagged farmers already received this commodity under this program this year. Remove them or provide an override reason.");
-      return;
+      return "One or more tagged farmers already received this commodity under this program this year. Remove them or provide an override reason.";
     }
-    if (form.status !== "Ongoing" && form.taggedBeneficiaries.length === 0) {
-      setFormError(`Tag at least one beneficiary before setting the status to ${form.status}.`);
-      return;
+    if (form.status !== "Ongoing" && form.taggedBeneficiaries.length === 0) return `Tag at least one beneficiary before setting the status to ${form.status}.`;
+    const total = Number(form.quantity);
+    if (form.taggedBeneficiaries.length === 0) {
+      if (!(total > 0)) return "Enter a total quantity greater than 0.";
+    } else {
+      if (form.taggedBeneficiaries.some((r) => !(Number(r.quantity) > 0))) return "Each farmer's quantity must be greater than 0.";
+      if (form.quantity !== "" && total > 0 && Math.abs(taggedTotal - total) > 0.005) {
+        return `The farmers' quantities add up to ${taggedTotal.toLocaleString()} kg, but Total Quantity is ${total.toLocaleString()} kg. Change them so they match.`;
+      }
     }
-    setFormError("");
+    return "";
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (savingRef.current) return;
+    const problem = validate();
+    setFormError(problem);
+    if (problem) return;
+    const program = form.program.trim();
+    savingRef.current = true;
     setSaving(true);
     try {
       // Each farmer's acknowledgement isn't sent per row — it follows the
@@ -650,7 +676,6 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
             program,
             venue: form.venue,
             barangay: form.barangay,
-            beneficiaries: String(taggedBeneficiaries.length),
             commodityId: form.commodityId,
             quantity: form.quantity,
             itemId: primaryItem?.itemId ?? null,
@@ -672,6 +697,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     } catch (err) {
       setFormError(friendlyError(err, "Couldn't save this distribution. Please try again."));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -684,6 +710,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
         role="dialog"
         aria-label={editing ? "Edit Distribution" : "New Distribution"}
         onSubmit={handleSubmit}
+        noValidate
         onClick={(e) => e.stopPropagation()}
       >
         <div className="agri-modal-header">
@@ -728,13 +755,14 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
           <input
             required
             className="form-control mb-3"
+            maxLength={120}
             placeholder="e.g. RCEF Seed Distribution"
             value={form.program}
             onChange={(e) => update("program", e.target.value)}
           />
 
           <label className="agri-form-label">Venue</label>
-          <input required className="form-control mb-3" value={form.venue} onChange={(e) => update("venue", e.target.value)} placeholder="e.g. Barangay Hall" />
+          <input required className="form-control mb-3" maxLength={120} value={form.venue} onChange={(e) => update("venue", e.target.value)} placeholder="e.g. Barangay Hall" />
 
           <label className="agri-form-label">Total Quantity (kg)</label>
           <input
@@ -751,6 +779,8 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
           </label>
           {loadingBeneficiaries ? (
             <div className="agri-muted" style={{ fontSize: "0.8rem", marginBottom: 10 }}>Loading tagged farmers…</div>
+          ) : beneficiaryLoadError ? (
+            <div className="agri-pill red" style={{ display: "block", marginBottom: 10, padding: "8px 12px" }}>{beneficiaryLoadError}</div>
           ) : (
             <FarmerTagInput
               taggedFarmers={form.taggedBeneficiaries.map((r) => ({ ...r, duplicateWarning: !!r.duplicate }))}

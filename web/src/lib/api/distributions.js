@@ -217,64 +217,49 @@ export async function checkDuplicateDistribution({ farmerId, commodityId, progra
   return { eventId: row.event_id, program: row.program_name, date: row.event_date, quantity: Number(row.quantity_received) };
 }
 
-// Atomic replace-and-insert via RPC (Phase 1) — nothing is half-saved if the
-// event update and the beneficiary rows can't both go through.
-export async function saveDistributionBeneficiaries(eventId, commodityId, beneficiaries) {
-  const { error } = await supabase.rpc("save_distribution_beneficiaries", {
-    p_event_id: eventId,
-    p_commodity_id: commodityId,
-    p_beneficiaries: beneficiaries.map((b) => ({
-      farmer_id: b.farmerId,
-      quantity_received: b.quantity,
-      duplicate_override_reason: b.overrideReason || null,
-    })),
-  });
-  if (error) throw error;
-}
-
 export async function markAllBeneficiariesReceived(eventId) {
   const { error } = await supabase.rpc("mark_all_beneficiaries_received", { p_event_id: eventId });
   if (error) throw error;
 }
 
-// taggedBeneficiaries: [{ farmerId, quantity, overrideReason }]
-// — when non-empty, this is the source of truth for the item's total
-// quantity and the old beneficiaries_count is set to match (kept in sync so
-// anything still reading the legacy column isn't left stale).
-export async function createDistribution({ program, venue, beneficiaries, commodityId, quantity, fundingSource, status, taggedBeneficiaries = [] }) {
-  const effectiveCount = taggedBeneficiaries.length > 0 ? taggedBeneficiaries.length : Number(beneficiaries) || 0;
-  const effectiveQuantity =
-    taggedBeneficiaries.length > 0 ? taggedBeneficiaries.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0) : Number(quantity) || 0;
+// Both saves go through save_distribution (database function): the event,
+// its item and the full list of tagged farmers are written in one
+// transaction, so nothing is half-saved if the connection drops.
+// taggedBeneficiaries: [{ farmerId, quantity, overrideReason }] — when
+// non-empty, its quantities are the item's total and beneficiaries_count
+// follows the list; an empty list removes every tagged farmer.
+const toBeneficiaryPayload = (list) =>
+  list.map((b) => ({
+    farmer_id: b.farmerId,
+    quantity_received: b.quantity,
+    duplicate_override_reason: b.overrideReason || null,
+  }));
 
-  const { data: event, error: eventErr } = await supabase
-    .from("distribution_events")
-    .insert({
+async function readDistribution(eventId) {
+  const { data, error } = await supabase.from("distribution_events").select(SELECT).eq("event_id", eventId).single();
+  if (error) throw error;
+  const summaries = await fetchSummaries([eventId]);
+  return mapDistribution(data, summaries.get(eventId));
+}
+
+export async function createDistribution({ program, venue, beneficiaries, commodityId, quantity, fundingSource, status, taggedBeneficiaries = [] }) {
+  const { data: eventId, error } = await supabase.rpc("save_distribution", {
+    p_event_id: null,
+    p_event: {
       program_name: program,
-      event_date: todayIso(),
       venue,
       funding_source: fundingSource || null,
       status: labelToDbStatus(status || "Ongoing"),
-      beneficiaries_count: effectiveCount,
-    })
-    .select(
-      "event_id, program_name, event_date, venue, barangay, funding_source, status, completed_at, remarks, beneficiaries_count",
-    )
-    .single();
-  if (eventErr) throw eventErr;
-
-  const { data: item, error: itemErr } = await supabase
-    .from("distribution_event_items")
-    .insert({ event_id: event.event_id, commodity_id: commodityId, quantity_allocated: effectiveQuantity })
-    .select("event_item_id, commodity_id, quantity_allocated, commodities ( name, category, unit )")
-    .single();
-  if (itemErr) throw itemErr;
-
-  if (taggedBeneficiaries.length > 0) {
-    await saveDistributionBeneficiaries(event.event_id, commodityId, taggedBeneficiaries);
-  }
-
-  const summaries = await fetchSummaries([event.event_id]);
-  return mapDistribution({ ...event, distribution_event_items: [item] }, summaries.get(event.event_id));
+      event_date: todayIso(),
+      beneficiaries_count: Number(beneficiaries) || 0,
+    },
+    p_item_id: null,
+    p_commodity_id: Number(commodityId),
+    p_quantity: Number(quantity) || 0,
+    p_beneficiaries: toBeneficiaryPayload(taggedBeneficiaries),
+  });
+  if (error) throw error;
+  return readDistribution(eventId);
 }
 
 // Edits the event fields plus its first item's commodity/quantity (the
@@ -283,59 +268,27 @@ export async function createDistribution({ program, venue, beneficiaries, commod
 // computed live from distribution_event_items, so overwriting the
 // quantity here is all that's needed, no delta math). Distributions
 // seeded with more than one item keep their other items untouched.
-// RLS ("events: MAO writes" / "event_items: MAO writes") restricts both
-// writes to mao_admin — FA President's call comes back empty. `status` is
-// only passed when the admin changed it, so status_updated_by/at stay
-// accurate.
-export async function updateDistribution(eventId, { date, program, venue, barangay, fundingSource, beneficiaries, status, commodityId, quantity, itemId, taggedBeneficiaries = [] }) {
-  const effectiveCount = taggedBeneficiaries.length > 0 ? taggedBeneficiaries.length : Number(beneficiaries) || 0;
-  const effectiveQuantity =
-    taggedBeneficiaries.length > 0 ? taggedBeneficiaries.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0) : Number(quantity) || 0;
-
-  let statusFields = {};
-  if (status) {
-    const { data: auth } = await supabase.auth.getUser();
-    statusFields = { status: labelToDbStatus(status), status_updated_by: auth?.user?.id ?? null, status_updated_at: new Date().toISOString() };
-  }
-
-  const { data: event, error: eventErr } = await supabase
-    .from("distribution_events")
-    .update({
-      event_date: date,
+// save_distribution only lets the MAO Admin do this. `status` is only
+// passed when the admin changed it, so status_updated_by/at stay accurate.
+// With no farmers tagged, the recorded beneficiary count is left as it was.
+export async function updateDistribution(eventId, { date, program, venue, barangay, fundingSource, status, commodityId, quantity, itemId, taggedBeneficiaries = [] }) {
+  const { error } = await supabase.rpc("save_distribution", {
+    p_event_id: eventId,
+    p_event: {
       program_name: program,
       venue,
       barangay,
       funding_source: fundingSource || null,
-      beneficiaries_count: effectiveCount,
-      ...statusFields,
-    })
-    .eq("event_id", eventId)
-    .select("event_id")
-    .maybeSingle();
-  if (eventErr) throw eventErr;
-  if (!event) throw new Error("Couldn't update this distribution — refresh and try again.");
-
-  if (itemId) {
-    const { error: itemErr } = await supabase
-      .from("distribution_event_items")
-      .update({ commodity_id: commodityId, quantity_allocated: effectiveQuantity })
-      .eq("event_item_id", itemId);
-    if (itemErr) throw itemErr;
-  } else {
-    const { error: itemErr } = await supabase
-      .from("distribution_event_items")
-      .insert({ event_id: eventId, commodity_id: commodityId, quantity_allocated: effectiveQuantity });
-    if (itemErr) throw itemErr;
-  }
-
-  if (taggedBeneficiaries.length > 0) {
-    await saveDistributionBeneficiaries(eventId, commodityId, taggedBeneficiaries);
-  }
-
-  const { data, error } = await supabase.from("distribution_events").select(SELECT).eq("event_id", eventId).single();
+      event_date: date,
+      ...(status ? { status: labelToDbStatus(status) } : {}),
+    },
+    p_item_id: itemId ?? null,
+    p_commodity_id: Number(commodityId),
+    p_quantity: Number(quantity) || 0,
+    p_beneficiaries: toBeneficiaryPayload(taggedBeneficiaries),
+  });
   if (error) throw error;
-  const summaries = await fetchSummaries([eventId]);
-  return mapDistribution(data, summaries.get(eventId));
+  return readDistribution(eventId);
 }
 
 // RLS ("events: MAO writes") already restricts this to mao_admin — FA
