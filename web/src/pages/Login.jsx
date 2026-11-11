@@ -2,12 +2,12 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, Sprout, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
-import { friendlyError } from "../lib/friendlyError.js";
+import { friendlyError, SESSION_EXPIRED_MESSAGE } from "../lib/friendlyError.js";
 import loginBg from "../assets/login-bg.jpg";
 import daSeal from "../assets/da-seal.png";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, signOutReason } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -69,9 +69,13 @@ export default function Login() {
           </p>
 
           <form onSubmit={handleSubmit} style={{ textAlign: "left" }}>
-            {error && (
-              <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
+            {error ? (
+              <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }} role="alert">
                 {error}
+              </div>
+            ) : signOutReason === "expired" && (
+              <div className="agri-pill orange" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }} role="status">
+                {SESSION_EXPIRED_MESSAGE}
               </div>
             )}
 

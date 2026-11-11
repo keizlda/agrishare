@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
+import { friendlyError, isNetworkError, isSessionError } from "../lib/friendlyError.js";
 
 const AuthContext = createContext(null);
 
@@ -23,6 +24,8 @@ const ROLE_PROFILES = {
   "FA President": { office: "Farmers' Association - Barangay Langapud" },
 };
 
+const NO_ACCESS = "This account does not have access to the AgriShare web console.";
+
 async function loadProfile(authUser) {
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -34,7 +37,7 @@ async function loadProfile(authUser) {
   const role = ROLE_LABELS[profile.role];
   if (!role) {
     // Farmer accounts (mobile-only) shouldn't be able to use the web console.
-    throw new Error("This account does not have access to the AgriShare web console.");
+    throw new Error(NO_ACCESS);
   }
 
   return {
@@ -47,53 +50,119 @@ async function loadProfile(authUser) {
   };
 }
 
+// The stored session itself is the problem (not a staff account, no
+// profile, session no longer accepted) — as opposed to no connection or a
+// server hiccup, where the session should be kept for a retry.
+function isAccessProblem(err) {
+  return err?.message === NO_ACCESS || err?.code === "PGRST116" || isSessionError(err);
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [initializing, setInitializing] = useState(true);
+  // Set when the app signed the user out on its own (the session ended);
+  // Login explains it.
+  const [signOutReason, setSignOutReason] = useState(null);
+  // The app opened with a saved session but the profile couldn't be loaded
+  // (no connection, server problem): AppLayout shows this with Try again
+  // instead of logging the user out.
+  const [bootError, setBootError] = useState(null);
+  const userRef = useRef(null);
+  const manualSignOut = useRef(false);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const restoreSession = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    try {
+      setUser(await loadProfile(session.user));
+      setBootError(null);
+    } catch (err) {
+      if (isAccessProblem(err)) {
+        manualSignOut.current = true;
+        await supabase.auth.signOut();
+      } else {
+        setBootError(friendlyError(err, "AgriShare couldn't load your account. Please try again."));
+      }
+    }
+  }, []);
+
+  const sessionExpired = useCallback(async () => {
+    if (!userRef.current) return;
+    setSignOutReason("expired");
+    setUser(null);
+    manualSignOut.current = true;
+    await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        if (!cancelled) setInitializing(false);
-        return;
-      }
-      try {
-        const profile = await loadProfile(session.user);
-        if (!cancelled) setUser(profile);
-      } catch {
-        await supabase.auth.signOut();
-      } finally {
-        if (!cancelled) setInitializing(false);
-      }
+    restoreSession().finally(() => {
+      if (!cancelled) setInitializing(false);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") setUser(null);
+      if (event !== "SIGNED_OUT") return;
+      // Not from Log Out: the session ended on its own (expired, revoked,
+      // refresh token gone).
+      if (!manualSignOut.current && userRef.current) setSignOutReason("expired");
+      manualSignOut.current = false;
+      setUser(null);
     });
+
+    // friendlyError asks for this when a request was refused in a way that
+    // could mean the session is gone. Only an answer from the server that
+    // there's no valid session counts — not being offline.
+    async function checkSession() {
+      if (!userRef.current) return;
+      const { data, error } = await supabase.auth.getUser();
+      if (!data?.user && !isNetworkError(error)) sessionExpired();
+    }
+    window.addEventListener("agri:session-check", checkSession);
 
     return () => {
       cancelled = true;
       subscription.subscription.unsubscribe();
+      window.removeEventListener("agri:session-check", checkSession);
     };
-  }, []);
+  }, [restoreSession, sessionExpired]);
+
+  async function retryRestore() {
+    setInitializing(true);
+    setBootError(null);
+    await restoreSession();
+    setInitializing(false);
+  }
 
   async function login(email, password) {
+    setSignOutReason(null);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    const profile = await loadProfile(data.user);
-    setUser(profile);
-    return profile;
+    try {
+      const profile = await loadProfile(data.user);
+      setUser(profile);
+      return profile;
+    } catch (err) {
+      // Don't leave a farmer (or broken) account signed in behind the
+      // "no access" message.
+      manualSignOut.current = true;
+      await supabase.auth.signOut();
+      throw err;
+    }
   }
 
   async function logout() {
+    manualSignOut.current = true;
+    setSignOutReason(null);
     await supabase.auth.signOut();
     setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, initializing, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, initializing, signOutReason, bootError, retryRestore, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
