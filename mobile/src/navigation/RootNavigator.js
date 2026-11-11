@@ -1,4 +1,5 @@
 import { ActivityIndicator, View } from "react-native";
+import ErrorBanner from "../components/ui/ErrorBanner";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import LoginScreen from "../screens/LoginScreen";
 import CropValidationScreen from "../screens/CropValidationScreen";
@@ -13,12 +14,22 @@ import { colors } from "../theme";
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
-  const { isAuthenticated, initializing } = useAuth();
+  const { isAuthenticated, initializing, bootError, retryRestore } = useAuth();
 
   if (initializing) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
         <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Signed in earlier, but the account couldn't load (offline, server
+  // problem): stay signed in and offer a retry rather than showing Login.
+  if (bootError) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", padding: 24, backgroundColor: colors.bg }}>
+        <ErrorBanner message={bootError} onRetry={retryRestore} />
       </View>
     );
   }

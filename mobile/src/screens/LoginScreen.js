@@ -14,12 +14,13 @@ import { Eye, EyeOff, IdCard, Lock, Sprout, User } from "lucide-react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
+import { friendlyError, SESSION_EXPIRED_MESSAGE } from "../lib/friendlyError";
 import daSeal from "../assets/da-seal.png";
 
 const TOP_SHADE_HEIGHT = 240;
 
 export default function LoginScreen() {
-  const { login } = useAuth();
+  const { login, signOutReason } = useAuth();
   const [rsbsaNo, setRsbsaNo] = useState(""); // just the last 6 digits
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,7 +37,7 @@ export default function LoginScreen() {
     try {
       await login(rsbsaNo, password);
     } catch (err) {
-      setError(err.message === "Invalid login credentials" ? "Incorrect RSBSA number or password." : err.message);
+      setError(err.message === "Invalid login credentials" ? "Incorrect RSBSA number or password." : friendlyError(err, "Couldn't sign in. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -89,7 +90,11 @@ export default function LoginScreen() {
           <Text style={styles.title}>Welcome Back!</Text>
           <Text style={styles.subtitle}>Login to your AgriShare account</Text>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? (
+            <Text style={styles.error}>{error}</Text>
+          ) : signOutReason === "expired" ? (
+            <Text style={styles.notice}>{SESSION_EXPIRED_MESSAGE}</Text>
+          ) : null}
 
           <Text style={styles.fieldLabel}>RSBSA Number</Text>
           <View style={styles.inputWrap}>
@@ -183,7 +188,8 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: "800", color: colors.primaryDarker },
   subtitle: { alignSelf: "stretch", textAlign: "center", fontSize: 12.5, color: colors.textMuted, marginTop: 2, marginBottom: 18 },
-  error: { color: colors.red, fontSize: 12, marginBottom: 10 },
+  error: { alignSelf: "stretch", color: colors.red, fontSize: 12, marginBottom: 10 },
+  notice: { alignSelf: "stretch", color: colors.orangeText, fontSize: 12, marginBottom: 10 },
   fieldLabel: { width: "100%", fontSize: 11.5, fontWeight: "700", color: colors.text, marginBottom: 4 },
   inputWrap: {
     width: "100%",
