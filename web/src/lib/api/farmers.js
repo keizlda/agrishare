@@ -24,14 +24,18 @@ const SELECT = `
 async function invokeAccountFn(action, payload = {}) {
   const { data, error } = await supabase.functions.invoke("manage-farmer-account", { body: { action, ...payload } });
   if (error) {
-    let message = error.message;
+    // The function's own explanation ("Login ID … is already used by …")
+    // is written for the user; anything else (no connection, a crash) is
+    // passed on as-is for friendlyError to translate.
+    let message = null;
     try {
       const body = await error.context?.json();
       if (body?.error) message = body.error;
     } catch {
-      // fall back to error.message below
+      // no JSON body
     }
-    throw new Error(message);
+    if (message) throw new Error(message);
+    throw error;
   }
   return data;
 }

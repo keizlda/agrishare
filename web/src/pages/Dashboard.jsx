@@ -30,6 +30,7 @@ import { listSubmissions } from "../lib/api/cropValidation.js";
 import { listRequests, listRequestsForAdminReview } from "../lib/api/requests.js";
 import { useFitCount } from "../hooks/useFitCount.js";
 import Toast from "../components/ui/Toast.jsx";
+import { friendlyError } from "../lib/friendlyError.js";
 import MiniStat from "../components/ui/MiniStat.jsx";
 import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx";
 
@@ -68,15 +69,20 @@ export default function Dashboard() {
   const [requests, setRequests] = useState([]);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [toast, setToast] = useState(null);
+  // First load failure, shown above the cards (the figures would otherwise
+  // just read as zeros).
+  const [loadError, setLoadError] = useState("");
   const recentListRef = useRef(null);
   const commodityListRef = useRef(null);
 
   const isMAO = user?.role !== "FA President";
 
+  const loadFailed = (err) => setLoadError((prev) => prev || friendlyError(err, "Some dashboard figures couldn't be loaded. Please try again."));
+
   useEffect(() => {
-    listFarmers().then(setFarmers).catch(() => {});
-    listDistributions().then(setDistributions).catch(() => {});
-    listCommodities().then(setCommodities).catch(() => {});
+    listFarmers().then(setFarmers).catch(loadFailed);
+    listDistributions().then(setDistributions).catch(loadFailed);
+    listCommodities().then(setCommodities).catch(loadFailed);
   }, []);
 
   // Proof-of-planting submissions (the donut, for both roles — staff can read
@@ -84,8 +90,8 @@ export default function Dashboard() {
   // Validation and Requests pages use. Reviewing submissions is MAO-only;
   // requests "to review" are Forwarded ones for the admin, Pending for the FA.
   useEffect(() => {
-    listSubmissions().then(setSubmissions).catch(() => {});
-    (isMAO ? listRequestsForAdminReview : listRequests)().then(setRequests).catch(() => {});
+    listSubmissions().then(setSubmissions).catch(loadFailed);
+    (isMAO ? listRequestsForAdminReview : listRequests)().then(setRequests).catch(loadFailed);
   }, [isMAO]);
 
   const stats = computeFarmerStats(farmers);
@@ -120,6 +126,9 @@ export default function Dashboard() {
   return (
     <>
       <div className="agri-dash">
+        {loadError && (
+          <div className="agri-pill red" style={{ display: "block", padding: "8px 12px" }} role="alert">{loadError}</div>
+        )}
         <div className="agri-dash-welcome">
           <h1 className="agri-dash-greeting">
             {greetingFor(new Date())}, {user?.name ?? "Admin"}

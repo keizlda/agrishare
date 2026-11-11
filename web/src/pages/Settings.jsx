@@ -70,9 +70,9 @@ function GeneralInformation() {
         <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>{loadError}</div>
       )}
 
-      {loading || !form ? (
+      {loading ? (
         <div className="agri-muted" style={{ fontSize: "0.85rem" }}>Loading…</div>
-      ) : (
+      ) : !form ? null : (
         <form onSubmit={handleSave}>
           <div className="row g-3">
             <Field label="LGU / Office Name" col={6}>
@@ -158,7 +158,13 @@ function ChangePassword() {
       // confirm it's correct before changing it.
       if (currentPassword) {
         const { error: verifyError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
-        if (verifyError) found.current = "Current password is incorrect.";
+        // Only a rejected password means "incorrect" — no connection or a
+        // server problem is reported as what it is (the catch below).
+        if (verifyError?.code === "invalid_credentials" || verifyError?.message === "Invalid login credentials") {
+          found.current = "Current password is incorrect.";
+        } else if (verifyError) {
+          throw verifyError;
+        }
       }
       setErrors(found);
       if (Object.keys(found).length > 0) return;
