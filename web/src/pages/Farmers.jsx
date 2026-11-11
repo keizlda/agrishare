@@ -112,7 +112,14 @@ function farmerToForm(f) {
 // password never sits in a URL or gets persisted anywhere retrievable later
 // — it only ever exists in memory for the few seconds between the Edge
 // Function's response and this slip being printed or dismissed.
-function printAccountSlip({ farmerName, rsbsaNo, loginId, password }) {
+// The slip is written as HTML, so every value goes in escaped: a name typed
+// as "<img onerror=…>" must print as text, never run in the slip window
+// (which shares this page's origin and session).
+const escapeHtml = (value) =>
+  String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+function printAccountSlip(slip) {
+  const { farmerName, rsbsaNo, loginId, password } = Object.fromEntries(Object.entries(slip).map(([k, v]) => [k, escapeHtml(v)]));
   const w = window.open("", "_blank", "width=420,height=560");
   if (!w) return;
   w.document.write(`<!doctype html><html><head><title>AgriShare Login Slip</title><meta charset="utf-8" />
