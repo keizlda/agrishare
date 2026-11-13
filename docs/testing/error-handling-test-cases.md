@@ -361,10 +361,17 @@ The repository has no automated test suite of its own (the backend's `npm test` 
 Test accounts: your MAO Admin account; FA President `fapresident@agrishare.test` / `password123`; farmer `000201` / `password123`. To go "offline" in Chrome: DevTools (F12) → Network → change "No throttling" to **Offline**. On a phone, turn on airplane mode.
 
 **Web: plain messages, offline (fixes 1, 3)**
-1. Log in as MAO Admin and open Farmers. Go Offline in DevTools and reload: you see "No internet connection. Please try again." with **Try again**, and you're still signed in. Go back online and click Try again: Farmers loads.
-2. Open Add Farmer and fill it in. Go Offline and click Save Farmer: the form stays open with your entries, and shows "No internet connection. Please try again."
-3. Log out. Log in with farmer account `000201@farmers.agrishare.ph`: you see "This account does not have access…", and a page refresh stays on Login.
-4. Sign in, then in DevTools → Application → Local Storage delete the `sb-…-auth-token` entry. Click any Save: you land on Login with "Your session has expired. Please log in again."
+1. Log in as MAO Admin. Go Offline in DevTools, then click Farmers in the menu (don't reload): "No internet connection. Please try again." Go back online, click the AGRISHARE logo, then Farmers again: the list loads.
+2. Opening the site while Supabase can't be reached:
+   1. In DevTools, open ⋮ → More tools → **Network request blocking**.
+   2. Add `*supabase.co*`, tick **Enable network request blocking**, and reload.
+   3. You see "No internet connection. Please try again." with "You're still signed in." and **Try again**.
+   4. Untick the blocking and click Try again: the page loads.
+
+   Reloading with DevTools set to Offline shows Chrome's own offline page instead, because the website itself can't load.
+3. Open Add Farmer and fill it in. Go Offline and click Save Farmer: the form stays open with your entries, and shows "No internet connection. Please try again."
+4. Log out. Log in with farmer account `000201@farmers.agrishare.ph`: you see "This account does not have access…", and a page refresh stays on Login.
+5. Sign in, then in DevTools → Application → Local Storage delete the `sb-…-auth-token` entry. Click any Save: you land on Login with "Your session has expired. Please log in again."
 
 **Web: crash screen (fix 2).** No safe way to force a crash in the live app. The automated test made the Farmers page throw and checked for "Something went wrong" + Reload. To see it yourself, temporarily add `throw new Error("test")` at the top of `Farmers()` in `web/src/pages/Farmers.jsx`, open Farmers, then remove the line.
 
