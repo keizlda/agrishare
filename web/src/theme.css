@@ -399,7 +399,15 @@ textarea:focus-visible,
   .agri-dash-row-bottom > .agri-dash-actions {
     grid-column: 1 / -1;
   }
-  /* Full-width Quick Actions: one row of six tiles. */
+  /* Full-width Quick Actions: three across, two down — six across only
+     from 1200px, where every label still fits on one line. */
+  .agri-dash-actions .agri-dash-tiles:not(.two) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(var(--agri-dash-tile), 1fr));
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1279.98px) {
   .agri-dash-actions .agri-dash-tiles:not(.two) {
     grid-template-columns: repeat(6, minmax(0, 1fr));
     grid-template-rows: minmax(var(--agri-dash-tile), 1fr);
@@ -416,6 +424,20 @@ textarea:focus-visible,
   .agri-dash-actions .agri-dash-tiles:not(.two) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-rows: repeat(2, minmax(var(--agri-dash-tile), 1fr));
+  }
+}
+
+/* 1280–1799px: Quick Actions is a third of the row, too narrow for three
+   tiles across with every label on one line ("Review Proof of Planting"),
+   so the six tiles go two across, three down — still within the card. */
+@media (min-width: 1280px) and (max-width: 1799.98px) {
+  .agri-dash-actions .agri-dash-tiles:not(.two) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(52px, 1fr));
+    gap: 8px;
+  }
+  .agri-dash-actions .agri-dash-tiles:not(.two) .agri-dash-tile {
+    gap: 4px;
   }
 }
 
