@@ -6,7 +6,7 @@ import { Check, Clock, MapPin, RefreshCw, Sprout, X } from "lucide-react-native"
 import TabScreenLayout, { PageTitle, tabCard } from "../components/TabScreenLayout";
 import Pill from "../components/Pill";
 import ErrorBanner from "../components/ui/ErrorBanner";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, shadow, spacing } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { getSignedPhotoUrl, listMyCropValidations } from "../lib/api/cropValidation";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
@@ -414,11 +414,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 16,
     marginBottom: 18,
-    shadowColor: colors.primaryDarker,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    elevation: 5,
+    ...shadow({ color: colors.primaryDarker, y: 6, opacity: 0.22, radius: 12, elevation: 5 }),
   },
   submitCardPressed: { transform: [{ scale: 0.97 }], opacity: 0.95 },
   submitIconCircle: {

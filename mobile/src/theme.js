@@ -178,26 +178,27 @@ export const typography = {
 // value is collapsed into one representative iOS shadow + an Android
 // elevation.
 // ---------------------------------------------------------------------------
+// One shadow, two forms: on the phone the iOS shadow* props + Android
+// elevation (unchanged); on the Expo web preview the same shadow as CSS
+// boxShadow, since react-native-web deprecates shadow* (console warning).
+export function shadow({ color, x = 0, y, opacity, radius, elevation }) {
+  if (Platform.OS === "web") {
+    const hex = color.replace("#", "");
+    const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+    const n = parseInt(full, 16);
+    return { boxShadow: `${x}px ${y}px ${radius}px rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${opacity})` };
+  }
+  return { shadowColor: color, shadowOffset: { width: x, height: y }, shadowOpacity: opacity, shadowRadius: radius, elevation };
+}
+
 export const shadows = {
   // web/src/theme.css:24 (--agri-shadow, applied to .agri-card):
   //   0 1px 2px rgba(20,40,25,0.06), 0 1px 8px rgba(20,40,25,0.04)
-  card: {
-    shadowColor: "#14281a",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
+  card: shadow({ color: "#14281a", y: 1, opacity: 0.08, radius: 4, elevation: 2 }),
   // web/src/theme.css:250 (.agri-overview-panel — the only large slide-in
   // panel on web, and the closest analog to a mobile bottom sheet):
   //   0 20px 50px rgba(10,30,15,0.24)
-  sheet: {
-    shadowColor: "#0a1e0f",
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.24,
-    shadowRadius: 50,
-    elevation: 16,
-  },
+  sheet: shadow({ color: "#0a1e0f", y: 20, opacity: 0.24, radius: 50, elevation: 16 }),
 };
 
 // ---------------------------------------------------------------------------

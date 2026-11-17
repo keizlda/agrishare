@@ -8,7 +8,7 @@ import Pill from "../components/Pill";
 import Avatar from "../components/Avatar";
 import AvatarCropModal from "../components/AvatarCropModal";
 import Toast from "../components/ui/Toast";
-import { colors, radius, shadows, spacing } from "../theme";
+import { colors, radius, shadow, shadows, spacing } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { removeAvatar, uploadAvatar } from "../lib/api/profile";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
@@ -250,11 +250,7 @@ const styles = StyleSheet.create({
     borderRadius: AVATAR_SIZE / 2 + 4,
     borderWidth: 4,
     borderColor: colors.card,
-    shadowColor: "#14281a",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    ...shadow({ color: "#14281a", y: 3, opacity: 0.15, radius: 8, elevation: 4 }),
   },
   avatarOverlay: {
     ...StyleSheet.absoluteFillObject,

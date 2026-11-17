@@ -19,7 +19,7 @@ export default function TabScreenLayout({ navigation, children }) {
     <View style={styles.screen}>
       <ScreenHeader showLogo onBellPress={() => navigation.navigate("Announcements")} />
       <View style={styles.body}>
-        <View pointerEvents="none" style={StyleSheet.absoluteFill} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <Image source={leavesArt} style={styles.leaves} resizeMode="contain" />
           <Image source={plantArt} style={styles.plant} resizeMode="contain" />
         </View>

@@ -187,7 +187,7 @@ export default function AvatarCropModal({ visible, uri, onCancel, onConfirm }) {
                   resizeMode="cover"
                 />
               </View>
-              <View style={styles.circleBorder} pointerEvents="none" />
+              <View style={[styles.circleBorder, { pointerEvents: "none" }]} />
             </View>
           ) : (
             <ActivityIndicator color="#fff" size="large" />

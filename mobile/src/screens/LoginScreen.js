@@ -52,7 +52,7 @@ export default function LoginScreen() {
       <View style={styles.overlay} />
       {/* Darker at the top, fading out, so the white logo and seal text
           stay readable (WCAG AA) over the bright sky in the photo. */}
-      <Svg style={styles.topShade} width="100%" height={TOP_SHADE_HEIGHT} pointerEvents="none">
+      <Svg style={[styles.topShade, { pointerEvents: "none" }]} width="100%" height={TOP_SHADE_HEIGHT}>
         <Defs>
           <LinearGradient id="loginTopShade" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor="#0a1a0f" stopOpacity="0.5" />
