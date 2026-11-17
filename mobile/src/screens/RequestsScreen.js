@@ -147,7 +147,9 @@ export default function RequestsScreen({ navigation, route }) {
                   ))}
                 </View>
 
-                <Text style={styles.fieldLabel}>Quantity (kg)</Text>
+                <Text style={styles.fieldLabel}>
+                  Quantity ({commodities.find((c) => c.name === commodity)?.unit ?? "kg"})
+                </Text>
                 <TextInput style={styles.input} value={quantity} onChangeText={setQuantity} keyboardType="number-pad" placeholder="e.g. 25" placeholderTextColor={colors.textFaint} />
 
                 <Text style={styles.fieldLabel}>Reason for Request</Text>

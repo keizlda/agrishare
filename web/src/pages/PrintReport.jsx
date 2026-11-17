@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PrintLayout, { KV } from "../components/print/PrintLayout.jsx";
 import { useAutoPrint } from "../hooks/useAutoPrint.js";
-import { computeCommodityStats, distributionTotalQty } from "../data/mockData.js";
+import { computeCommodityStats } from "../data/mockData.js";
 import { listFarmers } from "../lib/api/farmers.js";
 import { listBeneficiaryReport, listDistributions } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
@@ -10,6 +10,7 @@ import { listSubmissions } from "../lib/api/cropValidation.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { acknowledgementLabel, dateReceived, isCompleted } from "../lib/distributionStatus.js";
 import { formatDate, formatDateNumeric } from "../lib/dates.js";
+import { formatItemsTotal, formatQuantity } from "../lib/quantity.js";
 
 export default function PrintReport() {
   const [searchParams] = useSearchParams();
@@ -179,7 +180,7 @@ function DistributionSummary({ distributions, filters }) {
               <td>{d.program}</td>
               <td>{d.barangay}</td>
               <td className="pr-num">{d.taggedBeneficiaryCount > 0 ? d.taggedBeneficiaryCount : `${d.beneficiaries} (not tagged)`}</td>
-              <td className="pr-num pr-col-pad-left">{distributionTotalQty(d).toLocaleString()} kg</td>
+              <td className="pr-num pr-col-pad-left">{formatItemsTotal(d.items)}</td>
               <td className="pr-col-pad-left">{d.status}</td>
             </tr>
           ))}
@@ -248,7 +249,7 @@ function LiquidationReport({ commodities, distributions, filters }) {
               <td>{c.id}</td>
               <td>{c.name}</td>
               <td>{c.category}</td>
-              <td className="pr-num pr-col-pad-left">{(totals[c.name] ?? 0).toLocaleString()} kg</td>
+              <td className="pr-num pr-col-pad-left">{formatQuantity(totals[c.name] ?? 0, c.unit)}</td>
             </tr>
           ))}
         </tbody>
@@ -263,7 +264,7 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
   // commodity catalog are current-state counts, not scoped to a period.
   // Only Completed distributions count as accomplished.
   const completed = filterDistributions(distributions, filters).filter(isCompleted);
-  const totalQty = completed.reduce((sum, d) => sum + distributionTotalQty(d), 0);
+  const totalQty = formatItemsTotal(completed.flatMap((d) => d.items));
   const active = farmers.filter((f) => f.status === "Active").length;
   // Validation is per proof-of-planting submission, not per farmer.
   const validatedSubmissions = submissions.filter((s) => s.status === "Validated").length;
@@ -276,7 +277,7 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
         <KV label="Active Farmers" value={active} />
         <KV label="Proof of Planting Validated" value={`${validatedSubmissions} of ${submissions.length} submissions`} />
         <KV label="Completed Distribution Activities" value={completed.length} />
-        <KV label="Total Quantity Distributed" value={`${totalQty.toLocaleString()} kg`} />
+        <KV label="Total Quantity Distributed" value={totalQty} />
         <KV label="Commodity Types Available" value={commodities.filter((c) => !c.deletedAt).length} />
       </div>
     </div>

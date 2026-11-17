@@ -25,6 +25,7 @@ import { listFarmers } from "../lib/api/farmers.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { isCompleted } from "../lib/distributionStatus.js";
 import { formatDate } from "../lib/dates.js";
+import { formatQuantity, sharedUnit } from "../lib/quantity.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { listSubmissions } from "../lib/api/cropValidation.js";
 import { listRequests, listRequestsForAdminReview } from "../lib/api/requests.js";
@@ -108,6 +109,11 @@ export default function Dashboard() {
   const distributionByCommodity = computeDistributionByCommodity(commodities, completedDistributions, MAX_ROWS);
   const rankedCommodities = [...distributionByCommodity].filter((c) => c.name !== "Others").sort((a, b) => b.value - a.value);
   const maxCommodity = rankedCommodities[0]?.value ?? 1;
+  // Each commodity's own unit (kg, set, L…); the monthly chart adds every
+  // commodity together, so it names a unit only when they all share one.
+  const completedItems = completedDistributions.flatMap((d) => d.items);
+  const unitOf = new Map(completedItems.map((i) => [i.name, i.unit]));
+  const trendUnit = sharedUnit(completedItems);
 
   // Each list shows as many rows as its card has room for (up to 5).
   const recentFit = useFitCount(recentListRef, { max: MAX_ROWS, query: FILL_QUERY, remeasureKey: Math.min(distributions.length, MAX_ROWS) });
@@ -150,7 +156,7 @@ export default function Dashboard() {
           <div className="agri-card agri-dash-card agri-dash-chart">
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Distribution Overview</div>
-              <div className="agri-muted" style={{ fontSize: "0.8rem" }}>Quantity distributed (kg), {trendYear}</div>
+              <div className="agri-muted" style={{ fontSize: "0.8rem" }}>Quantity distributed{trendUnit ? ` (${trendUnit})` : ""}, {trendYear}</div>
             </div>
             {/* The inner wrapper is absolutely positioned so the plot's size
                 comes only from the card, letting the chart shrink as well as
@@ -162,7 +168,7 @@ export default function Dashboard() {
                     <CartesianGrid vertical={false} stroke="var(--agri-border)" />
                     <XAxis dataKey="month" tick={AXIS_TICK} axisLine={false} tickLine={false} />
                     <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v.toLocaleString()} kg`, "Quantity"]} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [trendUnit ? formatQuantity(v, trendUnit) : v.toLocaleString(), "Quantity"]} />
                     <Bar dataKey="quantity" fill="var(--agri-primary)" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -258,7 +264,7 @@ export default function Dashboard() {
                   <div>
                     <div className="agri-dash-commodity-label">
                       <span>{c.name}</span>
-                      <span className="agri-muted">{c.value.toLocaleString()} kg</span>
+                      <span className="agri-muted">{formatQuantity(c.value, unitOf.get(c.name))}</span>
                     </div>
                     <div className="agri-dash-commodity-track">
                       <div className="agri-dash-commodity-bar" style={{ width: `${(c.value / maxCommodity) * 100}%` }} />

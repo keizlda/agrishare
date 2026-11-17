@@ -8,7 +8,6 @@ import EmptyState from "../components/ui/EmptyState.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import DateInput from "../components/ui/DateInput.jsx";
 import FarmerTagInput from "../components/distributions/FarmerTagInput.jsx";
-import { distributionTotalQty } from "../data/mockData.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
@@ -27,6 +26,7 @@ import {
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { formatDate, todayIso } from "../lib/dates.js";
+import { formatItemsTotal, formatQuantity } from "../lib/quantity.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { DISTRIBUTION_STATUSES, completedOn } from "../lib/distributionStatus.js";
 import { rowLinkProps } from "../lib/rowLink.js";
@@ -229,7 +229,7 @@ export default function Distributions() {
                         <span className="agri-muted">{d.beneficiaries} farmers (not tagged)</span>
                       )}
                     </td>
-                    <td>{distributionTotalQty(d).toLocaleString()} kg</td>
+                    <td>{formatItemsTotal(d.items)}</td>
                     <td><Pill status={d.status} /></td>
                   </tr>
                 ))}
@@ -542,8 +542,10 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   // been deleted, add it back so editing doesn't silently swap it out.
   const commodityOptions = useMemo(() => {
     if (!editing || !primaryItem || commodities.some((c) => String(c.id) === String(primaryItem.commodityId))) return commodities;
-    return [...commodities, { id: primaryItem.commodityId, name: primaryItem.name }];
+    return [...commodities, { id: primaryItem.commodityId, name: primaryItem.name, unit: primaryItem.unit }];
   }, [commodities, editing, primaryItem]);
+  // The chosen commodity's unit (kg, set, L…) for the quantity fields.
+  const unit = commodityOptions.find((c) => String(c.id) === String(form.commodityId))?.unit ?? primaryItem?.unit ?? "kg";
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -647,7 +649,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     } else {
       if (form.taggedBeneficiaries.some((r) => !(Number(r.quantity) > 0))) return "Each farmer's quantity must be greater than 0.";
       if (form.quantity !== "" && total > 0 && Math.abs(taggedTotal - total) > 0.005) {
-        return `The farmers' quantities add up to ${taggedTotal.toLocaleString()} kg, but Total Quantity is ${total.toLocaleString()} kg. Change them so they match.`;
+        return `The farmers' quantities add up to ${formatQuantity(taggedTotal, unit)}, but Total Quantity is ${formatQuantity(total, unit)}. Change them so they match.`;
       }
     }
     return "";
@@ -764,7 +766,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
           <label className="agri-form-label">Venue</label>
           <input required className="form-control mb-3" maxLength={120} value={form.venue} onChange={(e) => update("venue", e.target.value)} placeholder="e.g. Barangay Hall" />
 
-          <label className="agri-form-label">Total Quantity (kg)</label>
+          <label className="agri-form-label">Total Quantity ({unit})</label>
           <input
             required
             type="number"
@@ -823,7 +825,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                 </table>
               </div>
               <div className="agri-muted" style={{ fontSize: "0.75rem", margin: "6px 0" }}>
-                {form.taggedBeneficiaries.length} farmers tagged · {taggedTotal.toLocaleString()} kg total
+                {form.taggedBeneficiaries.length} farmers tagged · {formatQuantity(taggedTotal, unit)} total
               </div>
             </>
           )}

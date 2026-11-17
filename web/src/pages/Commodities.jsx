@@ -16,6 +16,7 @@ import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard.js";
 import { createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { formatDate } from "../lib/dates.js";
+import { formatQuantity } from "../lib/quantity.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
@@ -268,7 +269,7 @@ export default function Commodities() {
                   <div className="agri-detail-row"><div><div className="agri-detail-label">Unit</div>{selected.unit}</div></div>
                 </>
               )}
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{selectedDistributedQty.toLocaleString()} kg</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{formatQuantity(selectedDistributedQty, selected.unit)}</div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{formatDate(selected.dateAdded)}</div></div>
 
               <label className="agri-form-label" style={{ marginTop: 14 }} htmlFor="commodity-status-select">Status</label>
