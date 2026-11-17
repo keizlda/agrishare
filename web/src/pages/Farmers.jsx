@@ -163,6 +163,37 @@ function findDuplicateFarmer(farmers, form, excludeId) {
   });
 }
 
+// Letters only, lowercase, accents removed: "Niño O'Brien" → "ninoobrien".
+function nameKey(text) {
+  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z]/g, "");
+}
+
+// Number of single-letter changes (add, remove, replace) between a and b.
+function editDistance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+// Possible duplicate (not an exact one — findDuplicateFarmer handles that):
+// another farmer with the same birth date whose first + last name is at
+// most two letters off — a typo, a doubled letter, or the same name with a
+// different middle name. The admin is warned and can save anyway.
+function findSimilarFarmer(farmers, form, excludeId) {
+  const key = nameKey(`${form.firstName}${form.lastName}`);
+  return farmers.find((f) => {
+    if (excludeId != null && f.id === excludeId) return false;
+    if (f.birthDate !== form.birthDate) return false;
+    return editDistance(key, nameKey(`${f.firstName}${f.lastName}`)) <= 2;
+  });
+}
+
 // Input rules. Names: letters (including ñ and accented letters), spaces,
 // and . ' - ("Ma.", "O'Brien-Dela Cruz") — no digits, symbols or emoji.
 // RSBSA registrants are adults, so ages 18–100 are accepted.
@@ -572,6 +603,9 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
   const [form, setForm] = useState(() => (mode === "edit" ? farmerToForm(farmer) : EMPTY_FORM));
   const [errors, setErrors] = useState({});
   const [duplicate, setDuplicate] = useState(null);
+  // A possible duplicate the admin was warned about; a second Save with the
+  // same match goes ahead.
+  const [similar, setSimilar] = useState(null);
   const [deletedDuplicate, setDeletedDuplicate] = useState(null);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -611,7 +645,13 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
     const excludeId = mode === "edit" ? farmer.id : null;
     const match = findDuplicateFarmer(farmers, cleanForm, excludeId);
     if (match) {
+      setSimilar(null);
       setDuplicate(match);
+      return;
+    }
+    const near = findSimilarFarmer(farmers, cleanForm, excludeId);
+    if (near && similar?.id !== near.id) {
+      setSimilar(near);
       return;
     }
 
@@ -680,6 +720,20 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
                 onClick={() => onViewExisting(duplicate.rsbsaNo)}
               >
                 View existing record: {duplicate.firstName} {duplicate.lastName} — RSBSA {duplicate.rsbsaNo}
+              </button>
+            </div>
+          )}
+          {similar && !duplicate && (
+            <div className="agri-pill orange" role="alert" style={{ display: "block", marginBottom: 14, padding: "10px 12px" }}>
+              Possible duplicate: a farmer with a very similar name and the same birth date already exists. Check that
+              this isn't the same person, then click Save Farmer again to save anyway.
+              <button
+                type="button"
+                className="btn btn-link p-0"
+                style={{ display: "block", fontSize: "0.8rem", marginTop: 4 }}
+                onClick={() => onViewExisting(similar.rsbsaNo)}
+              >
+                View existing record: {similar.firstName} {similar.lastName} — RSBSA {similar.rsbsaNo}
               </button>
             </div>
           )}
