@@ -298,8 +298,17 @@ export async function searchFarmers(query, limit = 8) {
   // Typed text goes in as a quoted filter value, so commas and brackets
   // can't break the filter, and % and _ are matched as typed (not as
   // "anything" wildcards).
-  const contains = `"%${q.replace(/[\\%_]/g, (c) => `\\${c}`).replace(/["\\]/g, (c) => `\\${c}`)}%"`;
+  const quoted = (text) => `"%${text.replace(/[\\%_]/g, (c) => `\\${c}`).replace(/["\\]/g, (c) => `\\${c}`)}%"`;
+  const contains = quoted(q);
   const orClauses = [`first_name.ilike.${contains}`, `surname.ilike.${contains}`, `rsbsa_no.ilike.${contains}`];
+  // A full name ("Rodel Bagas", "Bagas Rodel", "Rodel S. Bagas") never
+  // matches one name column on its own: each word must match the first,
+  // middle or last name.
+  const words = q.split(/\s+/).map((w) => w.replace(/\.+$/, "")).filter(Boolean);
+  if (words.length > 1) {
+    const perWord = words.map((w) => `or(first_name.ilike.${quoted(w)},middle_name.ilike.${quoted(w)},surname.ilike.${quoted(w)})`);
+    orClauses.push(`and(${perWord.join(",")})`);
+  }
   if (digitsOnly) orClauses.push(`rsbsa_digits.ilike.%${digitsOnly}%`);
   const { data, error } = await supabase.from("farmers").select(SEARCH_SELECT).is("deleted_at", null).or(orClauses.join(",")).limit(limit);
   if (error) throw error;
