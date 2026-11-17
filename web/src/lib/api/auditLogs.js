@@ -21,7 +21,7 @@ export const ENTITY_LABELS = {
   commodities: "Commodities",
   announcements: "Announcements",
   requests: "Requests",
-  crop_validations: "Farmer Validation",
+  crop_validations: "Proof of Planting",
 };
 
 export const ACTION_TYPES = ["insert", "update", "delete"];
