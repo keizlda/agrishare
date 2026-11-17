@@ -34,8 +34,16 @@ function requestSessionCheck() {
 
 export function friendlyError(err, fallback = "Something went wrong. Please try again.") {
   if (!err) return fallback;
-  console.error(err);
+  const text = toMessage(err, fallback);
+  // Expected, handled problems (no connection, a wrong password, a rule our
+  // database explains) are logged quietly for debugging; only an error that
+  // falls through to the generic message is logged as an error.
+  if (text === fallback) console.error(err);
+  else console.info("Handled:", err?.message ?? err);
+  return text;
+}
 
+function toMessage(err, fallback) {
   const message = err.message || "";
   const code = err.code;
 
