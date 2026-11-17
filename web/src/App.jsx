@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout.jsx";
+import RequireRole from "./components/layout/RequireRole.jsx";
 import ErrorBoundary from "./components/ui/ErrorBoundary.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
@@ -23,8 +24,14 @@ export default function App() {
     <ErrorBoundary>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/print/distributions/:id" element={<PrintDistribution />} />
-        <Route path="/print/reports" element={<PrintReport />} />
+        {/* Print pages open in their own tab, outside AppLayout's checks:
+            the distribution report is for both staff roles, reports are
+            MAO Admin only (like the Reports page). */}
+        <Route
+          path="/print/distributions/:id"
+          element={<RequireRole roles={["MAO Admin", "FA President"]}><PrintDistribution /></RequireRole>}
+        />
+        <Route path="/print/reports" element={<RequireRole roles={["MAO Admin"]}><PrintReport /></RequireRole>} />
 
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
