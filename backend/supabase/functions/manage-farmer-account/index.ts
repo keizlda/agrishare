@@ -57,8 +57,18 @@ Deno.serve(async (req) => {
       .select("role")
       .eq("id", callerData.user.id)
       .single();
-    if (callerProfileErr || callerProfile?.role !== "mao_admin") {
-      return jsonResponse({ error: "Only MAO Admin can manage farmer accounts." }, 403);
+    // Kept separate from the role check below: a failed lookup (missing
+    // grant, bad service key, no profile row) used to be reported as
+    // "Only MAO Admin…", which hid the real cause from real MAO admins.
+    if (callerProfileErr || !callerProfile) {
+      console.error("manage-farmer-account: caller profile lookup failed", callerData.user.id, callerProfileErr);
+      return jsonResponse(
+        { error: `Couldn't verify your account role: ${callerProfileErr?.message ?? "no profile found for this account"}.` },
+        500,
+      );
+    }
+    if (callerProfile.role !== "mao_admin") {
+      return jsonResponse({ error: `Only MAO Admin can manage farmer accounts (your role: ${callerProfile.role}).` }, 403);
     }
 
     const body = await req.json();
