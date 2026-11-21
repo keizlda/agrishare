@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ClipboardList, Eye, FileText, Pencil, Plus, Search, ShieldAlert, XCircle } from "lucide-react";
+import { CheckCircle2, ClipboardList, Eye, FileText, ListChecks, Pencil, Plus, Search, ShieldAlert, XCircle } from "lucide-react";
 import Pill from "../ui/Pill.jsx";
 import Toast from "../ui/Toast.jsx";
 import TableFooter from "../ui/TableFooter.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import ConfirmDialog from "../ui/ConfirmDialog.jsx";
 import AssociationRequestModal from "./AssociationRequestModal.jsx";
+import ManageItemsModal from "./ManageItemsModal.jsx";
 import { useSupabaseList } from "../../hooks/useSupabaseList.js";
 import { usePagination } from "../../hooks/usePagination.js";
 import { useFitPageSize } from "../../hooks/useFitPageSize.js";
@@ -39,6 +40,7 @@ export default function AssociationRequestsView({ isMAO }) {
   const [selectedId, setSelectedId] = useState(null);
   const [modal, setModal] = useState(null); // null | { request: null | request }
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [managing, setManaging] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -51,7 +53,7 @@ export default function AssociationRequestsView({ isMAO }) {
     return requests.filter(
       (r) =>
         (typeFilter === "all" || r.type === typeFilter) &&
-        (!q || r.title.toLowerCase().includes(q) || r.item.toLowerCase().includes(q) || r.requesterName.toLowerCase().includes(q)),
+        (!q || r.item.toLowerCase().includes(q) || r.description.toLowerCase().includes(q) || r.requesterName.toLowerCase().includes(q)),
     );
   }, [requests, search, typeFilter]);
   const filtered = useMemo(() => (filter === "all" ? searched : searched.filter((r) => r.statusKey === filter)), [searched, filter]);
@@ -159,9 +161,14 @@ export default function AssociationRequestsView({ isMAO }) {
                 <Plus size={16} /> New Association Request
               </button>
             )}
+            {isMAO && (
+              <button type="button" className="btn btn-outline-secondary d-flex align-items-center gap-2" onClick={() => setManaging(true)}>
+                <ListChecks size={16} /> Manage items
+              </button>
+            )}
             <div className="agri-toolbar-search">
               <Search size={15} />
-              <input className="form-control" placeholder="Search title or item" aria-label="Search association requests" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input className="form-control" placeholder="Search item or purpose" aria-label="Search association requests" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "140px" }} aria-label="Filter by type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
               <option value="all">All Types</option>
@@ -187,17 +194,17 @@ export default function AssociationRequestsView({ isMAO }) {
           <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table agri-table-cards">
               <thead>
-                <tr><th>Request</th><th>Type</th><th>Quantity</th><th>Preferred Date</th><th>Submitted</th><th>Status</th></tr>
+                <tr><th>Item</th><th>Type</th><th className="text-end">Quantity</th><th>Preferred Date</th><th>Submitted</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {pageItems.map((r) => (
                   <tr key={r.id} {...rowLinkProps(() => { setSelectedId(r.id); revealDetail(); }, { selected: r.id === selectedId })}>
                     <td className="agri-cell-truncate" title={r.title}>
-                      <span className="agri-row-title">{r.title}</span>
-                      {r.item && <div className="agri-muted" style={{ fontSize: "0.75rem" }}>{r.item}</div>}
+                      <span className="agri-row-title">{r.item}</span>
+                      <div className="agri-muted agri-cell-truncate" style={{ fontSize: "0.75rem" }}>{r.description}</div>
                     </td>
                     <td>{r.typeLabel}</td>
-                    <td>{r.quantity ?? "—"}</td>
+                    <td className="text-end">{r.quantity ?? "—"}</td>
                     <td>{r.preferredDate ? formatDate(r.preferredDate) : "—"}</td>
                     <td>{formatDate(r.createdAt)}</td>
                     <td><Pill status={r.status} /></td>
@@ -232,13 +239,12 @@ export default function AssociationRequestsView({ isMAO }) {
               <Pill status={selected.status} />
             </div>
             <div className="agri-detail-body">
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Title</div><span style={{ overflowWrap: "anywhere" }}>{selected.title}</span></div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Type</div>{selected.typeLabel}</div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Item</div>{selected.item || <span className="agri-muted">—</span>}</div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Quantity</div>{selected.quantity ?? <span className="agri-muted">—</span>}</div></div>
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Estimated Beneficiaries</div>{selected.estimatedBeneficiaries != null ? `${selected.estimatedBeneficiaries.toLocaleString()} farmers` : <span className="agri-muted">—</span>}</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Farmer Beneficiaries</div>{selected.estimatedBeneficiaries != null ? `${selected.estimatedBeneficiaries.toLocaleString()} farmers` : <span className="agri-muted">—</span>}</div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Preferred Date</div>{selected.preferredDate ? formatDate(selected.preferredDate) : <span className="agri-muted">—</span>}</div></div>
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Description / Justification</div><span style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{selected.description}</span></div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Purpose / Justification</div><span style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{selected.description}</span></div></div>
               <div className="agri-detail-row">
                 <div>
                   <div className="agri-detail-label">Attachment</div>
@@ -344,10 +350,12 @@ export default function AssociationRequestsView({ isMAO }) {
         />
       )}
 
+      {managing && <ManageItemsModal onClose={() => setManaging(false)} onSaved={(message) => setToast({ tone: "success", message })} />}
+
       {confirmCancel && selected && (
         <ConfirmDialog
           title="Cancel this request?"
-          message={`"${selected.title}" will be withdrawn and the MAO won't act on it. This can't be undone.`}
+          message={`"${selected.item}" will be withdrawn and the MAO won't act on it. This can't be undone.`}
           confirmLabel="Cancel Request"
           busy={saving}
           onConfirm={cancelRequest}

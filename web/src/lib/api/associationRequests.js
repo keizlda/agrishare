@@ -23,17 +23,15 @@ export const ASSOCIATION_STATUSES = [
 ];
 const STATUS_LABEL = Object.fromEntries(ASSOCIATION_STATUSES.map((s) => [s.value, s.label]));
 
-// Suggestions for the free-text Item field.
-export const ITEM_SUGGESTIONS = ["Hand tractor", "Rice thresher", "Combine harvester", "Water pump", "Irrigation", "Farm-to-market road"];
 
-export const LIMITS = { title: 120, description: 2000, item: 120, remarks: 1000, quantity: 10000, beneficiaries: 100000 };
+export const LIMITS = { description: 2000, item: 80, remarks: 1000, quantity: 10000, beneficiaries: 100000 };
 
 const BUCKET = "association-attachments";
 export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 export const ATTACHMENT_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 const SELECT = `
-  association_request_id, request_type, title, description, item, quantity, estimated_beneficiaries, preferred_date,
+  association_request_id, request_type, title, description, item, item_id, item_other, quantity, estimated_beneficiaries, preferred_date,
   attachment_path, attachment_name, attachment_type, status, requested_by, reviewed_by, reviewed_at, admin_remarks,
   created_at, updated_at,
   requester:profiles!requested_by ( full_name ),
@@ -45,9 +43,13 @@ function mapAssociationRequest(row) {
     id: row.association_request_id,
     type: row.request_type,
     typeLabel: TYPE_LABEL[row.request_type] ?? row.request_type,
-    title: row.title,
+    // The item (from the MAO's list, or the "Other" text) is the request's
+    // headline.
+    title: row.item ?? row.title ?? "",
     description: row.description,
-    item: row.item ?? "",
+    item: row.item ?? row.title ?? "",
+    itemId: row.item_id ?? null,
+    itemOther: row.item_other ?? "",
     quantity: row.quantity,
     estimatedBeneficiaries: row.estimated_beneficiaries,
     preferredDate: row.preferred_date,
@@ -124,10 +126,10 @@ export async function getAttachmentUrl(path, expiresInSeconds = 300) {
 
 const toRow = (form) => ({
   request_type: form.type,
-  title: form.title.trim(),
+  item_id: form.itemId ? Number(form.itemId) : null,
+  item_other: form.itemOther.trim() || null,
   description: form.description.trim(),
-  item: form.item.trim() || null,
-  quantity: form.quantity === "" ? null : Number(form.quantity),
+  quantity: form.type !== "machinery" || form.quantity === "" ? null : Number(form.quantity),
   estimated_beneficiaries: form.estimatedBeneficiaries === "" ? null : Number(form.estimatedBeneficiaries),
   preferred_date: form.preferredDate || null,
 });
@@ -188,4 +190,30 @@ export async function reviewAssociationRequest(requestId, status, remarks) {
   if (error) throw error;
   if (!data) throw new Error("This request was cancelled or changed by someone else. Refresh and try again.");
   return mapAssociationRequest(data);
+}
+
+// ---------------------------------------------------------------------------
+// The item list (managed by the MAO Admin; the FA President picks from it).
+// ---------------------------------------------------------------------------
+export async function listAssociationItems() {
+  const { data, error } = await supabase.from("association_request_items").select("item_id, name, is_other, sort_order").is("deleted_at", null).order("sort_order").order("name");
+  if (error) throw error;
+  return data.map((i) => ({ id: i.item_id, name: i.name, isOther: !!i.is_other, sortOrder: i.sort_order }));
+}
+
+export async function saveAssociationItem({ id, name, sortOrder }) {
+  const query = id
+    ? supabase.from("association_request_items").update({ name: name.trim() }).eq("item_id", id)
+    : supabase.from("association_request_items").insert({ name: name.trim(), sort_order: sortOrder ?? 500 });
+  const { data, error } = await query.select("item_id, name, is_other, sort_order").maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Only the MAO Admin can change the item list.");
+  return { id: data.item_id, name: data.name, isOther: !!data.is_other, sortOrder: data.sort_order };
+}
+
+// Removed items stay on past requests (their name is kept there).
+export async function removeAssociationItem(id) {
+  const { data, error } = await supabase.from("association_request_items").update({ deleted_at: new Date().toISOString() }).eq("item_id", id).select("item_id").maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Only the MAO Admin can change the item list.");
 }

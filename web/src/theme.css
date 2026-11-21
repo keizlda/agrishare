@@ -3597,6 +3597,42 @@ input[type="number"] {
   }
 }
 
+/* ---------- Association requests: the MAO's item list ---------- */
+.agri-item-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: min(48vh, 420px);
+  overflow-y: auto;
+}
+.agri-item-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--agri-divider);
+  font-size: 0.86rem;
+}
+.agri-item-list li input {
+  flex: 1;
+}
+.agri-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.agri-item-list .agri-type-remove {
+  margin-top: 0;
+}
+.agri-item-add {
+  display: flex;
+  gap: 8px;
+}
+.agri-item-add input {
+  flex: 1;
+}
+
 /* ---------- Distribution: barangay allocation bar, per-type totals ---------- */
 .agri-alloc {
   margin: 4px 0 12px;
