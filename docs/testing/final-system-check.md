@@ -1,8 +1,13 @@
 # AgriShare — Final System Check
 
-Branch `final-check` · November 2026 · **not deployed yet** (17 fixes, each its own commit).
+Branch `final-check`, merged into `main` · November 2026 · **deployed November 21, 2026** (17 fixes, each its own commit).
 
-**Ready to deploy: yes.** Every failed check has been fixed and re-run. Nothing blocks deployment. The open items under "Needs your decision" are choices about scope and wording, not defects.
+**Deployed and re-checked live:**
+- **Database:** the 8 migrations were applied to the live database. Re-checked there, 21/21 role checks pass in a rolled-back transaction, and 8/8 read checks pass with real test logins and signed out. So every row marked "Fixed (database; takes effect on deploy)" below now holds on the live system.
+- **Web app:** live at agrishare.vercel.app. Signed-out print pages go to Login.
+- **Farmer app:** live as over-the-air update `6407fab6`. No new APK.
+
+The remaining items under "Needs your decision" are choices about scope and wording, not defects.
 
 ## How it was checked
 
@@ -339,12 +344,10 @@ Not fully recoverable: if anyone had opened announcement #30 before it was delet
 
 If your adviser tries Change Password on a test account, ask them to share the new password, or to use another login ID (000206–000225).
 
-## 7. Deploying
+## 7. Deployment (done November 21, 2026)
 
-Deploy in this order (the web app and the app's update rely on the new database rules):
+1. **Database:** 8 migrations applied with `npx supabase db push --remote`. Live re-check: 21/21 role checks (rolled back) and 8/8 API read checks pass.
+2. **Web:** deployed to Vercel and agrishare.vercel.app pointed at it. The live bundle has the new code; signed-out print pages go to Login.
+3. **Farmer app:** over-the-air update `6407fab6` on the production branch (runtime 1.0.0). It carries "submitted for review by the MAO" and the other fixes.
 
-1. **Database:** `npx supabase db push --remote` from `backend/` (8 new migrations).
-2. **Web:** deploy `web/` to Vercel, then point agrishare.vercel.app at the new deployment.
-3. **Farmer app:** `eas update --branch production --platform android` from `mobile/`.
-
-After deploying, re-run the permission check on the live system. The 9 database rows marked "Fixed (database; takes effect on deploy)" should then pass live too.
+The `manage-farmer-account` Edge Function change from November 19 was already live (version 4), so it wasn't redeployed.
