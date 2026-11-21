@@ -333,6 +333,28 @@ and the production build passes.
 - Which commodities get starting rates.
 - That signed-in users can call `auth.uid()`, which the new triggers need.
 
+## Deployed — November 22, 2026
+
+- **Database:** the 6 migrations applied to live. Checked afterwards:
+  - schema, rates, policies and triggers, read-only;
+  - 21 role checks in one transaction that rolled back (stand-in MAO Admin,
+    test FA President, test farmers). Nothing was left behind.
+- **Web:** deployment `web-bufgxhs0r`, aliased to agrishare.vercel.app.
+- **Mobile:** OTA update `f302c197` on branch `production` (runtime 1.0.0).
+- **Test data seeded:**
+  - 1 distribution by farm size (6 farmers);
+  - 4 requests filed by the Farmers' Association President (Maui, Claude,
+    Luna, Josefina);
+  - 4 association requests;
+  - 23 notifications. All are recorded in the ledger for cleanup.
+- **Seed mistake, fixed.** The seed briefly re-created "Livestock Assistance
+  (Native Chicken)", which the MAO Admin had deleted on Oct 17. That row was
+  soft-deleted again right away, and the seed now never re-creates a
+  commodity deleted in the app.
+- **Live smoke test** as the test Farmers' Association President, read-only:
+  7/7 pass (requests, association requests, farm-size distribution, print
+  preview).
+
 ## Deploying (when you say "deploy")
 
 1. **Database:** `npx supabase db push`. The six new migrations run in order.

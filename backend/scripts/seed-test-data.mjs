@@ -209,6 +209,14 @@ async function main() {
       if (!ours) log(`Commodity reused (existing, not modified): ${row.name}${diffs.length ? ` — differs: ${diffs.join(", ")}` : ""}`);
       continue;
     }
+    // Deleted by the MAO Admin since an earlier run: that was their choice,
+    // so it isn't re-created (its id still resolves for older records).
+    const [deleted] = await must(sb.from("commodities").select("commodity_id").ilike("name", name).not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(1), `deleted commodity ${c.name}`);
+    if (deleted) {
+      commodityId.set(c.name, deleted.commodity_id);
+      log(`Commodity not re-created (deleted in the app): ${c.name}`);
+      continue;
+    }
     if (DRY) { log(`Commodity: would insert ${c.name}`); commodityId.set(c.name, `(new ${c.name})`); continue; }
     const ins = await must(sb.from("commodities").insert({
       name: c.name, category: c.category, unit: c.unit, status: lower(c.status),

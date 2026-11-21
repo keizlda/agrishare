@@ -306,6 +306,10 @@
     {
       "commodity_id": 38,
       "name": "Livestock Assistance (Native Chicken)"
+    },
+    {
+      "commodity_id": 46,
+      "name": "Livestock Assistance (Native Chicken)"
     }
   ],
   "events": [
@@ -343,6 +347,11 @@
       "event_id": 27,
       "program_name": "Urea Fertilizer Assistance",
       "event_date": "2026-10-23"
+    },
+    {
+      "event_id": 43,
+      "program_name": "RCEF Seed Distribution - Allocation by Farm Size",
+      "event_date": "2026-11-20"
     }
   ],
   "eventItems": [
@@ -352,7 +361,8 @@
     28,
     29,
     30,
-    31
+    31,
+    45
   ],
   "claims": [
     79,
@@ -411,7 +421,13 @@
     132,
     133,
     134,
-    135
+    135,
+    159,
+    160,
+    161,
+    162,
+    163,
+    164
   ],
   "cropValidations": [
     {
@@ -485,7 +501,11 @@
     16,
     17,
     18,
-    19
+    19,
+    63,
+    64,
+    65,
+    66
   ],
   "announcements": [
     {
@@ -503,6 +523,24 @@
     {
       "announcement_id": 32,
       "title": "FA meeting with the MAO"
+    }
+  ],
+  "associationRequests": [
+    {
+      "association_request_id": 3,
+      "title": "Hand tractor for Purok 3 rice farmers"
+    },
+    {
+      "association_request_id": 4,
+      "title": "Rice thresher for the association"
+    },
+    {
+      "association_request_id": 5,
+      "title": "Irrigation canal repair, Sitio Tagbak"
+    },
+    {
+      "association_request_id": 6,
+      "title": "Training on organic fertilizer making"
     }
   ],
   "notifications": [
@@ -731,7 +769,30 @@
     503,
     504,
     505,
-    506
+    506,
+    1456,
+    1457,
+    1458,
+    1459,
+    1460,
+    1461,
+    1462,
+    1463,
+    1464,
+    1465,
+    1466,
+    1467,
+    1468,
+    1469,
+    1470,
+    1471,
+    1472,
+    1473,
+    1474,
+    1475,
+    1476,
+    1477,
+    1478
   ],
   "auditLogs": [
     564,
@@ -1011,7 +1072,35 @@
     834,
     836,
     835,
-    837
+    837,
+    1251,
+    1252,
+    1253,
+    1254,
+    1255,
+    1256,
+    1257,
+    1258,
+    1259,
+    1260,
+    1261,
+    1262,
+    1263,
+    1264,
+    1265,
+    1266,
+    1267,
+    1268,
+    1269,
+    1270,
+    1271,
+    1272,
+    1273,
+    1274,
+    1275,
+    1276,
+    1277,
+    1278
   ],
   "storage": [
     {
