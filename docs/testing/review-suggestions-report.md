@@ -197,6 +197,41 @@ Commit `2b82410` (this report follows it).
 
 Run the seed and cleanup only after the new migrations are live.
 
+## Follow-up: print preview and whole-unit quantities
+
+**Print preview** applies to the Distribution Report and every report on the
+Reports page.
+- **No automatic dialog.** The preview opens in a new tab without the print
+  dialog. It opens only from "Print / Save as PDF". The `?autoPrint=1`
+  parameter and the auto-print hook are gone.
+- **Real page sheets.** Each printed page is its own white A4 or Letter sheet
+  on a gray background, with ~24px gaps and the same 20/18 mm margins as the
+  printout. Sheets break exactly where printing breaks: page 1 holds the
+  details, and the List of Beneficiaries starts on page 2. Every page repeats
+  the header and the table header, and the single signature block comes last.
+- **No footer.** The "Generated via AgriShare · date" / "Page X of Y" footer is
+  removed. The page margin is 0 (`@page`), so Chrome prints no header or
+  footer of its own.
+- **Toolbar** above the viewer, never over the sheets and never printed:
+  Back/Close, an A4 / Letter switch (remembered), and Print / Save as PDF.
+- **Tested in Chrome** on A4 and Letter: the PDF has the same number of pages
+  and the same breaks as the preview.
+
+**Whole-unit quantities**
+- **Units that can't be split:** set, pcs/piece, head, bag, sack (also unit and
+  pack). Their quantities are whole numbers.
+- **Equal split:** everyone gets the same share rounded down, and the
+  remainder goes one at a time to the first farmers (23 sets for 2 → 12 and
+  11). kg and L keep 2 decimals.
+- **Decimals are refused** in the Distribution form, Add Farmer Request, the
+  mobile request form, and the Commodities "Maximum per Farmer". The database
+  refuses them too, for anything entered or changed.
+- **Rows already saved are left alone.** Distribution 36 "seed" (Ongoing,
+  23 sets saved as 11.5 + 11.5) is unchanged. Editing it asks for whole
+  numbers (e.g. 12 + 11).
+
+**Migration:** `20261121000500_whole_unit_quantities.sql`
+
 ## Permission matrix (new features)
 
 "DB" means the database refuses the action, not only that the button is hidden.
@@ -300,7 +335,7 @@ and the production build passes.
 
 ## Deploying (when you say "deploy")
 
-1. **Database:** `npx supabase db push`. The five new migrations run in order.
+1. **Database:** `npx supabase db push`. The six new migrations run in order.
 2. **Web:** deploy to Vercel and alias agrishare.vercel.app.
 3. **Mobile: an OTA update is enough, no new APK.** Only two JavaScript files
    changed (`requests.js` and `RequestsScreen.js`). No native modules, no

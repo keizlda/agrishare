@@ -8,7 +8,7 @@ import { listCommodities } from "../../lib/api/commodities.js";
 import { fileRequestForFarmer, findOpenRequests } from "../../lib/api/requests.js";
 import { computeAllocation, formatHectares, hasAllocation } from "../../lib/allocation.js";
 import { formatDate } from "../../lib/dates.js";
-import { formatQuantity } from "../../lib/quantity.js";
+import { formatQuantity, isSplitQuantity } from "../../lib/quantity.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
 // Same limits as the farmer's own request form (mobile).
@@ -22,6 +22,7 @@ function problemWith({ farmer, commodity, quantity, reason }) {
   if (!/^\d+(\.\d{1,2})?$/.test(quantity.trim())) return "Enter the quantity as a number, for example 25.";
   const qty = Number(quantity);
   if (qty <= 0) return "Enter a quantity greater than 0.";
+  if (isSplitQuantity(qty, commodity.unit)) return `Enter a whole number: ${commodity.unit} can't be split.`;
   if (qty > MAX_QUANTITY) return `That quantity looks too large. Enter up to ${MAX_QUANTITY.toLocaleString()}.`;
   if (reason.trim().length > MAX_REASON) return `Keep the reason to ${MAX_REASON} characters or fewer.`;
   return "";

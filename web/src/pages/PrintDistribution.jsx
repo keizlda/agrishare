@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import PrintLayout, { KV } from "../components/print/PrintLayout.jsx";
-import { useAutoPrint } from "../hooks/useAutoPrint.js";
 import { getDistribution, listPrintBeneficiaries } from "../lib/api/distributions.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { acknowledgementLabel, dateReceived } from "../lib/distributionStatus.js";
@@ -15,7 +14,6 @@ const STATUS_DOT = {
 
 export default function PrintDistribution() {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
   const [distribution, setDistribution] = useState(null);
   const [beneficiaries, setBeneficiaries] = useState(null);
   const [error, setError] = useState("");
@@ -29,13 +27,12 @@ export default function PrintDistribution() {
       .catch((err) => setError(friendlyError(err, "Couldn't load this distribution.")));
   }, [id]);
 
-  useAutoPrint(!!distribution && !!beneficiaries, searchParams.get("autoPrint") === "1");
 
   if (error) {
-    return <div className="pr-page" role="alert">{error}</div>;
+    return <div className="pr-message" role="alert">{error}</div>;
   }
   if (!distribution || !beneficiaries) {
-    return <div className="pr-page">Loading…</div>;
+    return <div className="pr-message">Loading…</div>;
   }
 
   const d = distribution;
@@ -44,7 +41,7 @@ export default function PrintDistribution() {
   const totalQty = d.items.reduce((sum, i) => sum + i.quantity, 0);
 
   return (
-    <PrintLayout title="Distribution Report" subtitle={`Distribution No. ${d.id} · ${eventDateLong}`}>
+    <PrintLayout title="Distribution Report" subtitle={`Distribution No. ${d.id} · ${eventDateLong}`} backTo="/distributions">
       <div className="pr-section">
         <div className="pr-section-label">Distribution Details</div>
         <div className="pr-kv-grid">

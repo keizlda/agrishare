@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import PrintLayout, { KV } from "../components/print/PrintLayout.jsx";
-import { useAutoPrint } from "../hooks/useAutoPrint.js";
 import { computeCommodityStats } from "../data/mockData.js";
 import { listFarmers } from "../lib/api/farmers.js";
 import { listBeneficiaryReport, listDistributions } from "../lib/api/distributions.js";
@@ -37,13 +36,12 @@ export default function PrintReport() {
       .catch((err) => setError(friendlyError(err, "Couldn't load this report.")));
   }, []);
 
-  useAutoPrint(!!data, searchParams.get("autoPrint") === "1");
 
   if (error) {
-    return <div className="pr-page" role="alert">{error}</div>;
+    return <div className="pr-message" role="alert">{error}</div>;
   }
   if (!data) {
-    return <div className="pr-page">Loading…</div>;
+    return <div className="pr-message">Loading…</div>;
   }
 
   const subtitleParts = [];
@@ -57,7 +55,7 @@ export default function PrintReport() {
   const filters = { barangay, commodity, dateFrom, dateTo, status };
 
   return (
-    <PrintLayout title={reportType} subtitle={subtitleParts.join(" · ") || undefined}>
+    <PrintLayout title={reportType} subtitle={subtitleParts.join(" · ") || undefined} backTo="/reports">
       {reportType === "Beneficiary List" && (
         <BeneficiaryList claims={data.beneficiaryClaims} distributions={data.distributions} filters={filters} />
       )}

@@ -5,7 +5,10 @@
 // a distribution is saved.
 //
 // Worked in hundredths (integers) so the result matches the database's
-// numeric rounding exactly: 1.15 ha × 0.5 = 0.575 → 0.58 here too.
+// numeric rounding exactly: 1.15 ha × 0.5 = 0.575 → 0.58 here too. Units that
+// can't be split (set, head, bag…) round to a whole number instead.
+import { isWholeUnit } from "./quantity.js";
+
 const cents = (n) => Math.round(Number(n) * 100);
 
 export function hasAllocation(commodity) {
@@ -18,8 +21,14 @@ export function computeAllocation(commodity, farmSize) {
   if (!hasAllocation(commodity)) return null;
   const size = Number(farmSize);
   if (!(size > 0)) return 0;
-  let hundredths = Math.round((cents(size) * cents(commodity.allocationPerHectare)) / 100);
+  const product = cents(size) * cents(commodity.allocationPerHectare); // in 1/10,000ths
   const max = Number(commodity.maxPerFarmer);
+  if (isWholeUnit(commodity.unit)) {
+    let whole = Math.round(product / 10000);
+    if (max > 0) whole = Math.min(whole, Math.floor(max));
+    return whole;
+  }
+  let hundredths = Math.round(product / 100);
   if (max > 0) hundredths = Math.min(hundredths, cents(max));
   return hundredths / 100;
 }

@@ -10,17 +10,19 @@ import { listCommodities } from "../lib/api/commodities";
 import { createRequest, listMyRequests } from "../lib/api/requests";
 import { formatDate } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
+import { isWholeUnit } from "../lib/units";
 
 const MAX_QUANTITY = 10000;
 const MAX_REASON = 300;
 
 // The first problem with the request, in plain words, or "" when it can
 // be sent. (The database also refuses a quantity of 0 or less.)
-function requestProblem(quantity, reason) {
+function requestProblem(quantity, reason, unit) {
   if (!quantity.trim() || !reason.trim()) return "Please enter a quantity and reason for your request.";
   if (!/^\d+(\.\d{1,2})?$/.test(quantity.trim())) return "Enter the quantity as a number, for example 25.";
   const qty = Number(quantity);
   if (qty <= 0) return "Enter a quantity greater than 0.";
+  if (isWholeUnit(unit) && !Number.isInteger(qty)) return `Enter a whole number: ${unit} can't be split.`;
   if (qty > MAX_QUANTITY) return `That quantity looks too large. Enter up to ${MAX_QUANTITY.toLocaleString()}.`;
   return "";
 }
@@ -66,12 +68,12 @@ export default function RequestsScreen({ navigation, route }) {
 
   async function handleSubmit() {
     if (submittingRef.current) return;
-    const problem = requestProblem(quantity, reason);
+    const selectedCommodity = commodities.find((c) => c.name === commodity);
+    const problem = requestProblem(quantity, reason, selectedCommodity?.unit);
     if (problem) {
       Alert.alert("Check your request", problem);
       return;
     }
-    const selectedCommodity = commodities.find((c) => c.name === commodity);
     if (!selectedCommodity) {
       Alert.alert("Pick a commodity", "Please choose a commodity to request.");
       return;

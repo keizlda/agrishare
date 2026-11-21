@@ -3,33 +3,128 @@
    with the app's agri- classes, even though this stylesheet loads into the
    same bundle as the rest of the app. */
 
-.pr-page {
-  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", Arial, sans-serif;
-  color: #1a1f1c;
-  background: #ffffff;
-  max-width: 210mm;
-  margin: 0 auto;
-  padding: 12mm 18mm 20mm;
-  font-size: 11pt;
+/* ---------- Preview: toolbar + document viewer (screen) ---------- */
+/* The whole window: a toolbar that never scrolls, and below it the viewer
+   (gray, scrolls) with one white sheet per printed page. */
+.pr-app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #d9ded6;
+  z-index: 0;
 }
 
 .pr-toolbar {
-  max-width: 210mm;
-  margin: 0 auto;
-  padding: 14px 18mm 0;
+  flex: none;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #c9d3cb;
+  box-shadow: 0 1px 4px rgba(20, 40, 25, 0.08);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", Arial, sans-serif;
+}
+.pr-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.pr-toolbar-title {
+  flex: 1 1 160px;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1a1f1c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-toolbar-pages {
+  font-weight: 400;
+  color: #56645a;
+}
+.pr-paper-switch {
+  display: inline-flex;
+  border: 1px solid #c9d3cb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pr-paper-switch button {
+  border: none;
+  background: #ffffff;
+  color: #56645a;
+  font-size: 0.83rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.pr-paper-switch button + button {
+  border-left: 1px solid #c9d3cb;
+}
+.pr-paper-switch button.active {
+  background: #e3f1e6;
+  color: #1e7233;
 }
 
-/* Outer table + thead is the standard cross-browser way to make a header
-   repeat on every printed page without a PDF library. */
-.pr-shell {
-  width: 100%;
-  border-collapse: collapse;
+.pr-viewer {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 16px 48px;
 }
-.pr-shell > thead > tr > td,
-.pr-shell > tbody > tr > td {
-  padding: 0;
+.pr-preparing {
+  text-align: center;
+  color: #56645a;
+  font-family: "Segoe UI", Arial, sans-serif;
+  padding: 40px 0;
+}
+.pr-sheets {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+/* One printed page. Size and margins are set inline from the paper size. */
+.pr-sheet {
+  box-sizing: border-box;
+  flex: none;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(20, 40, 25, 0.18), 0 0 1px rgba(20, 40, 25, 0.25);
+}
+.pr-sheet,
+.pr-measure {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", Arial, sans-serif;
+  color: #1a1f1c;
+  font-size: 11pt;
+  line-height: 1.5;
+}
+/* Inside a sheet the sheet itself is the page: no other page breaks. */
+.pr-sheet * {
+  break-before: auto !important;
+  break-after: auto !important;
+  page-break-before: auto !important;
+  page-break-after: auto !important;
+}
+/* The hidden copy the pages are measured and cut from. */
+.pr-measure {
+  position: absolute;
+  top: 0;
+  left: -10000px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Loading / error message on a print page. */
+.pr-message {
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #1a1f1c;
+  max-width: 210mm;
+  margin: 40px auto;
+  padding: 0 16px;
 }
 
 /* Header: seal on the left, text block directly beside it (12px gap),
@@ -260,32 +355,12 @@
   color: #56645a;
 }
 
-.pr-footer {
-  margin-top: 20px;
-  padding-top: 10px;
-  page-break-inside: avoid;
-  border-top: 1px solid #e4eae4;
-  display: flex;
-  justify-content: space-between;
-  font-size: 8pt;
-  color: #56645a;
-}
-
 /* ---------- Distribution Report: List of Beneficiaries (page 2+) ---------- */
-/* Always starts on a new page; the shared header (seal + lines + rule)
-   repeats there through .pr-shell's thead. */
+/* Always starts on a new page (the preview's paginator starts a new sheet
+   here); every page repeats the shared header. */
 .pr-beneficiaries {
   break-before: page;
   page-break-before: always;
-}
-
-/* On screen there are no pages, so mark where page 2 begins. */
-@media screen {
-  .pr-beneficiaries {
-    margin-top: 36px;
-    padding-top: 30px;
-    border-top: 2px dashed #c9d3cb;
-  }
 }
 
 /* Masterlist grid: full cell borders and rows tall enough to sign by hand.
@@ -343,7 +418,7 @@
 
 .pr-beneficiary-table .pr-bcol-no { width: 3.5%; }
 .pr-beneficiary-table .pr-bcol-name { width: 12.5%; }
-.pr-beneficiary-table .pr-bcol-rsbsa { width: 14.5%; }
+.pr-beneficiary-table .pr-bcol-rsbsa { width: 16%; }
 .pr-beneficiary-table .pr-bcol-sex { width: 3.5%; }
 .pr-beneficiary-table .pr-bcol-commodity { width: 10.25%; }
 .pr-beneficiary-table .pr-bcol-farm { width: 6.25%; }
@@ -351,7 +426,7 @@
 .pr-beneficiary-table .pr-bcol-unit { width: 4.25%; }
 .pr-beneficiary-table .pr-bcol-ack { width: 10.5%; }
 .pr-beneficiary-table .pr-bcol-date { width: 8.5%; }
-.pr-beneficiary-table .pr-bcol-sign { width: 16.5%; }
+.pr-beneficiary-table .pr-bcol-sign { width: 15%; }
 /* Bags under a quantity: "(2.5 bags)". */
 .pr-sub { display: block; font-size: 0.85em; color: #56645a; white-space: nowrap; }
 
@@ -365,40 +440,42 @@
   text-align: center;
 }
 
-@page {
-  size: A4;
-  margin: 20mm 18mm;
-}
-
-/* Footer margin boxes (content is set inline by PrintLayout so the
-   timestamp is real): thin top rule spanning left + center + right. */
-@page {
-  @bottom-left {
-    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", Arial, sans-serif;
-    font-size: 8pt;
-    color: #56645a;
-    border-top: 1px solid #e4eae4;
-    vertical-align: top;
-    padding-top: 4mm;
-    text-align: left;
-  }
-  @bottom-center {
-    border-top: 1px solid #e4eae4;
-  }
-  @bottom-right {
-    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", Arial, sans-serif;
-    font-size: 8pt;
-    color: #56645a;
-    border-top: 1px solid #e4eae4;
-    vertical-align: top;
-    padding-top: 4mm;
-    text-align: right;
-  }
-}
-
+/* Page size and a zero page margin are set by PrintLayout for the chosen
+   paper (so the browser prints no header or footer); each sheet carries the
+   report's own margins. */
 @media print {
-  .pr-no-print { display: none !important; }
-  .pr-page { padding: 0; max-width: none; }
-  .pr-footer { display: none; }
-  body { margin: 0; background: #fff; }
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+  }
+  .pr-toolbar,
+  .pr-measure,
+  .pr-preparing {
+    display: none !important;
+  }
+  .pr-app {
+    position: static;
+    display: block;
+    background: none;
+  }
+  .pr-viewer {
+    overflow: visible;
+    padding: 0;
+  }
+  .pr-sheets {
+    display: block;
+    zoom: 1 !important;
+  }
+  .pr-sheet {
+    box-shadow: none;
+    margin: 0;
+    break-after: page;
+    page-break-after: always;
+  }
+  .pr-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
 }

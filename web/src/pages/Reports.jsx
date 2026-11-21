@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import DateInput from "../components/ui/DateInput.jsx";
 import { usePersistedState } from "../hooks/usePersistedState.js";
@@ -36,9 +36,10 @@ export default function Reports() {
       .catch(() => {});
   }, []);
 
-  function printUrl({ type, dateFrom, dateTo, status, commodity, barangay }, autoPrint) {
+  // Opens the printable preview in a new tab. Nothing prints by itself: the
+  // print dialog opens only from the preview's "Print / Save as PDF".
+  function printUrl({ type, dateFrom, dateTo, status, commodity, barangay }) {
     const params = new URLSearchParams({ type, dateFrom, dateTo, status, commodity, barangay });
-    if (autoPrint) params.set("autoPrint", "1");
     return `/print/reports?${params.toString()}`;
   }
 
@@ -65,15 +66,11 @@ export default function Reports() {
       },
       ...prev,
     ]);
-    window.open(printUrl({ type: reportType, dateFrom, dateTo, status, commodity, barangay }, true), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: reportType, dateFrom, dateTo, status, commodity, barangay }), "_blank", "noopener,noreferrer");
   }
 
   function handlePreview(r) {
-    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay }, false), "_blank", "noopener,noreferrer");
-  }
-
-  function handleDownload(r) {
-    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay }, true), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay }), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -137,8 +134,7 @@ export default function Reports() {
                     <RowActionsMenu
                       label={`Actions for ${r.name}`}
                       actions={[
-                        { key: "preview", label: "Preview", icon: Eye, onClick: () => handlePreview(r) },
-                        { key: "download", label: "Download", icon: Download, onClick: () => handleDownload(r) },
+                        { key: "preview", label: "Open preview", icon: Eye, onClick: () => handlePreview(r) },
                       ]}
                     />
                   </td>

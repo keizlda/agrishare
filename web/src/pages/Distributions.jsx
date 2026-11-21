@@ -27,7 +27,7 @@ import {
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { formatDate, todayIso } from "../lib/dates.js";
-import { formatItemsTotal, formatQuantity } from "../lib/quantity.js";
+import { formatItemsTotal, formatQuantity, isSplitQuantity, isWholeUnit, splitEqually } from "../lib/quantity.js";
 import { computeAllocation, describeAllocation, formatBags, formatHectares, formatWithBags, hasAllocation } from "../lib/allocation.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { DISTRIBUTION_STATUSES, completedOn } from "../lib/distributionStatus.js";
@@ -35,25 +35,19 @@ import { rowLinkProps } from "../lib/rowLink.js";
 
 // New chips added during this edit split whatever's left after
 // already-edited/loaded rows' quantities are subtracted from the total —
-// existing saved rows (edited: true) keep their stored qty. Works in
-// integer cents throughout so the shares always add back up to exactly the
-// total: each share is rounded DOWN to 2 decimals, and every last cent of
-// leftover from that rounding goes to the last unedited farmer, rather than
-// letting each row round independently and the total drift off by a cent.
-function redistributeQuantities(rows, totalQuantity) {
+// existing saved rows (edited: true) keep their stored qty. The split is in
+// whole units for sets, heads, bags… and in hundredths otherwise: everyone
+// gets the same share rounded down and the remainder goes one unit (or
+// 0.01) at a time to the first farmers, so the shares always add up to
+// exactly the total (23 sets for 2 farmers → 12 and 11).
+function redistributeQuantities(rows, totalQuantity, unit) {
   const unedited = rows.filter((r) => !r.edited);
   if (unedited.length === 0) return rows;
   const editedCents = rows.filter((r) => r.edited).reduce((sum, r) => sum + Math.round((Number(r.quantity) || 0) * 100), 0);
-  const remainingCents = Math.max(Math.round((Number(totalQuantity) || 0) * 100) - editedCents, 0);
-  const shareCents = Math.floor(remainingCents / unedited.length);
-  const leftoverCents = remainingCents - shareCents * unedited.length;
+  const remaining = Math.max(Math.round((Number(totalQuantity) || 0) * 100) - editedCents, 0) / 100;
+  const shares = splitEqually(remaining, unedited.length, unit);
   let seen = 0;
-  return rows.map((r) => {
-    if (r.edited) return r;
-    seen += 1;
-    const cents = seen === unedited.length ? shareCents + leftoverCents : shareCents;
-    return { ...r, quantity: cents / 100 };
-  });
+  return rows.map((r) => (r.edited ? r : { ...r, quantity: shares[seen++] }));
 }
 
 // Two statuses: Ongoing -> Completed (items released and beneficiaries
@@ -361,7 +355,7 @@ export default function Distributions() {
               <button
                 type="button"
                 className="btn agri-detail-btn agri-detail-btn-print w-100 d-flex align-items-center justify-content-center gap-2"
-                onClick={() => window.open(`/print/distributions/${selected.id}?autoPrint=1`, "_blank", "noopener,noreferrer")}
+                onClick={() => window.open(`/print/distributions/${selected.id}`, "_blank", "noopener,noreferrer")}
               >
                 <Printer size={16} /> Print Distribution Report
               </button>
@@ -674,7 +668,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
       .filter((farmer) => !known.has(farmer.id))
       .map((farmer) => farmerRow(farmer, { quantity: byFarmSize ? computeAllocation(commodity, farmer.farmSize) : 0, duplicate: farmer.duplicate ?? null }));
     const next = [...f.taggedBeneficiaries, ...added];
-    return { ...f, taggedBeneficiaries: byFarmSize ? next : redistributeQuantities(next, f.quantity) };
+    return { ...f, taggedBeneficiaries: byFarmSize ? next : redistributeQuantities(next, f.quantity, unit) };
   }
 
   function addFarmerRow(farmer) {
@@ -695,7 +689,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   function handleRemoveFarmer(farmerId) {
     setForm((f) => {
       const next = f.taggedBeneficiaries.filter((r) => r.farmerId !== farmerId);
-      return { ...f, taggedBeneficiaries: byFarmSize ? next : redistributeQuantities(next, f.quantity) };
+      return { ...f, taggedBeneficiaries: byFarmSize ? next : redistributeQuantities(next, f.quantity, unit) };
     });
   }
 
@@ -714,7 +708,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   }
 
   function updateTotalQuantity(value) {
-    setForm((f) => ({ ...f, quantity: value, taggedBeneficiaries: redistributeQuantities(f.taggedBeneficiaries, value) }));
+    setForm((f) => ({ ...f, quantity: value, taggedBeneficiaries: redistributeQuantities(f.taggedBeneficiaries, value, unit) }));
   }
 
   // A different commodity: rows that weren't adjusted are computed again
@@ -817,8 +811,11 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     }
     if (form.status !== "Ongoing" && rows.length === 0) return `Tag at least one beneficiary before setting the status to ${form.status}.`;
     const total = Number(form.quantity);
+    // Sets, heads, bags… can't be split between farmers.
+    const wholeOnly = `${unit} can't be split`;
     if (rows.length === 0) {
       if (!(total > 0)) return "Enter a total quantity greater than 0.";
+      if (isSplitQuantity(total, unit)) return `Enter a whole number for Total Quantity: ${wholeOnly}.`;
       return "";
     }
     const zero = rows.find((r) => !(Number(r.quantity) > 0));
@@ -827,6 +824,9 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
         ? `${fullName(zero)} has no farm size on record. Enter their quantity and a reason, or remove them.`
         : "Each farmer's quantity must be greater than 0.";
     }
+    const split = rows.find((r) => isSplitQuantity(r.quantity, unit));
+    if (split) return `Enter a whole number for ${fullName(split)}: ${wholeOnly}.`;
+    if (!totalIsSum && form.quantity !== "" && isSplitQuantity(total, unit)) return `Enter a whole number for Total Quantity: ${wholeOnly}.`;
     if (byFarmSize) {
       const missing = rows.find((r) => states.get(r.farmerId)?.state === "adjusted" && !r.adjustmentReason.trim());
       if (missing) return `Give a short reason for the adjusted quantity of ${fullName(missing)}.`;
@@ -971,6 +971,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                 required
                 type="number"
                 min="0"
+                step={isWholeUnit(unit) ? "1" : "any"}
                 className="form-control"
                 value={form.quantity}
                 onChange={(e) => updateTotalQuantity(e.target.value)}
@@ -1064,7 +1065,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                               <input
                                 type="number"
                                 min="0"
-                                step="0.01"
+                                step={isWholeUnit(unit) ? "1" : "0.01"}
                                 className="agri-beneficiary-qty-input"
                                 aria-label={`Quantity for ${fullName(row)} (${unit})`}
                                 value={row.quantity}

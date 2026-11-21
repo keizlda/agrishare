@@ -16,7 +16,7 @@ import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard.js";
 import { createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { formatDate } from "../lib/dates.js";
-import { formatQuantity } from "../lib/quantity.js";
+import { formatQuantity, isSplitQuantity } from "../lib/quantity.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
@@ -73,6 +73,10 @@ function validateEdit(form, others) {
   for (const [key, label] of ALLOCATION_FIELDS) {
     const problem = allocationFieldError(form[key], label);
     if (problem) errors[key] = problem;
+  }
+  // Sets, heads, bags… can't be split, so a cap per farmer is a whole number.
+  if (!errors.maxPerFarmer && isSplitQuantity(form.maxPerFarmer.trim() || 0, form.unit)) {
+    errors.maxPerFarmer = `Enter a whole number: ${form.unit.trim()} can't be split.`;
   }
   return errors;
 }
