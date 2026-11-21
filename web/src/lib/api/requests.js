@@ -5,7 +5,8 @@ import { farmSummary } from "./farmers.js";
 
 const SELECT = `
   request_id, commodity_id, quantity_requested, reason, status, fa_remarks, mao_remarks, created_at,
-  reviewed_by_fa, reviewed_by_mao, forwarded_to_admin_at, fa_decision_at, admin_decision_at,
+  reviewed_by_fa, reviewed_by_mao, forwarded_to_admin_at, fa_decision_at, admin_decision_at, filed_by,
+  filer:profiles!filed_by ( full_name ),
   farmers ( farmer_id, first_name, surname, rsbsa_no, addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ) ),
   commodities ( name, unit, allocation_per_hectare, max_per_farmer ),
   fa:profiles!reviewed_by_fa ( full_name ),
@@ -46,6 +47,10 @@ function mapRequest(row) {
     maoRemarks: row.mao_remarks ?? "",
     faPresidentName: row.fa?.full_name ?? "Farmers' Association President",
     maoName: row.mao?.full_name ?? "MAO Admin",
+    // Filed by the Farmers' Association President for the farmer (it went
+    // straight to the MAO as Endorsed).
+    filedByFa: !!row.filed_by,
+    filedByName: row.filer?.full_name ?? "Farmers' Association President",
     // Present once the FA President has acted; lets the UI tell "I
     // reviewed this" apart from "someone else did" and "rejected by FA
     // before it ever reached Admin" apart from "rejected by Admin".
@@ -121,6 +126,33 @@ export async function listRequests() {
   const { data, error } = await supabase.from("requests").select(SELECT).order("created_at", { ascending: false });
   if (error) throw error;
   return data.map(mapRequest);
+}
+
+// The Farmers' Association President files a request for a farmer. The
+// database records them as the filer and endorser and sends it straight to
+// the MAO (request_insert_defaults); the farmer and the MAO are notified.
+export async function fileRequestForFarmer({ farmerId, commodityId, quantity, reason }) {
+  const { data, error } = await supabase
+    .from("requests")
+    .insert({ farmer_id: farmerId, commodity_id: commodityId, quantity_requested: Number(quantity), reason: reason.trim() })
+    .select(SELECT)
+    .single();
+  if (error) throw error;
+  return mapRequest(data);
+}
+
+// The farmer's requests for this commodity that are still open (Pending or
+// Endorsed) — the "already requested" warning before filing another.
+export async function findOpenRequests(farmerId, commodityId) {
+  const { data, error } = await supabase
+    .from("requests")
+    .select("request_id, status, quantity_requested, created_at")
+    .eq("farmer_id", farmerId)
+    .eq("commodity_id", commodityId)
+    .in("status", ["pending", "forwarded"])
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data.map((r) => ({ id: r.request_id, status: r.status === "forwarded" ? "Endorsed" : "Pending", quantity: Number(r.quantity_requested), date: r.created_at }));
 }
 
 // `patch` mirrors what Requests.jsx already passes: { status: "Forwarded", faRemarks }

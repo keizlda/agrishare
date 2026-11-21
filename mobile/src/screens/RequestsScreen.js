@@ -180,6 +180,12 @@ export default function RequestsScreen({ navigation, route }) {
               <Pill status={r.status} />
             </View>
             <Text style={styles.cardSub}>{r.quantity.toLocaleString()} {r.unit} · Requested {formatDate(r.requestDate)}</Text>
+            {r.filedByFa && (
+              <View style={styles.filedTag}>
+                <Ionicons name="people" size={11} color={colors.blueText} />
+                <Text style={styles.filedTagText}>Filed by Farmers' Association President</Text>
+              </View>
+            )}
             <Text style={styles.cardReason} numberOfLines={2}>{r.reason}</Text>
           </View>
         )}
@@ -272,5 +278,17 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 12.5, fontWeight: "700", color: colors.text, flex: 1, marginRight: 8 },
   cardSub: { fontSize: 10.5, color: colors.textMuted, marginBottom: 4 },
   cardReason: { fontSize: 10.5, color: colors.textMuted, fontStyle: "italic" },
+  filedTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    backgroundColor: colors.blueBg,
+    borderRadius: radius.pill,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginBottom: 4,
+  },
+  filedTagText: { fontSize: 10, fontWeight: "700", color: colors.blueText },
   empty: { textAlign: "center", color: colors.textMuted, fontSize: 12.5, marginTop: 20 },
 });

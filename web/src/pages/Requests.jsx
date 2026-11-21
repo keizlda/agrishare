@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, Inbox, Search, Send, ShieldAlert, Users } from "lucide-react";
+import { CheckCircle2, Inbox, Plus, Search, Send, ShieldAlert, Users } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import Toast from "../components/ui/Toast.jsx";
@@ -8,6 +8,7 @@ import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import RequestTimeline from "../components/requests/RequestTimeline.jsx";
 import AssociationRequestsView from "../components/requests/AssociationRequestsView.jsx";
+import FarmerRequestModal from "../components/requests/FarmerRequestModal.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
@@ -114,6 +115,7 @@ function FarmerRequestsView({ isMAO }) {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [toast, setToast] = useState(null);
+  const [filing, setFiling] = useState(false);
 
   const searched = useMemo(() => requests.filter((r) => matchesSearch(r, search)), [requests, search]);
   const filtered = useMemo(() => (filter === "all" ? searched : searched.filter((r) => statusKey(r) === filter)), [searched, filter]);
@@ -197,6 +199,11 @@ function FarmerRequestsView({ isMAO }) {
             </div>
           )}
           <div className="agri-toolbar">
+            {!isMAO && (
+              <button type="button" className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setFiling(true)}>
+                <Plus size={16} /> Add Farmer Request
+              </button>
+            )}
             <div className="agri-toolbar-search">
               <Search size={15} />
               <input className="form-control" placeholder="Search farmer, RSBSA no. or commodity" aria-label="Search requests" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -229,7 +236,10 @@ function FarmerRequestsView({ isMAO }) {
                     <td>
                       <span className="agri-farmer-cell">
                         <FarmerAvatar url={r.avatarUrl} firstName={r.farmerFirstName} lastName={r.farmerLastName} size={28} />
-                        <span className="agri-row-title">{r.farmerName}</span>
+                        <span>
+                          <span className="agri-row-title">{r.farmerName}</span>
+                          {r.filedByFa && <span className="agri-filed-tag" style={{ display: "block", width: "fit-content" }}>Filed by Farmers' Association President</span>}
+                        </span>
                       </span>
                     </td>
                     <td>{r.commodity}</td>
@@ -268,6 +278,7 @@ function FarmerRequestsView({ isMAO }) {
                   {selected.farmerName}
                   <div className="agri-muted" style={{ fontSize: "0.78rem" }}>RSBSA No. {selected.rsbsaNo || "—"}</div>
                   <div className="agri-muted" style={{ fontSize: "0.78rem" }}>{[selected.sitioPurok, selected.barangay].filter(Boolean).join(", ")}</div>
+                  {selected.filedByFa && <span className="agri-filed-tag">Filed by Farmers' Association President</span>}
                 </div>
               </div>
               <div className="agri-detail-row">
@@ -331,6 +342,20 @@ function FarmerRequestsView({ isMAO }) {
           </div>
         )}
       </div>
+
+      {filing && (
+        <FarmerRequestModal
+          onClose={() => setFiling(false)}
+          onSaved={(saved) => {
+            setRequests((prev) => [saved, ...prev]);
+            setFiling(false);
+            setSearch("");
+            setFilter("all");
+            setSelectedId(saved.id);
+            setToast({ tone: "success", message: `Request filed for ${saved.farmerName} and sent to the MAO for approval.` });
+          }}
+        />
+      )}
 
       {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
     </>
