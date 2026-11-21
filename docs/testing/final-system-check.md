@@ -1,6 +1,6 @@
 # AgriShare — Final System Check
 
-Branch `final-check` · November 2026 · **not deployed yet** (16 fixes, each its own commit).
+Branch `final-check` · November 2026 · **not deployed yet** (17 fixes, each its own commit).
 
 **Ready to deploy: yes.** Every failed check has been fixed and re-run. Nothing blocks deployment. The open items under "Needs your decision" are choices about scope and wording, not defects.
 
@@ -281,6 +281,7 @@ Branch `final-check` · November 2026 · **not deployed yet** (16 fixes, each it
 | 14 | Handled problems (wrong password, deactivated account, offline) were logged as console **errors**. | Logged as info; only unexpected errors stay errors. `web/src/lib/friendlyError.js`, `mobile/src/lib/friendlyError.js` | fccfef7 |
 | 15 | Dashboard quick action labels wrapped onto two lines at 1024–1799 px (e.g. 1366×768). | Tiles go two or three across so labels fit. `web/src/theme.css` | e55a363 |
 | 16 | The Activity Log called proof-of-planting entries "Farmer Validation". | Labelled "Proof of Planting". `web/src/lib/api/auditLogs.js` | 53a5a98 |
+| 17 | After submitting proof of planting, the farmer app said the MAO **and the FA President** would review it, but only the MAO Admin reviews. | Now "submitted for review by the MAO". `mobile/src/screens/CropValidationScreen.js` | 90cb700 |
 
 ## 4. What went wrong during testing, and how it was undone
 
@@ -305,8 +306,8 @@ Not fully recoverable: if anyone had opened announcement #30 before it was delet
 
 ## 5. Needs your decision
 
-1. **Paper check: the FA President marking farmers Active/Inactive.** The paper's Use Case Diagram includes "Mark Farmer Active or Inactive" for the FA President, and the system allows it: row menu Mark Inactive / Mark Active, status column only. Your list for this check didn't include it. Keep it (it matches the paper) or remove it?
-2. **Paper check: DFD 1.2 says the FA President reviews proof-of-planting submissions.** The system lets only the MAO Admin validate or reject them (since the error-handling round). Keep it MAO-only (matching your role list here) or give the FA President review rights as in DFD 1.2? Related: after submitting, the farmer app says the submission goes "for review by the MAO and your Farmers' Association President". If it stays MAO-only, that sentence should say only the MAO.
+1. **Decided: keep.** The FA President can mark farmers Active/Inactive (status only), as in the paper's Use Case Diagram.
+2. **Decided: proof-of-planting review stays MAO Admin only.** The farmer app now says a submission is "submitted for review by the MAO" (commit 90cb700). The paper's DFD 1.2 text still says the FA President reviews submissions; update that sentence to match.
 3. **Paper fix: in Figure 2 (Use Case Diagram) the FA President's actor is labelled "Send Request to FA".**
 4. **Phone-only checks:** these need a real Android phone:
    - taking the photo and its GPS stamp
