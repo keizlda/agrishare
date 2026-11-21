@@ -23,7 +23,15 @@ const SELECT = `
 // farmer's mobile login. Runs with the service role key server-side — never
 // callable directly with the anon key's privileges from here beyond invoke.
 async function invokeAccountFn(action, payload = {}) {
-  const { data, error } = await supabase.functions.invoke("manage-farmer-account", { body: { action, ...payload } });
+  const invoke = () => supabase.functions.invoke("manage-farmer-account", { body: { action, ...payload } });
+  let { data, error } = await invoke();
+  // A stale access token (tab left open, laptop asleep) is refused even
+  // though a page refresh would work — refresh the session and retry once.
+  const status = error?.context?.status;
+  if (error && (status === 401 || status === 403)) {
+    const { error: refreshErr } = await supabase.auth.refreshSession();
+    if (!refreshErr) ({ data, error } = await invoke());
+  }
   if (error) {
     // The function's own explanation ("Login ID … is already used by …")
     // is written for the user; anything else (no connection, a crash) is

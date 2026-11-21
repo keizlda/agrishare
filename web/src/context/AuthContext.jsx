@@ -104,8 +104,20 @@ export function AuthProvider({ children }) {
       if (!cancelled) setInitializing(false);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_OUT") return;
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
+      // All tabs share one stored session. If another tab signs in as a
+      // different account (e.g. FA President while this tab shows MAO
+      // Admin), this tab's requests already go out as that account — reload
+      // the profile so the screen matches, instead of the server refusing
+      // actions the screen still offers ("Only MAO Admin…") until a refresh.
+      if (event !== "SIGNED_OUT") {
+        if (session?.user && userRef.current && session.user.id !== userRef.current.id) {
+          // Deferred: supabase-js warns against awaiting its own calls
+          // inside this callback.
+          setTimeout(() => restoreSession(), 0);
+        }
+        return;
+      }
       // Not from Log Out: the session ended on its own (expired, revoked,
       // refresh token gone).
       if (!manualSignOut.current && userRef.current) setSignOutReason("expired");
