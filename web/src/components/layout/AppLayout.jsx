@@ -13,7 +13,7 @@ import { useIsMobile } from "../../hooks/useIsMobile.js";
 // /announcements is shared too — FA President gets a read-only view there
 // with a "Forward to farmers" action (RLS already limits what they can see
 // and change; the page itself hides MAO-only controls for that role).
-const MAO_ONLY_ROUTES = ["/validation", "/reports", "/commodities", "/activity-log"];
+const MAO_ONLY_ROUTES = ["/validation", "/reports", "/activity-log"];
 
 // Pages that fill the viewport height below the navbar (desktop only — the
 // CSS is scoped to >=1024px). Everything else keeps normal page scrolling.

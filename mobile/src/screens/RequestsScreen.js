@@ -38,6 +38,10 @@ export default function RequestsScreen({ navigation, route }) {
   const [showForm, setShowForm] = useState(!!preset);
   const [commodity, setCommodity] = useState(preset ?? "");
   const [quantity, setQuantity] = useState("");
+  // The quantity follows the suggestion (farm size × the type's kg/ha rate)
+  // until the farmer types over it.
+  const [quantityEdited, setQuantityEdited] = useState(false);
+  const [typeId, setTypeId] = useState(null);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // Blocks a second Send while the first is still going.
@@ -55,6 +59,23 @@ export default function RequestsScreen({ navigation, route }) {
     const failed = [mine, items].find((r) => r.status === "rejected");
     setLoadError(failed ? friendlyError(failed.reason, "Your requests couldn't be loaded. Please try again.") : "");
   }, []);
+
+  const selected = commodities.find((c) => c.name === commodity) ?? null;
+  const types = selected?.types ?? [];
+  const type = types.find((x) => x.id === typeId) ?? null;
+  const suggested = type && farmer?.farmSizeHa > 0 ? Math.round(farmer.farmSizeHa * 100 * Math.round(type.rate * 100) / 100) / 100 : null;
+
+  // The type: the farmer's own Program / type when it belongs to this
+  // commodity, otherwise the commodity's default.
+  useEffect(() => {
+    const own = types.find((x) => x.id === farmer?.typeId);
+    setTypeId((own ?? types[0])?.id ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id, farmer?.typeId]);
+
+  useEffect(() => {
+    if (!quantityEdited) setQuantity(suggested !== null ? String(suggested) : "");
+  }, [suggested, quantityEdited]);
 
   useEffect(() => {
     load();
@@ -84,14 +105,16 @@ export default function RequestsScreen({ navigation, route }) {
       const newRequest = await createRequest({
         farmerId: farmer.farmerId,
         commodityId: selectedCommodity.id,
+        typeId: type?.id ?? null,
         quantity: Number(quantity),
         reason: reason.trim(),
       });
       setRequests((prev) => [newRequest, ...prev]);
       setQuantity("");
+      setQuantityEdited(false);
       setReason("");
       setShowForm(false);
-      Alert.alert("Request Sent", "Your commodity request has been sent to your Farmers' Association President for review.");
+      Alert.alert("Request Sent", "Your request was sent to the MAO. Your Farmers' Association President can see it too.");
     } catch (err) {
       Alert.alert("Request not sent", friendlyError(err, "Your request couldn't be sent. Please try again."));
     } finally {
@@ -139,7 +162,10 @@ export default function RequestsScreen({ navigation, route }) {
                   {commodities.map((c) => (
                     <TouchableOpacity
                       key={c.id}
-                      onPress={() => setCommodity(c.name)}
+                      onPress={() => {
+                        setCommodity(c.name);
+                        setQuantityEdited(false);
+                      }}
                       style={[styles.chip, commodity === c.name && styles.chipActive]}
                     >
                       <Text style={[styles.chipText, commodity === c.name && styles.chipTextActive]} numberOfLines={1}>
@@ -149,10 +175,39 @@ export default function RequestsScreen({ navigation, route }) {
                   ))}
                 </View>
 
-                <Text style={styles.fieldLabel}>
-                  Quantity ({commodities.find((c) => c.name === commodity)?.unit ?? "kg"})
-                </Text>
-                <TextInput style={styles.input} value={quantity} onChangeText={setQuantity} keyboardType="number-pad" placeholder="e.g. 25" placeholderTextColor={colors.textFaint} />
+                {types.length > 0 && (
+                  <>
+                    <Text style={styles.fieldLabel}>Type</Text>
+                    <View style={styles.chipRow}>
+                      {types.map((x) => (
+                        <TouchableOpacity key={x.id} onPress={() => {
+                          setTypeId(x.id);
+                          setQuantityEdited(false);
+                        }} style={[styles.chip, typeId === x.id && styles.chipActive]}>
+                          <Text style={[styles.chipText, typeId === x.id && styles.chipTextActive]} numberOfLines={1}>{x.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <Text style={styles.fieldLabel}>Quantity ({selected?.unit ?? "kg"})</Text>
+                <TextInput
+                  style={styles.input}
+                  value={quantity}
+                  onChangeText={(v) => {
+                    setQuantity(v);
+                    setQuantityEdited(true);
+                  }}
+                  keyboardType="decimal-pad"
+                  placeholder="e.g. 25"
+                  placeholderTextColor={colors.textFaint}
+                />
+                {suggested !== null && (
+                  <Text style={styles.hint}>
+                    Suggested for your {farmer.farmSizeHa.toFixed(2)} ha × {type.rate.toLocaleString()} kg/ha: {suggested.toLocaleString()} kg
+                  </Text>
+                )}
 
                 <Text style={styles.fieldLabel}>Reason for Request</Text>
                 <TextInput
@@ -167,7 +222,7 @@ export default function RequestsScreen({ navigation, route }) {
 
                 <TouchableOpacity style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleSubmit} disabled={submitting}>
                   <Ionicons name="send" size={14} color="#fff" />
-                  <Text style={styles.submitText}>{submitting ? "Sending…" : "Send to Farmers' Association President"}</Text>
+                  <Text style={styles.submitText}>{submitting ? "Sending…" : "Send to the MAO"}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -181,7 +236,7 @@ export default function RequestsScreen({ navigation, route }) {
               <Text style={styles.cardTitle}>{r.commodity}</Text>
               <Pill status={r.status} />
             </View>
-            <Text style={styles.cardSub}>{r.quantity.toLocaleString()} {r.unit} · Requested {formatDate(r.requestDate)}</Text>
+            <Text style={styles.cardSub}>{r.typeName ? `${r.typeName} · ` : ""}{r.quantity.toLocaleString()} {r.unit} · Requested {formatDate(r.requestDate)}</Text>
             {r.filedByFa && (
               <View style={styles.filedTag}>
                 <Ionicons name="people" size={11} color={colors.blueText} />
@@ -189,6 +244,7 @@ export default function RequestsScreen({ navigation, route }) {
               </View>
             )}
             <Text style={styles.cardReason} numberOfLines={2}>{r.reason}</Text>
+            {r.status === "Rejected" && !!r.maoRemarks && <Text style={styles.cardRemarks}>MAO: {r.maoRemarks}</Text>}
           </View>
         )}
         ListEmptyComponent={<Text style={styles.empty}>You haven't sent any commodity requests yet.</Text>}
@@ -280,6 +336,8 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 12.5, fontWeight: "700", color: colors.text, flex: 1, marginRight: 8 },
   cardSub: { fontSize: 10.5, color: colors.textMuted, marginBottom: 4 },
   cardReason: { fontSize: 10.5, color: colors.textMuted, fontStyle: "italic" },
+  cardRemarks: { fontSize: 10.5, color: colors.text, marginTop: 4 },
+  hint: { fontSize: 10.5, color: colors.textMuted, marginTop: 4 },
   filedTag: {
     flexDirection: "row",
     alignItems: "center",

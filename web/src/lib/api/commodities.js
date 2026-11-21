@@ -1,9 +1,31 @@
 import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 
-const numberOrNull = (v) => (v === null || v === undefined || v === "" ? null : Number(v));
+// A commodity with its types and kg/ha rates (commodity_types). Removed
+// types stay readable (past distributions and requests keep showing them)
+// but are marked `removed` and left out of every choice.
+const SELECT = `
+  commodity_id, name, category, unit, status, created_at, deleted_at,
+  commodity_types ( commodity_type_id, name, rate_kg_per_ha, is_default, deleted_at, updated_at, updater:profiles!updated_by ( full_name ) )
+`;
+
+function mapType(t) {
+  return {
+    id: t.commodity_type_id,
+    name: t.name,
+    rate: Number(t.rate_kg_per_ha),
+    isDefault: !!t.is_default,
+    removed: !!t.deleted_at,
+    updatedAt: t.updated_at,
+    updatedBy: t.updater?.full_name ?? null,
+  };
+}
 
 function mapCommodity(row) {
+  const all = (row.commodity_types ?? []).map(mapType);
+  const types = all.filter((t) => !t.removed).sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.id - b.id);
+  // "Last updated [date] by [name]": the most recent change to any type.
+  const latest = [...all].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))[0] ?? null;
   return {
     id: row.commodity_id,
     name: row.name,
@@ -12,11 +34,10 @@ function mapCommodity(row) {
     status: dbStatusToLabel(row.status),
     dateAdded: row.created_at,
     deletedAt: row.deleted_at,
-    // Allocation by farm size (all optional): quantity per hectare, quantity
-    // per bag, and a cap per farmer — see lib/allocation.js.
-    allocationPerHectare: numberOrNull(row.allocation_per_hectare),
-    packSize: numberOrNull(row.pack_size),
-    maxPerFarmer: numberOrNull(row.max_per_farmer),
+    types,
+    allTypes: all,
+    typesUpdatedAt: latest?.updatedAt ?? null,
+    typesUpdatedBy: latest?.updatedBy ?? null,
   };
 }
 
@@ -29,42 +50,37 @@ function mapCommodity(row) {
 // report totaling historical distributions per commodity, which must keep
 // showing a since-deleted commodity's row.
 export async function listCommodities({ includeDeleted = false } = {}) {
-  let query = supabase.from("commodities").select("*");
+  let query = supabase.from("commodities").select(SELECT);
   if (!includeDeleted) query = query.is("deleted_at", null);
   const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw error;
   return data.map(mapCommodity);
 }
 
-export async function createCommodity({ name, category }) {
-  const { data, error } = await supabase.from("commodities").insert({ name, category }).select("*").single();
+async function readCommodity(id) {
+  const { data, error } = await supabase.from("commodities").select(SELECT).eq("commodity_id", id).single();
   if (error) throw error;
   return mapCommodity(data);
+}
+
+// Adds or edits a commodity together with its types and rates, in one
+// database transaction (save_commodity: MAO Admin only). `types` rows:
+// { id?, name, rate, isDefault, removed? }; pass null to leave types alone.
+export async function saveCommodity(commodityId, { name, category, unit, status }, types) {
+  const { data, error } = await supabase.rpc("save_commodity", {
+    p_commodity_id: commodityId ?? null,
+    p_commodity: { name, category, unit: unit ?? "kg", status: status ? labelToDbStatus(status) : null },
+    p_types: types
+      ? types.map((t) => ({ id: t.id ?? null, name: t.name, rate: t.rate === "" ? null : Number(t.rate), is_default: !!t.isDefault, removed: !!t.removed }))
+      : null,
+  });
+  if (error) throw error;
+  return readCommodity(data);
 }
 
 export async function setCommodityStatus(commodityId, statusLabel) {
   const { error } = await supabase.from("commodities").update({ status: labelToDbStatus(statusLabel) }).eq("commodity_id", commodityId);
   if (error) throw error;
-}
-
-// unit, status and the allocation fields are optional (the Commodity Details
-// card's inline edit sends them; anything left out is unchanged, and null
-// clears an allocation field).
-export async function updateCommodity(commodityId, { name, category, unit, status, allocationPerHectare, packSize, maxPerFarmer }) {
-  const patch = { name, category };
-  if (unit !== undefined) patch.unit = unit;
-  if (status !== undefined) patch.status = labelToDbStatus(status);
-  if (allocationPerHectare !== undefined) patch.allocation_per_hectare = allocationPerHectare;
-  if (packSize !== undefined) patch.pack_size = packSize;
-  if (maxPerFarmer !== undefined) patch.max_per_farmer = maxPerFarmer;
-  const { data, error } = await supabase
-    .from("commodities")
-    .update(patch)
-    .eq("commodity_id", commodityId)
-    .select("*")
-    .single();
-  if (error) throw error;
-  return mapCommodity(data);
 }
 
 // Soft delete: sets deleted_at instead of removing the row, so distribution

@@ -15,7 +15,7 @@ import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useCardLabels } from "../hooks/useCardLabels.js";
 import { useRevealDetail } from "../hooks/useRevealDetail.js";
-import { listRequests, faReviewRequest, adminReviewRequest } from "../lib/api/requests.js";
+import { listRequests, faRecommendRequest, adminReviewRequest } from "../lib/api/requests.js";
 import { formatHectares } from "../lib/allocation.js";
 import { formatDate } from "../lib/dates.js";
 import { formatQuantity } from "../lib/quantity.js";
@@ -65,27 +65,25 @@ export default function Requests() {
 
 // ═══════════════════════════════════════════════════════════════════════
 // Farmer Requests — the same list for both roles: every request in every
-// status, from the moment the farmer submits it. Each role acts only at its
-// own step (the database enforces this too):
-//   Farmers' Association President: endorses (or doesn't) Pending requests.
-//   MAO Admin: approves or rejects Endorsed requests; Pending ones are
-//   read-only until the Farmers' Association President has endorsed them.
+// status, from the moment it's submitted. A request goes straight to the
+// MAO Admin (Pending → Approved / Rejected, a reason required to reject).
+// The Farmers' Association President may add a remark or mark it
+// "Recommended by Farmers' Association President" while it's Pending —
+// never required. The database enforces who may do what.
 // ═══════════════════════════════════════════════════════════════════════
 const STATUS_FILTERS = [
   { key: "all", label: "All" },
   { key: "pending", label: "Pending" },
-  { key: "endorsed", label: "Endorsed" },
-  { key: "not-endorsed", label: "Not endorsed" },
   { key: "approved", label: "Approved" },
   { key: "rejected", label: "Rejected" },
 ];
-const statusKey = (r) => reviewLabel(r).toLowerCase().replace(" ", "-");
-// Links from before the status filters (?tab=…, e.g. older Dashboard links).
-const LEGACY_TABS = { pending: "pending", awaiting: "endorsed", mine: "all", final: "all", history: "all" };
+const statusKey = (r) => reviewLabel(r).toLowerCase();
+// Older links (?tab=… or ?status=endorsed) open the matching filter.
+const LEGACY = { pending: "pending", awaiting: "pending", endorsed: "pending", "not-endorsed": "rejected", mine: "all", final: "all", history: "all" };
 function initialFilter(params) {
   const status = params.get("status");
   if (STATUS_FILTERS.some((f) => f.key === status)) return status;
-  return LEGACY_TABS[params.get("tab")] ?? "all";
+  return LEGACY[status] ?? LEGACY[params.get("tab")] ?? "all";
 }
 
 // Name, RSBSA number (typed with or without dashes) or commodity.
@@ -105,15 +103,16 @@ const MAX_NOTES_LENGTH = 500;
 
 function FarmerRequestsView({ isMAO }) {
   const { data: requests, setData: setRequests, loading, error: loadError } = useSupabaseList(listRequests);
-  // ?status= preselects a filter (the Dashboard's "requests to review" chip).
   const [searchParams] = useSearchParams();
   const [filter, setFilter] = useState(() => initialFilter(searchParams));
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [remarks, setRemarks] = useState("");
+  const [recommended, setRecommended] = useState(false);
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const remarksRef = useRef(null);
   const [toast, setToast] = useState(null);
   const [filing, setFiling] = useState(false);
 
@@ -125,7 +124,6 @@ function FarmerRequestsView({ isMAO }) {
     return c;
   }, [searched]);
 
-  // Rows per page = however many fit in the full-height table area (min 5).
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   useCardLabels(tableRef);
@@ -136,43 +134,48 @@ function FarmerRequestsView({ isMAO }) {
   useEffect(() => {
     if (!filtered.some((r) => r.id === selectedId)) setSelectedId(filtered[0]?.id ?? null);
   }, [filtered, selectedId]);
-  useEffect(() => {
-    setRemarks("");
-    setActionError("");
-  }, [selectedId]);
 
   const selected = requests.find((r) => r.id === selectedId) ?? null;
-  const label = selected ? reviewLabel(selected) : "";
-  // Each role's own step: the FA President decides Pending requests, the
-  // MAO Admin decides Endorsed ones.
-  const canAct = !!selected && (isMAO ? selected.status === "Forwarded" : selected.status === "Pending");
+  const pending = selected?.status === "Pending";
 
-  async function act(decision) {
+  // The FA President's form starts from what's saved.
+  useEffect(() => {
+    setActionError("");
+    setRemarks(!isMAO && selected ? selected.faRemarks : "");
+    setRecommended(!!selected?.recommended);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  async function decide(decision) {
     if (!selected || savingRef.current) return;
+    if (decision === "reject" && !remarks.trim()) {
+      setActionError("Give a reason for rejecting this request.");
+      remarksRef.current?.focus();
+      return;
+    }
+    await save(() => adminReviewRequest(selected.id, { decision, notes: remarks }), decision === "approve" ? "Request approved. The farmer was notified." : "Request rejected. The farmer was notified.");
+  }
+
+  async function saveRecommendation() {
+    if (!selected || savingRef.current) return;
+    await save(() => faRecommendRequest(selected.id, { recommended, remarks }), recommended ? "Recommendation saved. The MAO can see it." : "Remark saved.");
+  }
+
+  async function save(fn, success) {
     if (remarks.length > MAX_NOTES_LENGTH) {
-      setActionError(`Keep the notes to ${MAX_NOTES_LENGTH} characters or fewer.`);
+      setActionError(`Keep the remarks to ${MAX_NOTES_LENGTH} characters or fewer.`);
       return;
     }
     savingRef.current = true;
     setActionError("");
     setSaving(true);
     try {
-      const notes = remarks.trim() || undefined;
-      const updated = isMAO
-        ? await adminReviewRequest(selected.id, { decision, notes })
-        : await faReviewRequest(selected.id, { decision, notes });
-      setRequests((prev) => prev.map((r) => (r.id === selected.id ? updated : r)));
-      setRemarks("");
-      setToast({
-        tone: "success",
-        message: isMAO
-          ? `Request ${decision === "approve" ? "approved" : "rejected"}.`
-          : decision === "approve"
-            ? "Endorsed and sent to the MAO for approval."
-            : "Request not endorsed.",
-      });
+      const updated = await fn();
+      setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      if (isMAO) setRemarks("");
+      setToast({ tone: "success", message: success });
     } catch (err) {
-      const message = friendlyError(err, "Couldn't save this decision. Please try again.");
+      const message = friendlyError(err, "Couldn't save this. Please try again.");
       setActionError(message);
       setToast({ tone: "error", message });
     } finally {
@@ -181,22 +184,14 @@ function FarmerRequestsView({ isMAO }) {
     }
   }
 
-  // Why there's nothing to do on the selected request (for this role).
-  function readOnlyNote() {
-    if (selected.status === "Pending") return "Waiting for the Farmers' Association President's endorsement.";
-    if (selected.status === "Forwarded") return "Endorsed — waiting for the MAO's decision.";
-    if (selected.rejectedBy === "fa") return "Not endorsed by the Farmers' Association President, so it never reached the MAO.";
-    return "This request has already been decided.";
-  }
+  const faChanged = !!selected && (recommended !== selected.recommended || remarks.trim() !== (selected.faRemarks ?? ""));
 
   return (
     <>
       <div className={`agri-split${selected ? " has-detail" : ""}`}>
         <div className="agri-card agri-fill-card" style={{ padding: 16 }}>
           {loadError && (
-            <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
-              {loadError}
-            </div>
+            <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>{loadError}</div>
           )}
           <div className="agri-toolbar">
             {!isMAO && (
@@ -211,14 +206,7 @@ function FarmerRequestsView({ isMAO }) {
           </div>
           <div className="agri-filter-chips" role="tablist" aria-label="Filter by status">
             {STATUS_FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                role="tab"
-                aria-selected={filter === f.key}
-                className={`agri-filter-chip${filter === f.key ? " active" : ""}`}
-                onClick={() => setFilter(f.key)}
-              >
+              <button key={f.key} type="button" role="tab" aria-selected={filter === f.key} className={`agri-filter-chip${filter === f.key ? " active" : ""}`} onClick={() => setFilter(f.key)}>
                 {f.label}
                 <span className="agri-filter-chip-count">{counts[f.key] ?? 0}</span>
               </button>
@@ -228,7 +216,7 @@ function FarmerRequestsView({ isMAO }) {
           <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table agri-table-cards">
               <thead>
-                <tr><th>Farmer</th><th>Commodity</th><th>Quantity</th><th>Date Requested</th><th>Status</th></tr>
+                <tr><th>Farmer</th><th>Commodity</th><th className="text-end">Quantity</th><th>Date Requested</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {pageItems.map((r) => (
@@ -242,10 +230,13 @@ function FarmerRequestsView({ isMAO }) {
                         </span>
                       </span>
                     </td>
-                    <td>{r.commodity}</td>
-                    <td>{formatQuantity(r.quantity, r.unit)}</td>
+                    <td>{r.commodity}{r.typeName && <span className="agri-muted"> · {r.typeName}</span>}</td>
+                    <td className="text-end">{formatQuantity(r.quantity, r.unit)}</td>
                     <td>{formatDate(r.requestDate)}</td>
-                    <td><Pill status={reviewLabel(r)} /></td>
+                    <td>
+                      <Pill status={reviewLabel(r)} />
+                      {r.recommended && r.status === "Pending" && <span className="agri-filed-tag" style={{ display: "block", width: "fit-content" }}>Recommended</span>}
+                    </td>
                   </tr>
                 ))}
                 {loading && (
@@ -268,7 +259,7 @@ function FarmerRequestsView({ isMAO }) {
           <div ref={detailRef} className="agri-card agri-fill-card" style={{ padding: 18 }}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>Request Details</div>
-              <Pill status={label} />
+              <Pill status={reviewLabel(selected)} />
             </div>
 
             <div className="agri-detail-body">
@@ -279,6 +270,7 @@ function FarmerRequestsView({ isMAO }) {
                   <div className="agri-muted" style={{ fontSize: "0.78rem" }}>RSBSA No. {selected.rsbsaNo || "—"}</div>
                   <div className="agri-muted" style={{ fontSize: "0.78rem" }}>{[selected.sitioPurok, selected.barangay].filter(Boolean).join(", ")}</div>
                   {selected.filedByFa && <span className="agri-filed-tag">Filed by Farmers' Association President</span>}
+                  {selected.recommended && <span className="agri-filed-tag" style={{ marginLeft: 4 }}>Recommended by Farmers' Association President</span>}
                 </div>
               </div>
               <div className="agri-detail-row">
@@ -288,7 +280,7 @@ function FarmerRequestsView({ isMAO }) {
                   {selected.cropType && <span className="agri-muted"> · {selected.cropType}</span>}
                 </div>
               </div>
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity</div>{selected.commodity}</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity</div>{selected.commodity}{selected.typeName && ` · ${selected.typeName}`}</div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Quantity Requested</div>{formatQuantity(selected.quantity, selected.unit)}</div></div>
               {selected.suggestedQuantity !== null && (
                 <div className="agri-detail-row">
@@ -296,7 +288,7 @@ function FarmerRequestsView({ isMAO }) {
                     <div className="agri-detail-label">Suggested for Farm Size</div>
                     {formatQuantity(selected.suggestedQuantity, selected.unit)}
                     <div className="agri-muted" style={{ fontSize: "0.78rem" }}>
-                      {formatHectares(selected.farmSize)} × {selected.allocationPerHectare.toLocaleString()} {selected.unit}/ha
+                      {formatHectares(selected.farmSize)} × {selected.allocationPerHectare.toLocaleString()} kg/ha ({selected.rateTypeName})
                       {selected.suggestedQuantity !== selected.quantity && " · differs from the request"}
                     </div>
                   </div>
@@ -309,33 +301,39 @@ function FarmerRequestsView({ isMAO }) {
             </div>
 
             <div className="agri-detail-actions">
-              {canAct ? (
+              {actionError && (
+                <div className="agri-pill red" role="alert" style={{ display: "block", marginBottom: 10, padding: "8px 12px" }}>{actionError}</div>
+              )}
+              {pending && isMAO && (
                 <div>
-                  {actionError && (
-                    <div className="agri-pill red" role="alert" style={{ display: "block", marginBottom: 10, padding: "8px 12px" }}>{actionError}</div>
-                  )}
-                  <label className="agri-form-label" htmlFor="request-notes">Notes (optional)</label>
-                  <textarea
-                    id="request-notes"
-                    className="form-control mb-3"
-                    rows={2}
-                    maxLength={MAX_NOTES_LENGTH}
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder={isMAO ? "Add a reason for your decision" : "Add a note before deciding"}
-                    disabled={saving}
-                  />
+                  <label className="agri-form-label" htmlFor="request-notes">Remarks <span className="agri-muted" style={{ fontWeight: 400 }}>(required to reject)</span></label>
+                  <textarea id="request-notes" ref={remarksRef} className="form-control mb-3" rows={2} maxLength={MAX_NOTES_LENGTH} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Shown to the farmer" disabled={saving} />
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button type="button" className="btn btn-outline-danger flex-fill" onClick={() => act("reject")} disabled={saving}>Reject</button>
-                    <button type="button" className="btn btn-agri-primary flex-fill d-flex align-items-center justify-content-center gap-2" onClick={() => act("approve")} disabled={saving}>
-                      {isMAO ? <><CheckCircle2 size={14} /> Approve</> : <><Send size={14} /> Endorse</>}
+                    <button type="button" className="btn btn-outline-danger flex-fill" onClick={() => decide("reject")} disabled={saving}>Reject</button>
+                    <button type="button" className="btn btn-agri-primary flex-fill d-flex align-items-center justify-content-center gap-2" onClick={() => decide("approve")} disabled={saving}>
+                      <CheckCircle2 size={14} /> Approve
                     </button>
                   </div>
                 </div>
-              ) : (
+              )}
+              {pending && !isMAO && (
+                <div>
+                  <div className="form-check mb-2">
+                    <input id="request-recommend" className="form-check-input" type="checkbox" checked={recommended} onChange={(e) => setRecommended(e.target.checked)} disabled={saving} />
+                    <label className="form-check-label" htmlFor="request-recommend" style={{ fontSize: "0.85rem" }}>Recommended by Farmers' Association President</label>
+                  </div>
+                  <label className="agri-form-label" htmlFor="request-notes">Remark for the MAO (optional)</label>
+                  <textarea id="request-notes" ref={remarksRef} className="form-control mb-3" rows={2} maxLength={MAX_NOTES_LENGTH} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Verified with the farmer" disabled={saving} />
+                  <button type="button" className="btn btn-agri-primary w-100 d-flex align-items-center justify-content-center gap-2" onClick={saveRecommendation} disabled={saving || !faChanged}>
+                    <Send size={14} /> {saving ? "Saving…" : "Save"}
+                  </button>
+                  <div className="agri-field-hint">Optional. The MAO Admin decides either way.</div>
+                </div>
+              )}
+              {!pending && (
                 <div className="agri-pill gray" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px" }}>
                   <ShieldAlert size={13} style={{ flex: "none" }} />
-                  {readOnlyNote()}
+                  This request has already been decided.
                 </div>
               )}
             </div>
@@ -352,7 +350,7 @@ function FarmerRequestsView({ isMAO }) {
             setSearch("");
             setFilter("all");
             setSelectedId(saved.id);
-            setToast({ tone: "success", message: `Request filed for ${saved.farmerName} and sent to the MAO for approval.` });
+            setToast({ tone: "success", message: `Request filed for ${saved.farmerName} and sent to the MAO.` });
           }}
         />
       )}

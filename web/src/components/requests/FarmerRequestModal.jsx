@@ -6,7 +6,7 @@ import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { searchFarmers } from "../../lib/api/farmers.js";
 import { listCommodities } from "../../lib/api/commodities.js";
 import { fileRequestForFarmer, findOpenRequests } from "../../lib/api/requests.js";
-import { computeAllocation, formatHectares, hasAllocation } from "../../lib/allocation.js";
+import { activeTypes, computeAllocation, defaultType, formatHectares } from "../../lib/allocation.js";
 import { formatDate } from "../../lib/dates.js";
 import { formatQuantity, isSplitQuantity } from "../../lib/quantity.js";
 import { friendlyError } from "../../lib/friendlyError.js";
@@ -29,9 +29,9 @@ function problemWith({ farmer, commodity, quantity, reason }) {
 }
 
 // "Add Farmer Request" (Farmers' Association President): file a commodity
-// request for a farmer — e.g. one without a phone. It goes straight to the
-// MAO as Endorsed, tagged "Filed by Farmers' Association President", and the
-// farmer is notified.
+// request for a farmer — e.g. one without an account, or a verbal request.
+// It goes to the MAO Admin as Pending, tagged "Filed by Farmers' Association
+// President", and the farmer is notified if they have an account.
 export default function FarmerRequestModal({ onClose, onSaved }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -40,6 +40,7 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
   const [farmer, setFarmer] = useState(null);
   const [commodities, setCommodities] = useState([]);
   const [commodityId, setCommodityId] = useState("");
+  const [typeId, setTypeId] = useState("");
   const [quantity, setQuantity] = useState("");
   // The quantity follows the suggestion until it's typed over.
   const [quantityEdited, setQuantityEdited] = useState(false);
@@ -79,7 +80,17 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
   }, [query, farmer]);
 
   const commodity = commodities.find((c) => String(c.id) === String(commodityId)) ?? null;
-  const suggested = farmer && hasAllocation(commodity) && farmer.farmSize > 0 ? computeAllocation(commodity, farmer.farmSize) : null;
+  const types = activeTypes(commodity);
+  const type = types.find((x) => String(x.id) === String(typeId)) ?? null;
+  const suggested = farmer && type && farmer.farmSize > 0 ? computeAllocation(type.rate, farmer.farmSize) : null;
+
+  // The type defaults to the farmer's own Program / type when it belongs to
+  // this commodity, else the commodity's default type.
+  useEffect(() => {
+    const own = types.find((x) => String(x.id) === String(farmer?.typeId ?? ""));
+    setTypeId(String((own ?? defaultType(commodity))?.id ?? ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commodity?.id, farmer?.id]);
 
   // Prefill the suggested allocation (farm size × rate) unless typed over.
   useEffect(() => {
@@ -118,7 +129,7 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
     savingRef.current = true;
     setSaving(true);
     try {
-      const saved = await fileRequestForFarmer({ farmerId: farmer.id, commodityId: commodity.id, quantity: quantity.trim(), reason });
+      const saved = await fileRequestForFarmer({ farmerId: farmer.id, commodityId: commodity.id, typeId: type?.id ?? null, quantity: quantity.trim(), reason });
       onSaved(saved);
     } catch (err) {
       setFormError(friendlyError(err, "Couldn't file this request. Please try again."));
@@ -150,7 +161,7 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
             <div className="agri-pill red" role="alert" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>{formError}</div>
           )}
           <div className="agri-muted" style={{ fontSize: "0.78rem", marginBottom: 14 }}>
-            File a request for a farmer who can't send one from the app. It's recorded as filed by you and goes straight to the MAO for approval. The farmer is notified.
+            For a farmer without an account, or a request made to you in person. It's recorded as filed by you and goes to the MAO Admin. The farmer is notified if they have an account.
           </div>
 
           <label className="agri-form-label" htmlFor="file-farmer">Farmer <span style={{ color: "var(--agri-red)" }}>*</span></label>
@@ -209,6 +220,14 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
             <option value="">Choose a commodity</option>
             {commodities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
+          {types.length > 0 && (
+            <>
+              <label className="agri-form-label" htmlFor="file-type" style={{ marginTop: 14 }}>Type</label>
+              <select id="file-type" className="form-select" value={typeId} onChange={(e) => setTypeId(e.target.value)} disabled={saving}>
+                {types.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.rate.toLocaleString()} kg/ha)</option>)}
+              </select>
+            </>
+          )}
           {openRequests.length > 0 && (
             <div className="agri-warning-box" role="status">
               <AlertTriangle size={14} style={{ flex: "none", marginTop: 2 }} />
@@ -235,13 +254,13 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
           <div className="agri-field-hint">
             {suggested !== null ? (
               <>
-                Suggested for {formatHectares(farmer.farmSize)} × {Number(commodity.allocationPerHectare).toLocaleString()} {unit}/ha: {formatQuantity(suggested, unit)}
+                Suggested for {formatHectares(farmer.farmSize)} × {type.rate.toLocaleString()} kg/ha: {formatQuantity(suggested, unit)}
                 {quantityEdited && Number(quantity) !== suggested && (
                   <button type="button" className="agri-link-btn" onClick={() => setQuantityEdited(false)}>Use {formatQuantity(suggested, unit)}</button>
                 )}
               </>
-            ) : commodity && !hasAllocation(commodity) ? (
-              "This commodity has no allocation per hectare, so there's no suggested quantity."
+            ) : commodity && !types.length ? (
+              "This commodity has no types or kg-per-hectare rates, so there's no suggested quantity."
             ) : (
               ""
             )}

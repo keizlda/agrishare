@@ -2,18 +2,15 @@ import { supabase } from "../supabaseClient";
 import { dbStatusToLabel } from "../status";
 
 const SELECT = `
-  request_id, quantity_requested, reason, status, created_at, forwarded_to_admin_at, filed_by,
-  commodities ( name, unit )
+  request_id, quantity_requested, reason, status, created_at, filed_by, mao_remarks, fa_recommended,
+  commodities ( name, unit ), commodity_types ( name )
 `;
 
-// What the farmer sees: Pending -> Endorsed (by the Farmers' Association
-// President) -> Approved or Rejected (by the MAO), or Not endorsed when the
-// Farmers' Association President turned it down. forwarded_to_admin_at is
-// only set on endorsement, so it tells the two kinds of rejection apart.
+// What the farmer sees: Pending → Approved or Rejected (by the MAO Admin).
+// Requests go straight to the MAO; the Farmers' Association President can
+// see them too and may recommend them.
 function statusLabel(row) {
-  if (row.status === "forwarded") return "Endorsed";
-  if (row.status === "rejected") return row.forwarded_to_admin_at ? "Rejected" : "Not endorsed";
-  return dbStatusToLabel(row.status);
+  return row.status === "forwarded" ? "Pending" : dbStatusToLabel(row.status);
 }
 
 function mapRequest(row) {
@@ -25,8 +22,10 @@ function mapRequest(row) {
     reason: row.reason ?? "",
     requestDate: row.created_at,
     status: statusLabel(row),
-    // Filed for this farmer by their Farmers' Association President (it
-    // went straight to the MAO as Endorsed).
+    typeName: row.commodity_types?.name ?? "",
+    maoRemarks: row.mao_remarks ?? "",
+    recommended: !!row.fa_recommended,
+    // Filed for this farmer by their Farmers' Association President.
     filedByFa: !!row.filed_by,
   };
 }
@@ -37,10 +36,10 @@ export async function listMyRequests() {
   return data.map(mapRequest);
 }
 
-export async function createRequest({ farmerId, commodityId, quantity, reason }) {
+export async function createRequest({ farmerId, commodityId, typeId = null, quantity, reason }) {
   const { data, error } = await supabase
     .from("requests")
-    .insert({ farmer_id: farmerId, commodity_id: commodityId, quantity_requested: Number(quantity) || 0, reason })
+    .insert({ farmer_id: farmerId, commodity_id: commodityId, commodity_type_id: typeId, quantity_requested: Number(quantity) || 0, reason })
     .select(SELECT)
     .single();
   if (error) throw error;

@@ -16,10 +16,11 @@ export const STATUS_COLOR = {
   Complete: "green",
   "For Review": "purple",
   // Association requests: Pending -> Under review -> Approved / Rejected.
-  "Under review": "purple",
-  // Requests: Pending -> Endorsed -> Approved / Rejected, or Not endorsed.
-  Endorsed: "blue",
-  "Not endorsed": "gray",
+  "Under review": "blue",
+  // Harvest reports: Submitted -> Verified, or Returned to the farmer.
+  Submitted: "orange",
+  Verified: "green",
+  Returned: "red",
 };
 
 export default function Pill({ status, children }) {

@@ -28,7 +28,7 @@ import { formatDate } from "../lib/dates.js";
 import { formatQuantity, sharedUnit } from "../lib/quantity.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { listSubmissions } from "../lib/api/cropValidation.js";
-import { listRequests, listRequestsForAdminReview } from "../lib/api/requests.js";
+import { listRequests } from "../lib/api/requests.js";
 import { useFitCount } from "../hooks/useFitCount.js";
 import Toast from "../components/ui/Toast.jsx";
 import { friendlyError } from "../lib/friendlyError.js";
@@ -92,7 +92,7 @@ export default function Dashboard() {
   // requests "to review" are Forwarded ones for the admin, Pending for the FA.
   useEffect(() => {
     listSubmissions().then(setSubmissions).catch(loadFailed);
-    (isMAO ? listRequestsForAdminReview : listRequests)().then(setRequests).catch(loadFailed);
+    listRequests().then(setRequests).catch(loadFailed);
   }, [isMAO]);
 
   const stats = computeFarmerStats(farmers);
@@ -122,11 +122,11 @@ export default function Dashboard() {
   const topCommodities = rankedCommodities.slice(0, commodityFit);
 
   const ongoing = distributions.filter((d) => d.status === "Ongoing").length;
-  const toReview = requests.filter((r) => r.status === (isMAO ? "Forwarded" : "Pending")).length;
+  const toReview = requests.filter((r) => r.status === "Pending").length;
   const chips = [
     isMAO && { count: subStats.pending, label: plural(subStats.pending, "submission to review", "submissions to review"), to: "/validation?status=Pending", dot: "var(--agri-orange)" },
     { count: ongoing, label: plural(ongoing, "ongoing distribution", "ongoing distributions"), to: "/distributions?status=Ongoing", dot: "var(--agri-teal)" },
-    { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: `/requests?status=${isMAO ? "endorsed" : "pending"}`, dot: "var(--agri-blue)" },
+    { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: "/requests?status=pending", dot: "var(--agri-blue)" },
   ].filter((c) => c && c.count > 0);
 
   return (

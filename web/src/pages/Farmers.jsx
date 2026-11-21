@@ -17,6 +17,7 @@ import { useCardLabels } from "../hooks/useCardLabels.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { commodityCategories } from "../data/mockData.js";
+import { listCommodities } from "../lib/api/commodities.js";
 import { formatDate, todayIso } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowActionsCellProps, rowLinkProps } from "../lib/rowLink.js";
@@ -77,6 +78,7 @@ const EMPTY_FORM = {
   municipality: "Labangan",
   province: "Zamboanga del Sur",
   commodity: "Rice",
+  typeId: "",
   farmSize: "",
   farmLocation: "",
   ownershipType: "Owner",
@@ -99,6 +101,7 @@ function farmerToForm(f) {
     municipality: f.municipality ?? "Labangan",
     province: f.province ?? "Zamboanga del Sur",
     commodity: f.commodity || "Rice",
+    typeId: f.typeId ? String(f.typeId) : "",
     farmSize: f.farmSize ?? "",
     farmLocation: f.farmLocation ?? "",
     ownershipType: f.ownershipType || "Owner",
@@ -285,7 +288,14 @@ export default function Farmers() {
   const [search, setSearch] = useState(location.state?.presetSearch ?? "");
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [commodityFilter, setCommodityFilter] = useState("All");
+  const [typeFilter, setTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  // Commodities with their types, for the Program / type field and filter.
+  const [commodities, setCommodities] = useState([]);
+  useEffect(() => {
+    listCommodities().then(setCommodities).catch(() => {});
+  }, []);
+  const typeFilterOptions = useMemo(() => [...new Map(farmers.filter((f) => f.typeId).map((f) => [f.typeName, f.typeName])).values()].sort(), [farmers]);
 
   // Deep-link support: the Validation page's "View full profile" / "Open
   // farmer record" links navigate here with a preset search term.
@@ -317,10 +327,11 @@ export default function Farmers() {
         f.rsbsaNo.includes(debouncedSearch) ||
         (searchDigits && f.rsbsaNo.replace(/\D/g, "").includes(searchDigits));
       const matchesCommodity = commodityFilter === "All" || f.commodity === commodityFilter;
+      const matchesType = typeFilter === "All" || (typeFilter === "None" ? !f.typeId : f.typeName === typeFilter);
       const matchesStatus = statusFilter === "All" || f.status === statusFilter;
-      return matchesSearch && matchesCommodity && matchesStatus;
+      return matchesSearch && matchesCommodity && matchesType && matchesStatus;
     });
-  }, [farmers, debouncedSearch, commodityFilter, statusFilter]);
+  }, [farmers, debouncedSearch, commodityFilter, typeFilter, statusFilter]);
 
 
   // Rows per page = however many fit in the full-height table area (min 5).
@@ -395,6 +406,12 @@ export default function Farmers() {
             {FARMER_COMMODITY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
 
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "160px" }} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Filter by program / type">
+            <option value="All">All Programs / Types</option>
+            {typeFilterOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+            <option value="None">No type set</option>
+          </select>
+
           <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "150px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="All">All Status</option>
             <option value="Active">Active</option>
@@ -432,7 +449,7 @@ export default function Farmers() {
                   <td>{formatDate(f.birthDate)}</td>
                   <td>{f.contactNo}</td>
                   <td>{f.barangay}</td>
-                  <td>{f.commodity}</td>
+                  <td>{f.commodity}{f.typeName && <span className="agri-muted"> · {f.typeName}</span>}</td>
                   <td>{f.farmSize} ha</td>
                   <td>{f.farmLocation}</td>
                   <td><Pill status={f.status} /></td>
@@ -481,6 +498,7 @@ export default function Farmers() {
           mode={modal.mode}
           farmer={modal.farmer}
           farmers={farmers}
+          commodities={commodities}
           onClose={() => setModal(null)}
           onViewExisting={(rsbsaNo) => {
             setSearch(rsbsaNo);
@@ -599,8 +617,23 @@ function AccountCredentialsDialog({ farmerName, rsbsaNo, loginId, password, onCl
   );
 }
 
-function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }) {
+function FarmerModal({ mode, farmer, farmers, commodities = [], onClose, onSaved, onViewExisting }) {
   const [form, setForm] = useState(() => (mode === "edit" ? farmerToForm(farmer) : EMPTY_FORM));
+  // Crops: the usual ones plus any category that has types (nothing about
+  // types is hardcoded). Program / type: the active types of the commodity
+  // (or commodities) for the farmer's crop, with their rates.
+  const cropOptions = useMemo(
+    () => [...new Set([...FARMER_COMMODITY_OPTIONS, ...commodities.filter((c) => c.types.length).map((c) => c.category), form.commodity].filter(Boolean))],
+    [commodities, form.commodity],
+  );
+  const typeOptions = useMemo(() => {
+    const matching = commodities.filter((c) => c.category.toLowerCase() === String(form.commodity).toLowerCase() && c.types.length);
+    return matching.flatMap((c) => c.types.map((t) => ({ id: String(t.id), label: `${matching.length > 1 ? `${c.name} · ` : ""}${t.name} (${t.rate.toLocaleString()} kg/ha)` })));
+  }, [commodities, form.commodity]);
+  // A saved type that was since removed (or belongs to another crop) can't be kept.
+  useEffect(() => {
+    if (commodities.length && form.typeId && !typeOptions.some((o) => o.id === form.typeId)) setForm((f) => ({ ...f, typeId: "" }));
+  }, [commodities.length, typeOptions, form.typeId]);
   const [errors, setErrors] = useState({});
   const [duplicate, setDuplicate] = useState(null);
   // A possible duplicate the admin was warned about; a second Save with the
@@ -799,8 +832,14 @@ function FarmerModal({ mode, farmer, farmers, onClose, onSaved, onViewExisting }
 
             <Section title="Farm Information">
               <Field label="Commodity / Crop Type" col={6}>
-                <select className="form-select" value={form.commodity} onChange={(e) => update("commodity", e.target.value)}>
-                  {FARMER_COMMODITY_OPTIONS.map((c) => <option key={c}>{c}</option>)}
+                <select className="form-select" value={form.commodity} onChange={(e) => { update("commodity", e.target.value); update("typeId", ""); }}>
+                  {cropOptions.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </Field>
+              <Field label="Program / Type" col={6} hint={typeOptions.length ? "Optional. Sets this farmer's kg-per-hectare rate in distributions." : "No types for this crop yet (Commodities page)."}>
+                <select className="form-select" value={form.typeId} onChange={(e) => update("typeId", e.target.value)} disabled={!typeOptions.length} aria-label="Program / type">
+                  <option value="">Not set</option>
+                  {typeOptions.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
               </Field>
               <Field label="Farm Size (ha)" col={6} error={errors.farmSize}>
@@ -860,7 +899,7 @@ function Section({ title, children, last }) {
 }
 
 // One column on phones; `col` (of 12) from 576px up.
-function Field({ label, col, required, error, children }) {
+function Field({ label, col, required, error, hint, children }) {
   return (
     <div className={`col-12 col-sm-${col}`}>
       <label className="agri-form-label">
@@ -868,7 +907,7 @@ function Field({ label, col, required, error, children }) {
         {required && <span style={{ color: "var(--agri-red)" }}> *</span>}
       </label>
       {children}
-      {error && <div style={{ color: "var(--agri-red)", fontSize: "0.72rem", marginTop: 4 }}>{error}</div>}
+      {error ? <div style={{ color: "var(--agri-red)", fontSize: "0.72rem", marginTop: 4 }}>{error}</div> : hint && <div className="agri-field-hint">{hint}</div>}
     </div>
   );
 }

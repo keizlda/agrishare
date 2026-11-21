@@ -1,9 +1,9 @@
 import { formatDateTime } from "../../lib/dates.js";
 
-// A farmer request's history, top to bottom: submitted (by whom, when) →
-// endorsed / not endorsed by the Farmers' Association President → approved /
-// rejected by the MAO Admin, each with its remarks. Steps still to come are
-// shown greyed out.
+// A farmer request's history, top to bottom: submitted (by the farmer or
+// filed by the Farmers' Association President) → the Farmers' Association
+// President's recommendation or remark, if any → approved / rejected by the
+// MAO Admin with remarks (or still waiting).
 function timelineSteps(r) {
   const steps = [
     {
@@ -14,21 +14,25 @@ function timelineSteps(r) {
       when: r.requestDate,
     },
   ];
-
-  if (r.status === "Pending") {
-    steps.push({ key: "fa", state: "waiting", title: "Waiting for endorsement", by: "Farmers' Association President" });
-  } else if (r.rejectedBy === "fa") {
-    steps.push({ key: "fa", state: "rejected", title: "Not endorsed", by: `by ${r.faPresidentName}`, when: r.faDecisionAt, remarks: r.faRemarks });
-  } else {
-    steps.push({ key: "fa", state: "done", title: "Endorsed", by: `by ${r.faPresidentName}`, when: r.faDecisionAt ?? r.forwardedToAdminAt, remarks: r.faRemarks });
+  if (r.rejectedBy === "fa") {
+    // Turned down at the old endorsement step (before Nov 2026).
+    steps.push({ key: "fa", state: "rejected", title: "Rejected", by: `by ${r.faPresidentName} (Farmers' Association President)`, when: r.faDecisionAt, remarks: r.faRemarks });
+    return steps;
   }
-
-  if (r.rejectedBy !== "fa") {
-    if (r.status === "Approved" || r.status === "Rejected") {
-      steps.push({ key: "mao", state: r.status === "Approved" ? "done" : "rejected", title: r.status, by: `by ${r.maoName}`, when: r.adminDecisionAt, remarks: r.maoRemarks });
-    } else {
-      steps.push({ key: "mao", state: r.status === "Forwarded" ? "waiting" : "upcoming", title: "Approval", by: r.status === "Forwarded" ? "Waiting for the MAO Admin's decision" : "MAO Admin, after endorsement" });
-    }
+  if (r.recommended || r.faRemarks) {
+    steps.push({
+      key: "fa",
+      state: "done",
+      title: r.recommended ? "Recommended by Farmers' Association President" : "Remark from the Farmers' Association President",
+      by: `by ${r.faPresidentName}`,
+      when: r.recommendedAt,
+      remarks: r.faRemarks,
+    });
+  }
+  if (r.status === "Approved" || r.status === "Rejected") {
+    steps.push({ key: "mao", state: r.status === "Approved" ? "done" : "rejected", title: r.status, by: `by ${r.maoName} (MAO Admin)`, when: r.adminDecisionAt, remarks: r.maoRemarks });
+  } else {
+    steps.push({ key: "mao", state: "waiting", title: "Waiting for the MAO Admin's decision", by: "MAO Admin" });
   }
   return steps;
 }

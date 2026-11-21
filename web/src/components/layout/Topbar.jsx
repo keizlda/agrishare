@@ -34,7 +34,7 @@ const NAV_ITEMS = [
   { to: "/distributions", label: "Distributions", icon: Truck, roles: ["MAO Admin", "FA President"] },
   { to: "/requests", label: "Requests", icon: Inbox, roles: ["MAO Admin", "FA President"] },
   { to: "/reports", label: "Reports", icon: FileBarChart2, roles: ["MAO Admin"] },
-  { to: "/commodities", label: "Commodities", icon: Star, roles: ["MAO Admin"] },
+  { to: "/commodities", label: "Commodities", icon: Star, roles: ["MAO Admin", "FA President"] },
 ];
 
 const today = new Date().toLocaleDateString("en-US", {

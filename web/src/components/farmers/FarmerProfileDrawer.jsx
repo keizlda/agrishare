@@ -116,6 +116,7 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
           {/* Add/Edit form: Farm Information */}
           <ProfileSection title="Farm Information">
             <Info label="Commodity / Crop Type" value={f.commodity} />
+            <Info label="Program / Type" value={f.typeName ? `${f.typeName}${f.typeCommodity ? ` (${f.typeCommodity})` : ""}` : ""} />
             {/* An empty Farm Size is saved as 0. */}
             <Info label="Farm Size (ha)" value={f.farmSize ? f.farmSize : null} />
             <Info label="Farm Location" value={f.farmLocation} wide />

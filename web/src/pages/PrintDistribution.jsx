@@ -5,12 +5,14 @@ import { getDistribution, listPrintBeneficiaries } from "../lib/api/distribution
 import { friendlyError } from "../lib/friendlyError.js";
 import { acknowledgementLabel, dateReceived } from "../lib/distributionStatus.js";
 import { formatDate, formatDateLong } from "../lib/dates.js";
-import { formatBags } from "../lib/allocation.js";
+import { formatKg } from "../lib/allocation.js";
 
 const STATUS_DOT = {
   Ongoing: "#f08c00",
   Completed: "#2f9e44",
 };
+
+const hectares = (n) => (n > 0 ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
 
 export default function PrintDistribution() {
   const { id } = useParams();
@@ -26,7 +28,6 @@ export default function PrintDistribution() {
       })
       .catch((err) => setError(friendlyError(err, "Couldn't load this distribution.")));
   }, [id]);
-
 
   if (error) {
     return <div className="pr-message" role="alert">{error}</div>;
@@ -61,6 +62,7 @@ export default function PrintDistribution() {
             }
           />
           <KV label="Total Beneficiaries" value={`${d.beneficiaries} farmers`} />
+          {d.allocationKg != null && <KV label="Allocation Used" value={`${formatKg(totalQty)} of ${formatKg(d.allocationKg)}`} />}
         </div>
       </div>
 
@@ -78,10 +80,7 @@ export default function PrintDistribution() {
             {d.items.map((item) => (
               <tr key={item.name}>
                 <td>{item.name}</td>
-                <td className="pr-num">
-                  {item.quantity.toLocaleString()}
-                  {formatBags(item.quantity, item.packSize) && <span className="pr-sub">{formatBags(item.quantity, item.packSize)}</span>}
-                </td>
+                <td className="pr-num">{item.quantity.toLocaleString()}</td>
                 <td className="pr-col-pad-left">{item.unit}</td>
               </tr>
             ))}
@@ -99,10 +98,8 @@ export default function PrintDistribution() {
   );
 }
 
-// The report's only signature block. It sits at the very end of the
-// document (after the beneficiary list, or after the "no tagged
-// beneficiaries" note) and never splits across pages — if it doesn't fit
-// under the last row it moves to the next page whole.
+// The report's only signature block, at the very end (it moves to the next
+// page whole if it doesn't fit under the last row).
 function Signatures() {
   return (
     <div className="pr-signatures">
@@ -113,20 +110,15 @@ function Signatures() {
   );
 }
 
-// Page 2 onward: the masterlist of tagged farmers. Always starts on a new
-// page (the shared print header repeats there via PrintLayout's thead); the
-// table's own header row repeats on every page it continues onto, and rows
-// never split across pages. Each farmer's Acknowledgement is "Acknowledged"
-// once the distribution is Completed, with the completion date as Date
-// Received; while Ongoing it reads "Pending" and the date is left blank.
-// The signature block follows the Total row (or the empty-list note).
+// Page 2 onward: the masterlist of tagged farmers, RSBSA No. first. Each
+// farmer's Acknowledgement is "Acknowledged" once the distribution is
+// Completed, with the completion date as Date Received; while Ongoing it
+// reads "Pending" and the date is left blank.
 function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
   const farmerCount = new Set(beneficiaries.map((b) => b.farmerId)).size;
   const totalQty = beneficiaries.reduce((sum, b) => sum + b.quantity, 0);
-  // Each farmer counted once, even when tagged for more than one commodity.
   const sizes = new Map(beneficiaries.map((b) => [b.farmerId, b.farmSize || 0]));
   const totalHectares = Math.round([...sizes.values()].reduce((sum, n) => sum + n, 0) * 100) / 100;
-  const hectares = (n) => (n > 0 ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
   const sameUnit = beneficiaries.length > 0 && beneficiaries.every((b) => b.unit === beneficiaries[0].unit);
   const acknowledgement = acknowledgementLabel(d);
   const received = dateReceived(d);
@@ -141,11 +133,11 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
       {beneficiaries.length > 0 ? (
         <table className="pr-items-table pr-beneficiary-table">
           <colgroup>
-            <col className="pr-bcol-no" />
-            <col className="pr-bcol-name" />
             <col className="pr-bcol-rsbsa" />
+            <col className="pr-bcol-name" />
             <col className="pr-bcol-sex" />
             <col className="pr-bcol-commodity" />
+            <col className="pr-bcol-type" />
             <col className="pr-bcol-farm" />
             <col className="pr-bcol-qty" />
             <col className="pr-bcol-unit" />
@@ -155,11 +147,11 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
           </colgroup>
           <thead>
             <tr>
-              <th className="pr-bnarrow">No.</th>
-              <th>Name of Beneficiary</th>
               <th>RSBSA No.</th>
+              <th>Name of Beneficiary</th>
               <th className="pr-bnarrow">Sex</th>
               <th>Commodity</th>
+              <th>Type</th>
               <th className="pr-num">Farm Size (ha)</th>
               <th className="pr-num">Qty Received</th>
               <th className="pr-bnarrow">Unit</th>
@@ -169,18 +161,15 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
             </tr>
           </thead>
           <tbody>
-            {beneficiaries.map((b, i) => (
+            {beneficiaries.map((b) => (
               <tr key={b.claimId}>
-                <td className="pr-bnarrow">{i + 1}</td>
-                <td>{b.name}</td>
                 <td className="pr-nowrap">{b.rsbsaNo}</td>
+                <td>{b.name}</td>
                 <td className="pr-bnarrow">{b.sex}</td>
                 <td>{b.commodity}</td>
+                <td>{b.typeName}</td>
                 <td className="pr-num">{hectares(b.farmSize)}</td>
-                <td className="pr-num">
-                  {b.quantity.toLocaleString()}
-                  {formatBags(b.quantity, b.packSize) && <span className="pr-sub">{formatBags(b.quantity, b.packSize)}</span>}
-                </td>
+                <td className="pr-num">{b.quantity.toLocaleString()}</td>
                 <td className="pr-bnarrow">{b.unit}</td>
                 <td className="pr-nowrap">{acknowledgement}</td>
                 <td className="pr-nowrap">{received}</td>

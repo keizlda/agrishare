@@ -5,7 +5,10 @@ import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
-import { commodityCategories, computeCommodityStats } from "../data/mockData.js";
+import TypesEditor from "../components/commodities/TypesEditor.jsx";
+import { typeRowsFor, typeRowsToSave, validateTypeRows } from "../lib/commodityTypeRows.js";
+import { computeCommodityStats } from "../data/mockData.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
@@ -13,44 +16,21 @@ import { useCardLabels } from "../hooks/useCardLabels.js";
 import { useRevealDetail } from "../hooks/useRevealDetail.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard.js";
-import { createCommodity, deleteCommodity, listCommodities, setCommodityStatus, updateCommodity } from "../lib/api/commodities.js";
+import { deleteCommodity, listCommodities, saveCommodity, setCommodityStatus } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
+import { describeRates } from "../lib/allocation.js";
 import { formatDate } from "../lib/dates.js";
-import { formatQuantity, isSplitQuantity } from "../lib/quantity.js";
+import { formatQuantity } from "../lib/quantity.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
-const numberText = (n) => (n === null || n === undefined ? "" : String(n));
+const isKg = (unit) => String(unit ?? "").trim().toLowerCase() === "kg";
 
 // Inline edit (Commodity Details card): the fields that become inputs.
 function editFormFor(commodity) {
-  return {
-    name: commodity.name,
-    category: commodity.category,
-    unit: commodity.unit ?? "kg",
-    status: commodity.status,
-    allocationPerHectare: numberText(commodity.allocationPerHectare),
-    packSize: numberText(commodity.packSize),
-    maxPerFarmer: numberText(commodity.maxPerFarmer),
-  };
+  return { name: commodity.name, category: commodity.category, unit: commodity.unit ?? "kg", status: commodity.status, types: typeRowsFor(commodity) };
 }
-
-// The allocation fields: optional, but when filled a number above 0 with at
-// most 2 decimals (the database stores numeric(10, 2) and refuses 0 or less).
-const ALLOCATION_FIELDS = [
-  ["allocationPerHectare", "allocation per hectare"],
-  ["packSize", "pack size"],
-  ["maxPerFarmer", "maximum per farmer"],
-];
-function allocationFieldError(text, label) {
-  const t = text.trim();
-  if (!t) return null;
-  const article = /^[aeiou]/i.test(label) ? "an" : "a";
-  if (!/^\d+(\.\d{1,2})?$/.test(t) || !(Number(t) > 0)) return `Enter ${article} ${label} greater than 0 (up to 2 decimals), or leave it blank.`;
-  if (Number(t) >= 100000000) return `Enter a smaller ${label}.`;
-  return null;
-}
-const blankToNull = (text) => (text.trim() ? Number(text.trim()) : null);
+const sameForm = (a, b) => JSON.stringify({ ...a, types: a.types.map(({ key: _k, ...r }) => r) }) === JSON.stringify({ ...b, types: b.types.map(({ key: _k, ...r }) => r) });
 
 const MAX_NAME_LENGTH = 80;
 const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -65,29 +45,35 @@ function nameError(name, others) {
   return null;
 }
 
-function validateEdit(form, others) {
+function validateForm(form, others) {
   const errors = {};
   const name = nameError(form.name, others);
   if (name) errors.name = name;
+  if (!form.category.trim()) errors.category = "Enter a category, e.g. Rice or Fertilizer.";
   if (!form.unit.trim()) errors.unit = "Enter a unit, e.g. kg, bag or set.";
-  for (const [key, label] of ALLOCATION_FIELDS) {
-    const problem = allocationFieldError(form[key], label);
-    if (problem) errors[key] = problem;
-  }
-  // Sets, heads, bags… can't be split, so a cap per farmer is a whole number.
-  if (!errors.maxPerFarmer && isSplitQuantity(form.maxPerFarmer.trim() || 0, form.unit)) {
-    errors.maxPerFarmer = `Enter a whole number: ${form.unit.trim()} can't be split.`;
-  }
+  const typeErrors = validateTypeRows(form.types);
+  if (Object.keys(typeErrors).length) errors.types = typeErrors;
+  if (form.types.some((t) => !t.removed) && !isKg(form.unit)) errors.unit = "Types and rates are only for commodities measured in kg.";
   return errors;
 }
 
-// "40 kg/ha", "20 kg per bag", "60 kg" — or a muted "Not set".
-function AllocationValue({ value, suffix }) {
-  if (value === null || value === undefined) return <span className="agri-muted">Not set</span>;
-  return `${Number(value).toLocaleString()} ${suffix}`;
+// Category suggestions: whatever categories exist (nothing hardcoded).
+function CategoryInput({ id, value, onChange, categories, invalid, disabled }) {
+  return (
+    <>
+      <input id={id} list={`${id}-list`} className={`form-control form-control-sm${invalid ? " is-invalid" : ""}`} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} placeholder="e.g. Rice" maxLength={40} />
+      <datalist id={`${id}-list`}>
+        {categories.map((c) => <option key={c} value={c} />)}
+      </datalist>
+    </>
+  );
 }
 
 export default function Commodities() {
+  const { user } = useAuth();
+  // The Farmers' Association President can view commodities and their
+  // rates; only the MAO Admin changes them (the database enforces this too).
+  const canEdit = user?.role === "MAO Admin";
   const { data: commodities, setData: setCommodities, loading, error: loadError } = useSupabaseList(listCommodities);
   const [distributions, setDistributions] = useState([]);
   const [search, setSearch] = useState("");
@@ -98,12 +84,9 @@ export default function Commodities() {
   const [actionError, setActionError] = useState("");
   const [toast, setToast] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
-  // Inline edit of the selected commodity: null in view mode.
   const [edit, setEdit] = useState(null);
   const [editErrors, setEditErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  // A row click or page change held back by "Discard changes?": a function
-  // that carries it out.
   const [pendingLeave, setPendingLeave] = useState(null);
 
   useEffect(() => {
@@ -114,6 +97,8 @@ export default function Commodities() {
     if (!selectedId && commodities.length > 0) setSelectedId(commodities[0].id);
   }, [commodities, selectedId]);
 
+  const categories = useMemo(() => [...new Set(commodities.map((c) => c.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [commodities]);
+
   const filtered = useMemo(() => {
     return commodities.filter((c) => {
       const matchesSearch = !search || c.name.toLowerCase().includes(search.toLowerCase());
@@ -123,7 +108,6 @@ export default function Commodities() {
     });
   }, [commodities, search, categoryFilter, statusFilter]);
 
-  // Rows per page = however many fit in the full-height table area (min 5).
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
@@ -136,7 +120,7 @@ export default function Commodities() {
   const selectedDistributedQty = selected ? (totals[selected.name] ?? 0) : 0;
 
   const original = edit && selected ? editFormFor(selected) : null;
-  const dirty = !!original && Object.keys(original).some((k) => edit[k] !== original[k]);
+  const dirty = !!original && !sameForm(edit, original);
 
   useUnsavedChangesGuard(dirty, (go) => setPendingLeave(() => go));
 
@@ -167,20 +151,16 @@ export default function Commodities() {
   async function saveEdit(e) {
     e.preventDefault();
     if (saving) return;
-    const errors = validateEdit(edit, commodities.filter((c) => c.id !== selected.id));
+    const errors = validateForm(edit, commodities.filter((c) => c.id !== selected.id));
     setEditErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
-      const saved = await updateCommodity(selected.id, {
-        name: edit.name.trim().replace(/\s+/g, " "),
-        category: edit.category,
-        unit: edit.unit.trim(),
-        status: edit.status,
-        allocationPerHectare: blankToNull(edit.allocationPerHectare),
-        packSize: blankToNull(edit.packSize),
-        maxPerFarmer: blankToNull(edit.maxPerFarmer),
-      });
+      const saved = await saveCommodity(
+        selected.id,
+        { name: edit.name.trim().replace(/\s+/g, " "), category: edit.category.trim(), unit: edit.unit.trim(), status: edit.status },
+        typeRowsToSave(edit.types),
+      );
       setCommodities((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
       stopEditing();
       setToast({ tone: "success", message: "Commodity updated." });
@@ -191,16 +171,11 @@ export default function Commodities() {
     }
   }
 
-  // Soft delete: the commodity keeps its row (and its name in past
-  // distribution/request records) but disappears from every listing/picker.
   async function handleDelete(commodity) {
     setPendingDelete(null);
     setActionError("");
     try {
       await deleteCommodity(commodity.id);
-
-      // Selection moves to the next row in the current filtered order (or the
-      // previous one if it was last); pagination clamps itself if the page empties.
       if (selectedId === commodity.id) {
         const idx = filtered.findIndex((c) => c.id === commodity.id);
         const neighbour = filtered[idx + 1] ?? filtered[idx - 1] ?? null;
@@ -226,9 +201,6 @@ export default function Commodities() {
     }
   }
 
-  // View and edit mode share one card: the same rows in the same order (each
-  // value becomes an input), and the button row at the bottom keeps its
-  // place — Edit | Delete, or Cancel | Save Changes.
   const Card = edit ? "form" : "div";
 
   return (
@@ -241,18 +213,20 @@ export default function Commodities() {
             </div>
           )}
           <div className="agri-toolbar">
-            <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setAdding(true)}>
-              <Plus size={16} /> Add Commodity
-            </button>
+            {canEdit && (
+              <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setAdding(true)}>
+                <Plus size={16} /> Add Commodity
+              </button>
+            )}
             <div className="agri-toolbar-search">
               <Search size={15} />
               <input className="form-control" placeholder="Search commodity" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "150px" }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "150px" }} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Filter by category">
               <option value="All">All Categories</option>
-              {commodityCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "130px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "130px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
               <option value="All">All Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
@@ -261,18 +235,19 @@ export default function Commodities() {
 
           <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table agri-table-cards">
-              <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Date Added</th></tr></thead>
+              <thead><tr><th>Name</th><th>Category</th><th>Types / Rate</th><th>Status</th><th>Date Added</th></tr></thead>
               <tbody>
                 {pageItems.map((c) => (
                   <tr key={c.id} {...rowLinkProps(() => selectRow(c.id), { selected: c.id === selectedId })}>
                     <td><span className="agri-row-title">{c.name}</span></td>
                     <td>{c.category}</td>
+                    <td className="agri-cell-truncate" title={describeRates(c)}>{describeRates(c)}</td>
                     <td><Pill status={c.status} /></td>
                     <td>{formatDate(c.dateAdded)}</td>
                   </tr>
                 ))}
                 {loading && (
-                  <tr><td colSpan={4} className="agri-muted text-center py-4">Loading commodities…</td></tr>
+                  <tr><td colSpan={5} className="agri-muted text-center py-4">Loading commodities…</td></tr>
                 )}
               </tbody>
             </table>
@@ -295,88 +270,96 @@ export default function Commodities() {
             </div>
             <div className="agri-detail-body">
               {edit && editErrors.form && (
-                <div className="agri-pill red" style={{ display: "block", marginBottom: 10, padding: "8px 12px" }}>{editErrors.form}</div>
+                <div className="agri-pill red" role="alert" style={{ display: "block", marginBottom: 10, padding: "8px 12px" }}>{editErrors.form}</div>
               )}
               {edit ? (
                 <>
                   <EditField label="Name" id="commodity-name" error={editErrors.name}>
                     <input id="commodity-name" maxLength={MAX_NAME_LENGTH} className={`form-control form-control-sm${editErrors.name ? " is-invalid" : ""}`} value={edit.name} onChange={(e) => updateField("name", e.target.value)} disabled={saving} autoFocus />
                   </EditField>
-                  <EditField label="Category" id="commodity-category">
-                    <select id="commodity-category" className="form-select form-select-sm" value={edit.category} onChange={(e) => updateField("category", e.target.value)} disabled={saving}>
-                      {[...new Set([edit.category, ...commodityCategories])].map((c) => <option key={c}>{c}</option>)}
-                    </select>
+                  <EditField label="Category" id="commodity-category" error={editErrors.category}>
+                    <CategoryInput id="commodity-category" value={edit.category} onChange={(v) => updateField("category", v)} categories={categories} invalid={!!editErrors.category} disabled={saving} />
                   </EditField>
                   <EditField label="Unit" id="commodity-unit" error={editErrors.unit}>
-                    <input id="commodity-unit" className={`form-control form-control-sm${editErrors.unit ? " is-invalid" : ""}`} value={edit.unit} onChange={(e) => updateField("unit", e.target.value)} disabled={saving} placeholder="e.g. kg, bag, set" />
+                    <input id="commodity-unit" className={`form-control form-control-sm${editErrors.unit ? " is-invalid" : ""}`} value={edit.unit} onChange={(e) => updateField("unit", e.target.value)} disabled={saving} placeholder="e.g. kg, set" />
                   </EditField>
-                  <EditField label="Allocation per Hectare" id="commodity-allocation" error={editErrors.allocationPerHectare} hint="Each farmer's quantity in a distribution = farm size × this. Leave blank to split the total equally.">
-                    <UnitInput id="commodity-allocation" unit={`${edit.unit.trim() || "kg"}/ha`} value={edit.allocationPerHectare} invalid={!!editErrors.allocationPerHectare} onChange={(v) => updateField("allocationPerHectare", v)} disabled={saving} placeholder="e.g. 40" />
-                  </EditField>
-                  <EditField label="Pack Size" id="commodity-pack-size" error={editErrors.packSize} hint="Optional. Shows bags next to quantities, e.g. 50 kg (2.5 bags).">
-                    <UnitInput id="commodity-pack-size" unit={`${edit.unit.trim() || "kg"} per bag`} value={edit.packSize} invalid={!!editErrors.packSize} onChange={(v) => updateField("packSize", v)} disabled={saving} placeholder="e.g. 20" />
-                  </EditField>
-                  <EditField label="Maximum per Farmer" id="commodity-max" error={editErrors.maxPerFarmer} hint="Optional cap on one farmer's computed quantity.">
-                    <UnitInput id="commodity-max" unit={edit.unit.trim() || "kg"} value={edit.maxPerFarmer} invalid={!!editErrors.maxPerFarmer} onChange={(v) => updateField("maxPerFarmer", v)} disabled={saving} placeholder="No cap" />
-                  </EditField>
+                  <div className="agri-detail-section-title">Types and rates</div>
+                  {isKg(edit.unit) || edit.types.some((t) => !t.removed) ? (
+                    <TypesEditor rows={edit.types} onChange={(rows) => updateField("types", rows)} errors={editErrors.types} disabled={saving} idPrefix="edit-type" />
+                  ) : (
+                    <div className="agri-field-hint" style={{ marginTop: 0 }}>Types and kg-per-hectare rates are for commodities measured in kg.</div>
+                  )}
                 </>
               ) : (
                 <>
                   <div className="agri-detail-row"><div><div className="agri-detail-label">Name</div>{selected.name}</div></div>
                   <div className="agri-detail-row"><div><div className="agri-detail-label">Category</div>{selected.category}</div></div>
                   <div className="agri-detail-row"><div><div className="agri-detail-label">Unit</div>{selected.unit}</div></div>
-                  <div className="agri-detail-row"><div><div className="agri-detail-label">Allocation per Hectare</div><AllocationValue value={selected.allocationPerHectare} suffix={`${selected.unit}/ha`} /></div></div>
-                  <div className="agri-detail-row"><div><div className="agri-detail-label">Pack Size</div><AllocationValue value={selected.packSize} suffix={`${selected.unit} per bag`} /></div></div>
-                  <div className="agri-detail-row"><div><div className="agri-detail-label">Maximum per Farmer</div><AllocationValue value={selected.maxPerFarmer} suffix={selected.unit} /></div></div>
+                  <div className="agri-detail-section-title">Types and rates</div>
+                  {selected.types.length ? (
+                    <>
+                      <ul className="agri-rate-list">
+                        {selected.types.map((t) => (
+                          <li key={t.id}>
+                            <span>{t.name} — {t.rate.toLocaleString()} kg/ha</span>
+                            {t.isDefault && <span className="agri-filed-tag">Default</span>}
+                          </li>
+                        ))}
+                      </ul>
+                      {selected.typesUpdatedAt && (
+                        <div className="agri-field-hint">Last updated {formatDate(selected.typesUpdatedAt)}{selected.typesUpdatedBy ? ` by ${selected.typesUpdatedBy}` : ""}</div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="agri-muted" style={{ fontSize: "0.82rem" }}>No types. Distributions of this commodity split the total equally.</div>
+                  )}
                 </>
               )}
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{formatQuantity(selectedDistributedQty, selected.unit)}</div></div>
+              <div className="agri-detail-row" style={{ marginTop: 10 }}><div><div className="agri-detail-label">Total Distributed</div>{formatQuantity(selectedDistributedQty, selected.unit)}</div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{formatDate(selected.dateAdded)}</div></div>
 
-              <label className="agri-form-label" style={{ marginTop: 14 }} htmlFor="commodity-status-select">Status</label>
-              {edit ? (
-                <select id="commodity-status-select" className="form-select mb-3" value={edit.status} onChange={(e) => updateField("status", e.target.value)} disabled={saving}>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-              ) : (
-                <select id="commodity-status-select" className="form-select mb-3" value={selected.status} onChange={() => toggleStatus(selected.id)}>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
+              {canEdit && (
+                <>
+                  <label className="agri-form-label" style={{ marginTop: 14 }} htmlFor="commodity-status-select">Status</label>
+                  {edit ? (
+                    <select id="commodity-status-select" className="form-select mb-3" value={edit.status} onChange={(e) => updateField("status", e.target.value)} disabled={saving}>
+                      <option>Active</option>
+                      <option>Inactive</option>
+                    </select>
+                  ) : (
+                    <select id="commodity-status-select" className="form-select mb-3" value={selected.status} onChange={() => toggleStatus(selected.id)}>
+                      <option>Active</option>
+                      <option>Inactive</option>
+                    </select>
+                  )}
+                </>
               )}
             </div>
 
-            <div className="agri-detail-actions">
-              {edit ? (
-                <div className="agri-detail-actions-row">
-                  <button type="button" className="btn agri-detail-btn agri-detail-btn-edit d-flex align-items-center justify-content-center gap-2" onClick={stopEditing} disabled={saving}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-agri-primary agri-detail-btn d-flex align-items-center justify-content-center gap-2" disabled={saving}>
-                    {saving ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : <Check size={16} />}
-                    {saving ? "Saving…" : "Save Changes"}
-                  </button>
-                </div>
-              ) : (
-                <div className="agri-detail-actions-row">
-                  <button
-                    type="button"
-                    className="btn agri-detail-btn agri-detail-btn-edit d-flex align-items-center justify-content-center gap-2"
-                    onClick={() => setEdit(editFormFor(selected))}
-                  >
-                    <Pencil size={16} /> Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="btn agri-detail-btn agri-detail-btn-delete d-flex align-items-center justify-content-center gap-2"
-                    onClick={() => setPendingDelete(selected)}
-                  >
-                    <Trash2 size={16} /> Delete
-                  </button>
-                </div>
-              )}
-            </div>
+            {canEdit && (
+              <div className="agri-detail-actions">
+                {edit ? (
+                  <div className="agri-detail-actions-row">
+                    <button type="button" className="btn agri-detail-btn agri-detail-btn-edit d-flex align-items-center justify-content-center gap-2" onClick={stopEditing} disabled={saving}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-agri-primary agri-detail-btn d-flex align-items-center justify-content-center gap-2" disabled={saving}>
+                      {saving ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : <Check size={16} />}
+                      {saving ? "Saving…" : "Save Changes"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="agri-detail-actions-row">
+                    <button type="button" className="btn agri-detail-btn agri-detail-btn-edit d-flex align-items-center justify-content-center gap-2" onClick={() => setEdit(editFormFor(selected))}>
+                      <Pencil size={16} /> Edit
+                    </button>
+                    <button type="button" className="btn agri-detail-btn agri-detail-btn-delete d-flex align-items-center justify-content-center gap-2" onClick={() => setPendingDelete(selected)}>
+                      <Trash2 size={16} /> Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
         )}
       </div>
@@ -384,9 +367,11 @@ export default function Commodities() {
       {adding && (
         <AddCommodityModal
           existing={commodities}
+          categories={categories}
           onClose={() => setAdding(false)}
           onSaved={(saved) => {
             setCommodities((prev) => [saved, ...prev]);
+            setSelectedId(saved.id);
             setToast({ tone: "success", message: "Commodity added." });
             setAdding(false);
           }}
@@ -437,44 +422,31 @@ function EditField({ label, id, error, hint, children }) {
   );
 }
 
-// A number input with its unit shown inside the box on the right ("kg/ha").
-function UnitInput({ id, unit, value, invalid, onChange, disabled, placeholder }) {
-  return (
-    <div className={`agri-unit-input${invalid ? " is-invalid" : ""}`}>
-      <input
-        id={id}
-        inputMode="decimal"
-        className={`form-control form-control-sm${invalid ? " is-invalid" : ""}`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        placeholder={placeholder}
-      />
-      <span className="agri-unit-input-unit" aria-hidden="true">{unit}</span>
-    </div>
-  );
-}
-
-function AddCommodityModal({ existing, onClose, onSaved }) {
-  const [form, setForm] = useState({ name: "", category: "Rice" });
+function AddCommodityModal({ existing, categories, onClose, onSaved }) {
+  const [form, setForm] = useState({ name: "", category: categories[0] ?? "", unit: "kg", status: "Active", types: [] });
+  const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
-  const [nameErrorText, setNameErrorText] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
   useEscapeToClose(true, onClose);
 
+  const update = (key, value) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (savingRef.current) return;
     setFormError("");
-    const problem = nameError(form.name, existing);
-    setNameErrorText(problem ?? "");
-    if (problem) return;
+    const found = validateForm(form, existing);
+    setErrors(found);
+    if (Object.keys(found).length) return;
     savingRef.current = true;
     setSaving(true);
     try {
-      onSaved(await createCommodity({ ...form, name: form.name.trim().replace(/\s+/g, " ") }));
+      onSaved(await saveCommodity(null, { name: form.name.trim().replace(/\s+/g, " "), category: form.category.trim(), unit: form.unit.trim(), status: "Active" }, typeRowsToSave(form.types)));
     } catch (err) {
       setFormError(friendlyError(err, "Couldn't save this commodity. Please try again."));
     } finally {
@@ -486,8 +458,8 @@ function AddCommodityModal({ existing, onClose, onSaved }) {
   return (
     <div className="agri-modal-backdrop" onClick={onClose}>
       <form
-        className="agri-card agri-modal"
-        style={{ "--agri-modal-width": "420px" }}
+        className="agri-card agri-modal agri-modal-full"
+        style={{ "--agri-modal-width": "520px" }}
         role="dialog"
         aria-label="Add Commodity"
         onSubmit={handleSubmit}
@@ -500,29 +472,38 @@ function AddCommodityModal({ existing, onClose, onSaved }) {
         </div>
         <div className="agri-modal-body">
           {formError && (
-            <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>
-              {formError}
-            </div>
+            <div className="agri-pill red" role="alert" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>{formError}</div>
           )}
-
-          <label className="agri-form-label">Commodity Name</label>
+          <label className="agri-form-label" htmlFor="add-commodity-name">Commodity Name <span style={{ color: "var(--agri-red)" }}>*</span></label>
           <input
-            required
+            id="add-commodity-name"
             maxLength={MAX_NAME_LENGTH}
-            className={`form-control${nameErrorText ? " is-invalid" : ""}`}
+            className={`form-control${errors.name ? " is-invalid" : ""}`}
             value={form.name}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, name: e.target.value }));
-              setNameErrorText("");
-            }}
-            placeholder="e.g. Rice Seeds (NSIC Rc222)"
+            onChange={(e) => update("name", e.target.value)}
+            placeholder="e.g. Yellow Corn Seeds"
+            autoFocus
           />
-          <div className="mb-3" style={{ color: "var(--agri-red)", fontSize: "0.78rem", marginTop: 4, minHeight: 4 }}>{nameErrorText}</div>
+          {errors.name && <div className="invalid-feedback d-block">{errors.name}</div>}
 
-          <label className="agri-form-label">Category</label>
-          <select className="form-select" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
-            {commodityCategories.map((c) => <option key={c}>{c}</option>)}
-          </select>
+          <div className="row g-3 mt-0 mb-2">
+            <div className="col-7">
+              <label className="agri-form-label" htmlFor="add-commodity-category">Category <span style={{ color: "var(--agri-red)" }}>*</span></label>
+              <CategoryInput id="add-commodity-category" value={form.category} onChange={(v) => update("category", v)} categories={categories} invalid={!!errors.category} disabled={saving} />
+              {errors.category && <div className="invalid-feedback d-block">{errors.category}</div>}
+            </div>
+            <div className="col-5">
+              <label className="agri-form-label" htmlFor="add-commodity-unit">Unit <span style={{ color: "var(--agri-red)" }}>*</span></label>
+              <input id="add-commodity-unit" className={`form-control form-control-sm${errors.unit ? " is-invalid" : ""}`} value={form.unit} onChange={(e) => update("unit", e.target.value)} placeholder="kg" maxLength={20} />
+              {errors.unit && <div className="invalid-feedback d-block">{errors.unit}</div>}
+            </div>
+          </div>
+
+          <div className="agri-detail-section-title">Types and rates (optional)</div>
+          <div className="agri-field-hint" style={{ marginTop: -4, marginBottom: 8 }}>
+            For kg commodities: each type's kg per hectare. A farmer's quantity = farm size × their type's rate.
+          </div>
+          <TypesEditor rows={form.types} onChange={(rows) => update("types", rows)} errors={errors.types} disabled={saving} idPrefix="add-type" />
         </div>
         <div className="agri-modal-footer">
           <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>

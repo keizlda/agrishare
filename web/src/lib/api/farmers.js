@@ -13,7 +13,8 @@ export function isValidRsbsaFormat(rsbsaNo) {
 
 const SELECT = `
   farmer_id, profile_id, deleted_at, rsbsa_no, surname, first_name, middle_name, sex, birth_date, contact_no,
-  household_head, household_members, org_affiliation, status, created_at,
+  household_head, household_members, org_affiliation, status, created_at, commodity_type_id,
+  commodity_types ( name, deleted_at, commodities ( name ) ),
   profiles!profile_id ( avatar_url ),
   addresses ( street, barangay, municipality, province ),
   farm_parcels ( farm_location, farm_size_hectares, ownership_type, is_pcic_insured, livestock_details, crops ( crop_type ) )
@@ -95,6 +96,10 @@ function mapFarmer(row) {
     householdHead: row.household_head ? "Yes" : "No",
     householdMembers: row.household_members ?? "",
     commodity: parcel?.crops?.[0]?.crop_type ?? "",
+    // Program / type (e.g. Inbred (RCEF), Hybrid) for the primary commodity.
+    typeId: row.commodity_type_id ?? null,
+    typeName: row.commodity_types?.name ?? "",
+    typeCommodity: row.commodity_types?.commodities?.name ?? "",
     farmSize: parcel?.farm_size_hectares != null ? Number(parcel.farm_size_hectares) : 0,
     farmLocation: parcel?.farm_location ?? "",
     ownershipType: parcel?.ownership_type ?? "",
@@ -172,6 +177,7 @@ function toSavePayload(form) {
     ownership_type: form.ownershipType || null,
     is_pcic_insured: pcicDbValue(form.pcicInsured),
     crop_type: form.commodity,
+    commodity_type_id: form.typeId ? Number(form.typeId) : null,
   };
 }
 
@@ -283,7 +289,7 @@ export async function setFarmerStatus(farmerId, statusLabel) {
 // Matches on name or RSBSA number; deliberately not the full listFarmers()
 // select — this only needs to render a compact suggestion row.
 const SEARCH_SELECT =
-  "farmer_id, rsbsa_no, first_name, surname, status, addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url )";
+  "farmer_id, rsbsa_no, first_name, surname, status, commodity_type_id, addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url )";
 
 // A farmer's total farm size (every parcel) and main crop (first parcel's
 // first crop) — what the Distribution form and the FA President's "Add
@@ -306,6 +312,7 @@ function mapFarmerBrief(row) {
     sitioPurok: address?.street ?? "",
     status: dbStatusToLabel(row.status),
     avatarUrl: row.profiles?.avatar_url ?? null,
+    typeId: row.commodity_type_id ?? null,
     ...farmSummary(row.farm_parcels),
   };
 }

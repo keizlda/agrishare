@@ -416,19 +416,18 @@
   height: auto;
 }
 
-.pr-beneficiary-table .pr-bcol-no { width: 3.5%; }
-.pr-beneficiary-table .pr-bcol-name { width: 12.5%; }
-.pr-beneficiary-table .pr-bcol-rsbsa { width: 16%; }
+/* RSBSA No. first (client request): widths add up to 100%. */
+.pr-beneficiary-table .pr-bcol-rsbsa { width: 15%; }
+.pr-beneficiary-table .pr-bcol-name { width: 14%; }
 .pr-beneficiary-table .pr-bcol-sex { width: 3.5%; }
-.pr-beneficiary-table .pr-bcol-commodity { width: 10.25%; }
-.pr-beneficiary-table .pr-bcol-farm { width: 6.25%; }
-.pr-beneficiary-table .pr-bcol-qty { width: 9.75%; }
-.pr-beneficiary-table .pr-bcol-unit { width: 4.25%; }
+.pr-beneficiary-table .pr-bcol-commodity { width: 10%; }
+.pr-beneficiary-table .pr-bcol-type { width: 8%; }
+.pr-beneficiary-table .pr-bcol-farm { width: 6%; }
+.pr-beneficiary-table .pr-bcol-qty { width: 7%; }
+.pr-beneficiary-table .pr-bcol-unit { width: 4%; }
 .pr-beneficiary-table .pr-bcol-ack { width: 10.5%; }
-.pr-beneficiary-table .pr-bcol-date { width: 8.5%; }
-.pr-beneficiary-table .pr-bcol-sign { width: 15%; }
-/* Bags under a quantity: "(2.5 bags)". */
-.pr-sub { display: block; font-size: 0.85em; color: #56645a; white-space: nowrap; }
+.pr-beneficiary-table .pr-bcol-date { width: 8%; }
+.pr-beneficiary-table .pr-bcol-sign { width: 14%; }
 
 .pr-no-beneficiaries {
   margin: 8px 0 0;
