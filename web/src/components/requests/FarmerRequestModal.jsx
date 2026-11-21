@@ -86,11 +86,12 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
   }, [suggested, quantityEdited]);
 
   // Open requests for the same farmer and commodity: a warning, not a block.
+  const chosenCommodityId = commodity?.id ?? null;
   useEffect(() => {
     setOpenRequests([]);
-    if (!farmer || !commodityId) return undefined;
+    if (!farmer || chosenCommodityId === null) return undefined;
     let cancelled = false;
-    findOpenRequests(farmer.id, commodity?.id ?? commodityId)
+    findOpenRequests(farmer.id, chosenCommodityId)
       .then((rows) => {
         if (!cancelled) setOpenRequests(rows);
       })
@@ -98,7 +99,7 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
     return () => {
       cancelled = true;
     };
-  }, [farmer, commodityId]);
+  }, [farmer, chosenCommodityId]);
 
   function pickFarmer(f) {
     setFarmer(f);
