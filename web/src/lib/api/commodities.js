@@ -1,6 +1,8 @@
 import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 
+const numberOrNull = (v) => (v === null || v === undefined || v === "" ? null : Number(v));
+
 function mapCommodity(row) {
   return {
     id: row.commodity_id,
@@ -10,6 +12,11 @@ function mapCommodity(row) {
     status: dbStatusToLabel(row.status),
     dateAdded: row.created_at,
     deletedAt: row.deleted_at,
+    // Allocation by farm size (all optional): quantity per hectare, quantity
+    // per bag, and a cap per farmer — see lib/allocation.js.
+    allocationPerHectare: numberOrNull(row.allocation_per_hectare),
+    packSize: numberOrNull(row.pack_size),
+    maxPerFarmer: numberOrNull(row.max_per_farmer),
   };
 }
 
@@ -40,12 +47,16 @@ export async function setCommodityStatus(commodityId, statusLabel) {
   if (error) throw error;
 }
 
-// unit and status are optional (the Commodity Details card's inline edit
-// sends them; anything left out is unchanged).
-export async function updateCommodity(commodityId, { name, category, unit, status }) {
+// unit, status and the allocation fields are optional (the Commodity Details
+// card's inline edit sends them; anything left out is unchanged, and null
+// clears an allocation field).
+export async function updateCommodity(commodityId, { name, category, unit, status, allocationPerHectare, packSize, maxPerFarmer }) {
   const patch = { name, category };
   if (unit !== undefined) patch.unit = unit;
   if (status !== undefined) patch.status = labelToDbStatus(status);
+  if (allocationPerHectare !== undefined) patch.allocation_per_hectare = allocationPerHectare;
+  if (packSize !== undefined) patch.pack_size = packSize;
+  if (maxPerFarmer !== undefined) patch.max_per_farmer = maxPerFarmer;
   const { data, error } = await supabase
     .from("commodities")
     .update(patch)

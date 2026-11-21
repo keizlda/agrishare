@@ -282,17 +282,31 @@ export async function setFarmerStatus(farmerId, statusLabel) {
 // Debounced typeahead for the beneficiary-tagging field (Distributions).
 // Matches on name or RSBSA number; deliberately not the full listFarmers()
 // select — this only needs to render a compact suggestion row.
-const SEARCH_SELECT = "farmer_id, rsbsa_no, first_name, surname, status, addresses ( barangay ), profiles!profile_id ( avatar_url )";
+const SEARCH_SELECT =
+  "farmer_id, rsbsa_no, first_name, surname, status, addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url )";
+
+// A farmer's total farm size (every parcel) and main crop (first parcel's
+// first crop) — what the Distribution form and the FA President's "Add
+// Farmer Request" fill in when a farmer is picked.
+export function farmSummary(parcels) {
+  const list = [...(parcels ?? [])].sort((a, b) => (a.parcel_id ?? 0) - (b.parcel_id ?? 0));
+  const farmSize = Math.round(list.reduce((sum, p) => sum + (Number(p.farm_size_hectares) || 0), 0) * 100) / 100;
+  const cropType = list.flatMap((p) => p.crops ?? []).map((c) => c.crop_type).find(Boolean) ?? "";
+  return { farmSize, cropType };
+}
 
 function mapFarmerBrief(row) {
+  const address = row.addresses?.[0];
   return {
     id: row.farmer_id,
     rsbsaNo: row.rsbsa_no,
     firstName: row.first_name,
     lastName: row.surname,
-    barangay: row.addresses?.[0]?.barangay ?? "Langapud",
+    barangay: address?.barangay ?? "Langapud",
+    sitioPurok: address?.street ?? "",
     status: dbStatusToLabel(row.status),
     avatarUrl: row.profiles?.avatar_url ?? null,
+    ...farmSummary(row.farm_parcels),
   };
 }
 

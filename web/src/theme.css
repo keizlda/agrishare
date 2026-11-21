@@ -3230,3 +3230,140 @@ input[type="number"] {
   color: var(--agri-orange-text);
   margin-top: 2px;
 }
+
+/* Allocation by farm size (Distribution form, Commodities page). */
+.agri-field-hint {
+  font-size: 0.72rem;
+  color: var(--agri-text-muted);
+  margin-top: 4px;
+}
+.agri-unit-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.agri-unit-input .form-control {
+  padding-right: 84px;
+}
+.agri-unit-input-unit {
+  position: absolute;
+  right: 10px;
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--agri-text-muted);
+  pointer-events: none;
+}
+.agri-unit-input .form-control.is-invalid {
+  background-image: none;
+}
+.agri-beneficiary-table-wrap-form {
+  max-height: 340px;
+  overflow-x: auto;
+}
+.agri-beneficiary-table-wrap-form .agri-table td {
+  vertical-align: top;
+}
+.agri-beneficiary-adjusted td {
+  border-bottom: none;
+}
+/* Phones: crop and farm size move under the farmer's name, so the quantity
+   column stays in view. */
+.agri-beneficiary-farm-inline {
+  display: none;
+}
+@media (max-width: 575.98px) {
+  .agri-beneficiary-table-wrap-form .agri-col-farm {
+    display: none;
+  }
+  .agri-beneficiary-farm-inline {
+    display: block;
+  }
+  .agri-beneficiary-table-wrap-form .agri-beneficiary-qty-cell {
+    white-space: normal;
+  }
+  .agri-beneficiary-table-wrap-form .agri-tag-adjusted {
+    display: table;
+    margin: 4px 0 0;
+  }
+}
+.agri-beneficiary-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+}
+.agri-beneficiary-name .agri-pill {
+  font-size: 0.66rem;
+  padding: 1px 7px;
+}
+.agri-beneficiary-meta {
+  font-size: 0.72rem;
+  color: var(--agri-text-muted);
+  line-height: 1.35;
+}
+.agri-beneficiary-qty-cell {
+  white-space: nowrap;
+}
+.agri-beneficiary-qty-cell .agri-beneficiary-qty-input {
+  width: 78px;
+}
+.agri-beneficiary-sub {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--agri-text-muted);
+  margin-top: 2px;
+}
+.agri-tag-adjusted {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  vertical-align: middle;
+  background: var(--agri-blue-bg);
+  color: var(--agri-blue-text);
+}
+.agri-beneficiary-reason-row td {
+  padding-top: 0;
+  border-top: none;
+}
+.agri-beneficiary-reason-input {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  border: 1px solid var(--agri-border-strong);
+  border-radius: 6px;
+  background: var(--agri-card);
+  color: var(--agri-text);
+}
+.agri-beneficiary-reason-input.is-invalid {
+  border-color: var(--agri-red);
+}
+.agri-adjusted-note {
+  font-size: 0.72rem;
+  color: var(--agri-blue-text);
+  margin-top: 2px;
+}
+.agri-allocation-info {
+  font-size: 0.75rem;
+  color: var(--agri-text-muted);
+  margin: -8px 0 12px;
+}
+.agri-add-eligible-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+.agri-add-eligible-result {
+  font-size: 0.75rem;
+  color: var(--agri-text-muted);
+}
+.agri-mshell .agri-beneficiary-reason-input {
+  font-size: 16px;
+}

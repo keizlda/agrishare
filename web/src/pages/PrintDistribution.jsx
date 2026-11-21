@@ -6,6 +6,7 @@ import { getDistribution, listPrintBeneficiaries } from "../lib/api/distribution
 import { friendlyError } from "../lib/friendlyError.js";
 import { acknowledgementLabel, dateReceived } from "../lib/distributionStatus.js";
 import { formatDate, formatDateLong } from "../lib/dates.js";
+import { formatBags } from "../lib/allocation.js";
 
 const STATUS_DOT = {
   Ongoing: "#f08c00",
@@ -80,7 +81,10 @@ export default function PrintDistribution() {
             {d.items.map((item) => (
               <tr key={item.name}>
                 <td>{item.name}</td>
-                <td className="pr-num">{item.quantity.toLocaleString()}</td>
+                <td className="pr-num">
+                  {item.quantity.toLocaleString()}
+                  {formatBags(item.quantity, item.packSize) && <span className="pr-sub">{formatBags(item.quantity, item.packSize)}</span>}
+                </td>
                 <td className="pr-col-pad-left">{item.unit}</td>
               </tr>
             ))}
@@ -122,6 +126,10 @@ function Signatures() {
 function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
   const farmerCount = new Set(beneficiaries.map((b) => b.farmerId)).size;
   const totalQty = beneficiaries.reduce((sum, b) => sum + b.quantity, 0);
+  // Each farmer counted once, even when tagged for more than one commodity.
+  const sizes = new Map(beneficiaries.map((b) => [b.farmerId, b.farmSize || 0]));
+  const totalHectares = Math.round([...sizes.values()].reduce((sum, n) => sum + n, 0) * 100) / 100;
+  const hectares = (n) => (n > 0 ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
   const sameUnit = beneficiaries.length > 0 && beneficiaries.every((b) => b.unit === beneficiaries[0].unit);
   const acknowledgement = acknowledgementLabel(d);
   const received = dateReceived(d);
@@ -141,6 +149,7 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
             <col className="pr-bcol-rsbsa" />
             <col className="pr-bcol-sex" />
             <col className="pr-bcol-commodity" />
+            <col className="pr-bcol-farm" />
             <col className="pr-bcol-qty" />
             <col className="pr-bcol-unit" />
             <col className="pr-bcol-ack" />
@@ -154,6 +163,7 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
               <th>RSBSA No.</th>
               <th className="pr-bnarrow">Sex</th>
               <th>Commodity</th>
+              <th className="pr-num">Farm Size (ha)</th>
               <th className="pr-num">Qty Received</th>
               <th className="pr-bnarrow">Unit</th>
               <th>Acknow&shy;ledgement</th>
@@ -169,7 +179,11 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
                 <td className="pr-nowrap">{b.rsbsaNo}</td>
                 <td className="pr-bnarrow">{b.sex}</td>
                 <td>{b.commodity}</td>
-                <td className="pr-num">{b.quantity.toLocaleString()}</td>
+                <td className="pr-num">{hectares(b.farmSize)}</td>
+                <td className="pr-num">
+                  {b.quantity.toLocaleString()}
+                  {formatBags(b.quantity, b.packSize) && <span className="pr-sub">{formatBags(b.quantity, b.packSize)}</span>}
+                </td>
                 <td className="pr-bnarrow">{b.unit}</td>
                 <td className="pr-nowrap">{acknowledgement}</td>
                 <td className="pr-nowrap">{received}</td>
@@ -178,6 +192,7 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
             ))}
             <tr className="pr-items-total">
               <td colSpan={5}>Total: {farmerCount} {farmerCount === 1 ? "farmer" : "farmers"}</td>
+              <td className="pr-num">{hectares(totalHectares)}</td>
               <td className="pr-num">{totalQty.toLocaleString()}</td>
               <td className="pr-bnarrow">{sameUnit ? beneficiaries[0].unit : ""}</td>
               <td colSpan={3} />

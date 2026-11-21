@@ -20,10 +20,37 @@ import { formatQuantity } from "../lib/quantity.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
+const numberText = (n) => (n === null || n === undefined ? "" : String(n));
+
 // Inline edit (Commodity Details card): the fields that become inputs.
 function editFormFor(commodity) {
-  return { name: commodity.name, category: commodity.category, unit: commodity.unit ?? "kg", status: commodity.status };
+  return {
+    name: commodity.name,
+    category: commodity.category,
+    unit: commodity.unit ?? "kg",
+    status: commodity.status,
+    allocationPerHectare: numberText(commodity.allocationPerHectare),
+    packSize: numberText(commodity.packSize),
+    maxPerFarmer: numberText(commodity.maxPerFarmer),
+  };
 }
+
+// The allocation fields: optional, but when filled a number above 0 with at
+// most 2 decimals (the database stores numeric(10, 2) and refuses 0 or less).
+const ALLOCATION_FIELDS = [
+  ["allocationPerHectare", "allocation per hectare"],
+  ["packSize", "pack size"],
+  ["maxPerFarmer", "maximum per farmer"],
+];
+function allocationFieldError(text, label) {
+  const t = text.trim();
+  if (!t) return null;
+  const article = /^[aeiou]/i.test(label) ? "an" : "a";
+  if (!/^\d+(\.\d{1,2})?$/.test(t) || !(Number(t) > 0)) return `Enter ${article} ${label} greater than 0 (up to 2 decimals), or leave it blank.`;
+  if (Number(t) >= 100000000) return `Enter a smaller ${label}.`;
+  return null;
+}
+const blankToNull = (text) => (text.trim() ? Number(text.trim()) : null);
 
 const MAX_NAME_LENGTH = 80;
 const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -43,7 +70,17 @@ function validateEdit(form, others) {
   const name = nameError(form.name, others);
   if (name) errors.name = name;
   if (!form.unit.trim()) errors.unit = "Enter a unit, e.g. kg, bag or set.";
+  for (const [key, label] of ALLOCATION_FIELDS) {
+    const problem = allocationFieldError(form[key], label);
+    if (problem) errors[key] = problem;
+  }
   return errors;
+}
+
+// "40 kg/ha", "20 kg per bag", "60 kg" — or a muted "Not set".
+function AllocationValue({ value, suffix }) {
+  if (value === null || value === undefined) return <span className="agri-muted">Not set</span>;
+  return `${Number(value).toLocaleString()} ${suffix}`;
 }
 
 export default function Commodities() {
@@ -131,7 +168,15 @@ export default function Commodities() {
     if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
-      const saved = await updateCommodity(selected.id, { name: edit.name.trim().replace(/\s+/g, " "), category: edit.category, unit: edit.unit.trim(), status: edit.status });
+      const saved = await updateCommodity(selected.id, {
+        name: edit.name.trim().replace(/\s+/g, " "),
+        category: edit.category,
+        unit: edit.unit.trim(),
+        status: edit.status,
+        allocationPerHectare: blankToNull(edit.allocationPerHectare),
+        packSize: blankToNull(edit.packSize),
+        maxPerFarmer: blankToNull(edit.maxPerFarmer),
+      });
       setCommodities((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
       stopEditing();
       setToast({ tone: "success", message: "Commodity updated." });
@@ -261,12 +306,24 @@ export default function Commodities() {
                   <EditField label="Unit" id="commodity-unit" error={editErrors.unit}>
                     <input id="commodity-unit" className={`form-control form-control-sm${editErrors.unit ? " is-invalid" : ""}`} value={edit.unit} onChange={(e) => updateField("unit", e.target.value)} disabled={saving} placeholder="e.g. kg, bag, set" />
                   </EditField>
+                  <EditField label="Allocation per Hectare" id="commodity-allocation" error={editErrors.allocationPerHectare} hint="Each farmer's quantity in a distribution = farm size × this. Leave blank to split the total equally.">
+                    <UnitInput id="commodity-allocation" unit={`${edit.unit.trim() || "kg"}/ha`} value={edit.allocationPerHectare} invalid={!!editErrors.allocationPerHectare} onChange={(v) => updateField("allocationPerHectare", v)} disabled={saving} placeholder="e.g. 40" />
+                  </EditField>
+                  <EditField label="Pack Size" id="commodity-pack-size" error={editErrors.packSize} hint="Optional. Shows bags next to quantities, e.g. 50 kg (2.5 bags).">
+                    <UnitInput id="commodity-pack-size" unit={`${edit.unit.trim() || "kg"} per bag`} value={edit.packSize} invalid={!!editErrors.packSize} onChange={(v) => updateField("packSize", v)} disabled={saving} placeholder="e.g. 20" />
+                  </EditField>
+                  <EditField label="Maximum per Farmer" id="commodity-max" error={editErrors.maxPerFarmer} hint="Optional cap on one farmer's computed quantity.">
+                    <UnitInput id="commodity-max" unit={edit.unit.trim() || "kg"} value={edit.maxPerFarmer} invalid={!!editErrors.maxPerFarmer} onChange={(v) => updateField("maxPerFarmer", v)} disabled={saving} placeholder="No cap" />
+                  </EditField>
                 </>
               ) : (
                 <>
                   <div className="agri-detail-row"><div><div className="agri-detail-label">Name</div>{selected.name}</div></div>
                   <div className="agri-detail-row"><div><div className="agri-detail-label">Category</div>{selected.category}</div></div>
                   <div className="agri-detail-row"><div><div className="agri-detail-label">Unit</div>{selected.unit}</div></div>
+                  <div className="agri-detail-row"><div><div className="agri-detail-label">Allocation per Hectare</div><AllocationValue value={selected.allocationPerHectare} suffix={`${selected.unit}/ha`} /></div></div>
+                  <div className="agri-detail-row"><div><div className="agri-detail-label">Pack Size</div><AllocationValue value={selected.packSize} suffix={`${selected.unit} per bag`} /></div></div>
+                  <div className="agri-detail-row"><div><div className="agri-detail-label">Maximum per Farmer</div><AllocationValue value={selected.maxPerFarmer} suffix={selected.unit} /></div></div>
                 </>
               )}
               <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{formatQuantity(selectedDistributedQty, selected.unit)}</div></div>
@@ -364,14 +421,32 @@ export default function Commodities() {
 
 // One field of the inline edit form, laid out like a detail row so each
 // input sits where its value was; the error shows right under the input.
-function EditField({ label, id, error, children }) {
+function EditField({ label, id, error, hint, children }) {
   return (
     <div className="agri-detail-row">
       <div style={{ flex: 1 }}>
         <label className="agri-detail-label" htmlFor={id}>{label}</label>
         {children}
-        {error && <div className="invalid-feedback d-block">{error}</div>}
+        {error ? <div className="invalid-feedback d-block">{error}</div> : hint && <div className="agri-field-hint">{hint}</div>}
       </div>
+    </div>
+  );
+}
+
+// A number input with its unit shown inside the box on the right ("kg/ha").
+function UnitInput({ id, unit, value, invalid, onChange, disabled, placeholder }) {
+  return (
+    <div className={`agri-unit-input${invalid ? " is-invalid" : ""}`}>
+      <input
+        id={id}
+        inputMode="decimal"
+        className={`form-control form-control-sm${invalid ? " is-invalid" : ""}`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        placeholder={placeholder}
+      />
+      <span className="agri-unit-input-unit" aria-hidden="true">{unit}</span>
     </div>
   );
 }

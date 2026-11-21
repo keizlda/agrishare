@@ -1,11 +1,14 @@
 import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 import { todayIso } from "../dates.js";
+import { farmSummary } from "./farmers.js";
 
 const SELECT = `
   event_id, program_name, event_date, venue, barangay, funding_source, status, completed_at, remarks, beneficiaries_count,
-  distribution_event_items ( event_item_id, commodity_id, quantity_allocated, commodities ( name, category, unit ) )
+  distribution_event_items ( event_item_id, commodity_id, quantity_allocated, commodities ( name, category, unit, pack_size ) )
 `;
+
+const numberOrNull = (v) => (v === null || v === undefined ? null : Number(v));
 
 function mapDistribution(row, summary) {
   const items = (row.distribution_event_items ?? []).map((i) => ({
@@ -14,6 +17,7 @@ function mapDistribution(row, summary) {
     name: i.commodities?.name ?? "",
     quantity: Number(i.quantity_allocated),
     unit: i.commodities?.unit ?? "kg",
+    packSize: numberOrNull(i.commodities?.pack_size),
   }));
   const taggedCount = summary?.tagged_count ?? 0;
   return {
@@ -70,25 +74,41 @@ export async function getDistribution(eventId) {
 // Beneficiary tagging (Phase 2)
 // ---------------------------------------------------------------------------
 const BENEFICIARY_SELECT = `
-  claim_id, farmer_id, quantity_received, duplicate_override_reason,
-  farmers ( rsbsa_no, first_name, surname, deleted_at, addresses ( barangay ), profiles!profile_id ( avatar_url ) )
+  claim_id, farmer_id, commodity_id, quantity_received, duplicate_override_reason, farm_size_hectares, quantity_adjusted, adjustment_reason,
+  commodities ( unit, pack_size ),
+  farmers ( rsbsa_no, first_name, surname, status, deleted_at, addresses ( barangay, street ),
+    farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ) )
 `;
 
 // A deleted farmer's past distribution record is kept (never hidden here —
 // see friendlyError.js's sibling rule in the Farmers page for the "hide
 // deleted everywhere else" half of this), just flagged so the Distributions
 // detail panel can show "(removed)" next to their name.
+// farmSize is the size the quantity was computed from (kept on the claim);
+// claims saved before that existed fall back to the farmer's current size.
 function mapBeneficiary(row) {
+  const address = row.farmers?.addresses?.[0];
+  const current = farmSummary(row.farmers?.farm_parcels);
   return {
     claimId: row.claim_id,
     farmerId: row.farmer_id,
+    commodityId: row.commodity_id,
     firstName: row.farmers?.first_name ?? "",
     lastName: row.farmers?.surname ?? "",
     rsbsaNo: row.farmers?.rsbsa_no ?? "",
-    barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
+    barangay: address?.barangay ?? "Langapud",
+    sitioPurok: address?.street ?? "",
+    cropType: current.cropType,
+    farmSize: row.farm_size_hectares != null ? Number(row.farm_size_hectares) : current.farmSize,
+    currentFarmSize: current.farmSize,
+    status: dbStatusToLabel(row.farmers?.status ?? "active"),
     avatarUrl: row.farmers?.profiles?.avatar_url ?? null,
     farmerDeleted: !!row.farmers?.deleted_at,
     quantity: Number(row.quantity_received),
+    unit: row.commodities?.unit ?? "kg",
+    packSize: numberOrNull(row.commodities?.pack_size),
+    adjusted: !!row.quantity_adjusted,
+    adjustmentReason: row.adjustment_reason ?? "",
     overrideReason: row.duplicate_override_reason,
   };
 }
@@ -130,9 +150,9 @@ export async function listFarmerDistributionHistory(farmerId) {
 // surname. Deleted farmers are deliberately included, since this is a record
 // of who received what.
 const PRINT_BENEFICIARY_SELECT = `
-  claim_id, farmer_id, quantity_received,
-  farmers ( rsbsa_no, first_name, middle_name, surname, extension_name, sex ),
-  commodities ( name, unit )
+  claim_id, farmer_id, quantity_received, farm_size_hectares,
+  farmers ( rsbsa_no, first_name, middle_name, surname, extension_name, sex, farm_parcels ( farm_size_hectares ) ),
+  commodities ( name, unit, pack_size )
 `;
 
 function masterlistName(f) {
@@ -156,6 +176,8 @@ export async function listPrintBeneficiaries(eventId) {
       sex: row.farmers?.sex === "male" ? "M" : row.farmers?.sex === "female" ? "F" : "",
       commodity: row.commodities?.name ?? "",
       unit: row.commodities?.unit ?? "kg",
+      packSize: numberOrNull(row.commodities?.pack_size),
+      farmSize: row.farm_size_hectares != null ? Number(row.farm_size_hectares) : farmSummary(row.farmers?.farm_parcels).farmSize,
       quantity: Number(row.quantity_received),
     }))
     .sort((a, b) => a.surname.localeCompare(b.surname) || a.firstName.localeCompare(b.firstName) || a.commodity.localeCompare(b.commodity));
@@ -217,6 +239,35 @@ export async function checkDuplicateDistribution({ farmerId, commodityId, progra
   return { eventId: row.event_id, program: row.program_name, date: row.event_date, quantity: Number(row.quantity_received) };
 }
 
+// "Add all eligible farmers": Active farmers whose crop matches the
+// commodity's category, each with their farm data and — when a program is
+// given — the same-commodity/program/year distribution they already got.
+// MAO Admin only (the database returns nothing to anyone else).
+export async function listEligibleFarmers({ commodityId, programName, year, excludeEventId }) {
+  const { data, error } = await supabase.rpc("distribution_eligible_farmers", {
+    p_commodity_id: commodityId,
+    p_program_name: programName || null,
+    p_year: year,
+    p_exclude_event_id: excludeEventId ?? null,
+  });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.farmer_id,
+    rsbsaNo: r.rsbsa_no,
+    firstName: r.first_name,
+    lastName: r.surname,
+    barangay: r.barangay ?? "Langapud",
+    sitioPurok: r.sitio_purok ?? "",
+    cropType: r.crop_type ?? "",
+    farmSize: Number(r.farm_size_hectares) || 0,
+    avatarUrl: r.avatar_url ?? null,
+    status: "Active",
+    duplicate: r.duplicate_program
+      ? { program: r.duplicate_program, date: r.duplicate_date, quantity: Number(r.duplicate_quantity) }
+      : null,
+  }));
+}
+
 export async function markAllBeneficiariesReceived(eventId) {
   const { error } = await supabase.rpc("mark_all_beneficiaries_received", { p_event_id: eventId });
   if (error) throw error;
@@ -225,14 +276,17 @@ export async function markAllBeneficiariesReceived(eventId) {
 // Both saves go through save_distribution (database function): the event,
 // its item and the full list of tagged farmers are written in one
 // transaction, so nothing is half-saved if the connection drops.
-// taggedBeneficiaries: [{ farmerId, quantity, overrideReason }] — when
-// non-empty, its quantities are the item's total and beneficiaries_count
-// follows the list; an empty list removes every tagged farmer.
+// taggedBeneficiaries: [{ farmerId, quantity, overrideReason,
+// adjustmentReason }] — when non-empty, its quantities are the item's total
+// and beneficiaries_count follows the list; an empty list removes every
+// tagged farmer. A quantity that differs from farm size × allocation per
+// hectare needs its adjustmentReason (the database refuses it otherwise).
 const toBeneficiaryPayload = (list) =>
   list.map((b) => ({
     farmer_id: b.farmerId,
     quantity_received: b.quantity,
     duplicate_override_reason: b.overrideReason || null,
+    adjustment_reason: b.adjustmentReason || null,
   }));
 
 async function readDistribution(eventId) {
