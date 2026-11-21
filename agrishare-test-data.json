@@ -37,7 +37,8 @@
     { "rsbsa_number": "09-73-00-000-000225", "login_id": "000225", "first_name": "Edgar", "middle_name": "Calibo", "last_name": "Paglinawan", "sex": "Male", "birth_date": "1982-05-17", "contact_number": "09761222029", "sitio_purok": "Purok 3", "barangay": "Langapud", "municipality": "Labangan", "province": "Zamboanga del Sur", "commodity": "Vegetables", "farm_size_ha": 0.55, "farm_location": "Purok 3", "ownership": "Lessee", "pcic_insured": true, "status": "Active", "password": "password123" }
   ],
   "commodities": [
-    { "name": "Rice Seeds (NSIC Rc222)", "category": "Rice", "unit": "kg", "status": "Active" },
+    { "name": "Rice Seeds (NSIC Rc222)", "category": "Rice", "unit": "kg", "status": "Active", "allocation_per_hectare": 40, "pack_size": 20 },
+    { "name": "Hybrid Rice Seeds", "category": "Rice", "unit": "kg", "status": "Active", "allocation_per_hectare": 15 },
     { "name": "Corn Seeds", "category": "Corn", "unit": "kg", "status": "Active" },
     { "name": "Vegetable Seeds", "category": "Vegetables", "unit": "kg", "status": "Active" },
     { "name": "Organic Fertilizer", "category": "Fertilizer", "unit": "kg", "status": "Active" },
@@ -145,6 +146,19 @@
         { "rsbsa_number": "09-73-00-000-000204", "name": "Josefina Pacatang", "quantity_received": 25 },
         { "rsbsa_number": "09-73-00-000-000208", "name": "Leonora Taghoy", "quantity_received": 25 }
       ]
+    },
+    {
+      "date": "2026-11-20", "program_name": "RCEF Seed Distribution - Allocation by Farm Size", "crop_type": "Rice", "commodity": "Rice Seeds (NSIC Rc222)",
+      "venue": "Langapud Barangay Hall", "barangay": "Langapud", "funding_source": "DA-RCEF", "status": "Ongoing",
+      "allocation": "farm_size", "total_quantity": "sum of the farmers' quantities",
+      "beneficiaries": [
+        { "rsbsa_number": "09-73-00-000-000201", "name": "Rodel Bagas", "quantity_received": "farm size x allocation" },
+        { "rsbsa_number": "09-73-00-000-000202", "name": "Marites Cabahug", "quantity_received": "farm size x allocation" },
+        { "rsbsa_number": "09-73-00-000-000204", "name": "Josefina Pacatang", "quantity_received": "farm size x allocation" },
+        { "rsbsa_number": "09-73-00-000-000208", "name": "Leonora Taghoy", "quantity_received": "farm size x allocation" },
+        { "rsbsa_number": "09-73-00-000-000209", "name": "Dionisio Omay", "quantity_received": 100, "adjustment_reason": "Part of the field is flooded; replanting 2.5 ha only." },
+        { "rsbsa_number": "09-73-00-000-000224", "name": "Lorna Sumampong", "quantity_received": "farm size x allocation" }
+      ]
     }
   ],
   "proof_of_planting_submissions": [
@@ -172,6 +186,22 @@
     { "rsbsa_number": "09-73-00-000-000201", "farmer": "Rodel Bagas", "commodity": "Vegetable Seeds", "quantity": 2, "request_date": "2026-10-09", "status": "Rejected", "remarks": "Not enough supply this season." },
     { "rsbsa_number": "09-73-00-000-000202", "farmer": "Marites Cabahug", "commodity": "Farm Tools Set", "quantity": 1, "request_date": "2026-10-11", "status": "Pending FA review", "remarks": "" },
     { "rsbsa_number": "09-73-00-000-000203", "farmer": "Arnel Dacalos", "commodity": "Urea Fertilizer (46-0-0)", "quantity": 25, "request_date": "2026-10-13", "status": "Forwarded to MAO", "remarks": "" }
+  ],
+  "farmer_requests_filed_by_fa": [
+    { "rsbsa_number": "09-73-00-000-000537", "farmer": "Maui Pelaez", "commodity": "Hybrid Rice Seeds", "quantity": 150, "reason": "Filed at the barangay hall: no phone signal in Maui's sitio.", "request_date": "2026-11-12", "status": "Endorsed", "remarks": "" },
+    { "rsbsa_number": "09-73-00-000-000612", "farmer": "Claude Oclarit", "commodity": "Rice Seeds (NSIC Rc222)", "quantity": "suggested", "reason": "Filed during the FA meeting for the wet season replanting.", "request_date": "2026-11-13", "status": "Approved", "remarks": "Release with the next RCEF batch." },
+    { "rsbsa_number": "09-73-00-000-000389", "farmer": "Luna Cuizon", "commodity": "Rice Seeds (NSIC Rc222)", "quantity": 200, "reason": "Filed at the barangay hall for the next planting.", "request_date": "2026-11-14", "status": "Rejected", "remarks": "Already received seeds in October; request again next season." },
+    { "rsbsa_number": "09-73-00-000-000204", "farmer": "Josefina Pacatang", "commodity": "Rice Seeds (NSIC Rc222)", "quantity": "suggested", "reason": "Josefina has no phone; filed for her at the barangay hall.", "request_date": "2026-11-16", "status": "Endorsed", "remarks": "" }
+  ],
+  "association_requests": [
+    { "type": "Machinery", "title": "Hand tractor for Purok 3 rice farmers", "item": "Hand tractor", "quantity": 1, "estimated_beneficiaries": 18, "preferred_date": "2027-01-15", "submitted_at": "2026-11-10T09:00:00+08:00", "status": "Pending", "remarks": "",
+      "description": "One shared hand tractor for land preparation. The 18 rice farmers in Purok 3 currently rent one from the town proper." },
+    { "type": "Machinery", "title": "Rice thresher for the association", "item": "Rice thresher", "quantity": 1, "estimated_beneficiaries": 25, "preferred_date": "2027-02-01", "submitted_at": "2026-11-03T09:00:00+08:00", "status": "Under review", "remarks": "Checking with the DA mechanization program.",
+      "description": "A rice thresher for the coming harvest so members don't lose grain waiting for a rented unit." },
+    { "type": "Project", "title": "Irrigation canal repair, Sitio Tagbak", "item": "Irrigation", "quantity": null, "estimated_beneficiaries": 30, "preferred_date": "2027-03-01", "submitted_at": "2026-10-20T09:00:00+08:00", "status": "Approved", "remarks": "Approved under the LGU 2027 irrigation budget.",
+      "description": "The canal serving Sitio Tagbak collapsed in two places during the October rains; 30 farms depend on it." },
+    { "type": "Other", "title": "Training on organic fertilizer making", "item": null, "quantity": null, "estimated_beneficiaries": 25, "preferred_date": "2027-01-20", "submitted_at": "2026-10-28T09:00:00+08:00", "status": "Rejected", "remarks": "Please coordinate with ATI for the training instead.",
+      "description": "A one-day hands-on training so members can make their own organic fertilizer." }
   ],
   "announcements": [
     {

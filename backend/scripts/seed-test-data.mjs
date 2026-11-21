@@ -20,6 +20,13 @@
 // reviewed; a request goes pending -> forwarded -> decided; beneficiaries are
 // tagged onto a distribution), and the resulting notifications are backdated
 // to when that step "happened".
+//
+// Review suggestions (Nov 2026): commodities carry an allocation per hectare
+// (Rice Seeds 40 kg/ha in 20 kg bags, Hybrid Rice Seeds 15 kg/ha); one
+// distribution's quantities follow farm size × allocation (one adjusted, with
+// its reason); the FA President files requests on farmers' behalf (Maui,
+// Claude, Luna and a seeded farmer — new request rows that only reference
+// them); and the FA President sends association requests in every status.
 import sharp from "sharp";
 import fs from "node:fs";
 import {
@@ -65,6 +72,16 @@ function plusDays(iso, days, hhmm) {
   const d = new Date(new Date(iso).getTime() + days * 86_400_000);
   const local = new Date(d.getTime() + 8 * 3_600_000).toISOString().slice(0, 10);
   return at(local, hhmm);
+}
+
+// Farm size × allocation per hectare, capped, 2 decimals — the same rounding
+// as commodity_allocation() in the database (worked in hundredths).
+function allocationFor(commodity, farmSize) {
+  const rate = Number(commodity?.allocation_per_hectare);
+  if (!(rate > 0)) return null;
+  let h = Math.round((Math.round(Number(farmSize) * 100) * Math.round(rate * 100)) / 100);
+  if (Number(commodity.max_per_farmer) > 0) h = Math.min(h, Math.round(Number(commodity.max_per_farmer) * 100));
+  return h / 100;
 }
 
 const loginIdFromRsbsa = (rsbsa) => rsbsa.replace(/\D/g, "").slice(-6);
@@ -181,23 +198,45 @@ async function main() {
   const commodityId = new Map();
   for (const c of data.commodities) {
     const name = c.name.replace(/[%_\\]/g, "\\$&");
-    const row = await maybeOne(sb.from("commodities").select("commodity_id, name, category, unit, status").ilike("name", name).is("deleted_at", null), `commodity ${c.name}`);
+    const row = await maybeOne(sb.from("commodities").select("commodity_id, name, category, unit, status, allocation_per_hectare, pack_size").ilike("name", name).is("deleted_at", null), `commodity ${c.name}`);
     if (row) {
       commodityId.set(c.name, row.commodity_id);
       const ours = ledger.commodities.some((x) => x.commodity_id === row.commodity_id);
-      const diffs = [["category", row.category, c.category], ["unit", row.unit, c.unit], ["status", row.status, lower(c.status)]]
+      const num = (v) => (v == null ? null : Number(v));
+      const diffs = [["category", row.category, c.category], ["unit", row.unit, c.unit], ["status", row.status, lower(c.status)],
+        ["allocation per hectare", num(row.allocation_per_hectare), c.allocation_per_hectare ?? null], ["pack size", num(row.pack_size), c.pack_size ?? null]]
         .filter(([, a, b]) => a !== b).map(([k, a, b]) => `${k} ${a} (JSON: ${b})`);
       if (!ours) log(`Commodity reused (existing, not modified): ${row.name}${diffs.length ? ` — differs: ${diffs.join(", ")}` : ""}`);
       continue;
     }
     if (DRY) { log(`Commodity: would insert ${c.name}`); commodityId.set(c.name, `(new ${c.name})`); continue; }
-    const ins = await must(sb.from("commodities").insert({ name: c.name, category: c.category, unit: c.unit, status: lower(c.status) }).select("commodity_id").single(), `insert commodity ${c.name}`);
+    const ins = await must(sb.from("commodities").insert({
+      name: c.name, category: c.category, unit: c.unit, status: lower(c.status),
+      allocation_per_hectare: c.allocation_per_hectare ?? null, pack_size: c.pack_size ?? null, max_per_farmer: c.max_per_farmer ?? null,
+    }).select("commodity_id").single(), `insert commodity ${c.name}`);
     commodityId.set(c.name, ins.commodity_id);
     remember(ledger.commodities, { commodity_id: ins.commodity_id, name: c.name }, "commodity_id");
     bump("commodities");
     log(`Commodity inserted: ${c.name}`);
   }
   if (!DRY) saveLedger(ledger);
+
+  // Allocation rule per commodity: the database's (what the app uses) when it
+  // has one, otherwise the JSON's (a dry run before the migration).
+  const rateOf = new Map();
+  for (const c of data.commodities) {
+    const id = commodityId.get(c.name);
+    const row = typeof id === "number" ? await maybeOne(sb.from("commodities").select("allocation_per_hectare, max_per_farmer").eq("commodity_id", id), `rate ${c.name}`) : null;
+    rateOf.set(c.name, row?.allocation_per_hectare != null ? row : { allocation_per_hectare: c.allocation_per_hectare ?? null, max_per_farmer: c.max_per_farmer ?? null });
+  }
+  // A farmer's total farm size: the JSON's for seeded farmers (one parcel of
+  // that size), read from their parcels for existing ones.
+  const seededSize = new Map(data.farmers.map((f) => [f.rsbsa_number, Number(f.farm_size_ha)]));
+  const farmSizeOf = async (rsbsa, farmerId) => {
+    if (seededSize.has(rsbsa)) return seededSize.get(rsbsa);
+    const parcels = await must(sb.from("farm_parcels").select("farm_size_hectares").eq("farmer_id", farmerId), `farm size ${rsbsa}`);
+    return Math.round(parcels.reduce((a, p) => a + (Number(p.farm_size_hectares) || 0), 0) * 100) / 100;
+  };
 
   // ---------- Farmers + addresses + parcels + crops + login accounts ----------
   for (const f of data.farmers) {
@@ -314,7 +353,29 @@ async function main() {
     // Marked Completed on the afternoon of the distribution (the database
     // would otherwise stamp the time of the insert).
     const completedAt = completed ? cap(at(d.date, "16:00")) : null;
-    if (DRY) { log(`Distribution: ${ev ? "exists" : "would insert"} ${d.program_name} ${d.date} (${d.status}) with ${d.beneficiaries.length} beneficiaries`); continue; }
+    // "allocation": "farm_size" — each quantity is farm size × allocation per
+    // hectare; a number in the JSON instead is an adjusted quantity and needs
+    // its adjustment_reason (as the app requires).
+    let plan = null;
+    if (d.allocation === "farm_size") {
+      const rate = rateOf.get(d.commodity);
+      plan = new Map();
+      for (const b of d.beneficiaries) {
+        const size = await farmSizeOf(b.rsbsa_number, farmerByRsbsa.get(b.rsbsa_number).id);
+        const computed = allocationFor(rate, size);
+        if (computed == null) throw new Error(`${d.commodity} has no allocation per hectare, so "${d.program_name}" can't be computed.`);
+        const qty = typeof b.quantity_received === "number" ? b.quantity_received : computed;
+        const adjusted = qty !== computed;
+        if (adjusted && !b.adjustment_reason) throw new Error(`${b.name}: an adjusted quantity needs an adjustment_reason.`);
+        plan.set(b.rsbsa_number, { qty, size, adjusted, reason: adjusted ? b.adjustment_reason : null });
+      }
+    }
+    const totalQuantity = plan ? Math.round([...plan.values()].reduce((a, p) => a + p.qty, 0) * 100) / 100 : d.total_quantity;
+    if (DRY) {
+      const how = plan ? ` — by farm size: ${[...plan.values()].map((p) => `${p.size} ha → ${p.qty}${p.adjusted ? " (adjusted)" : ""}`).join(", ")} = ${totalQuantity}` : "";
+      log(`Distribution: ${ev ? "exists" : "would insert"} ${d.program_name} ${d.date} (${d.status}) with ${d.beneficiaries.length} beneficiaries${how}`);
+      continue;
+    }
     if (!ev) {
       ev = await must(sb.from("distribution_events").insert({
         program_name: d.program_name, event_date: d.date, venue: d.venue, barangay: d.barangay, funding_source: d.funding_source,
@@ -328,15 +389,19 @@ async function main() {
 
     let item = await maybeOne(sb.from("distribution_event_items").select("event_item_id").eq("event_id", ev.event_id).eq("commodity_id", cid), "event item");
     if (!item) {
-      item = await must(sb.from("distribution_event_items").insert({ event_id: ev.event_id, commodity_id: cid, quantity_allocated: d.total_quantity }).select("event_item_id").single(), "insert event item");
+      item = await must(sb.from("distribution_event_items").insert({ event_id: ev.event_id, commodity_id: cid, quantity_allocated: totalQuantity }).select("event_item_id").single(), "insert event item");
       remember(ledger.eventItems, item.event_item_id); bump("distribution_event_items");
     }
 
     const have = new Set((await must(sb.from("distribution_claims").select("farmer_id").eq("event_id", ev.event_id).eq("commodity_id", cid), "claims")).map((c) => c.farmer_id));
-    const rows = d.beneficiaries.filter((b) => !have.has(farmerByRsbsa.get(b.rsbsa_number).id)).map((b) => ({
-      event_id: ev.event_id, commodity_id: cid, farmer_id: farmerByRsbsa.get(b.rsbsa_number).id,
-      quantity_received: b.quantity_received, claimed_at: cap(tagTime),
-    }));
+    const rows = d.beneficiaries.filter((b) => !have.has(farmerByRsbsa.get(b.rsbsa_number).id)).map((b) => {
+      const p = plan?.get(b.rsbsa_number);
+      return {
+        event_id: ev.event_id, commodity_id: cid, farmer_id: farmerByRsbsa.get(b.rsbsa_number).id,
+        quantity_received: p ? p.qty : b.quantity_received, claimed_at: cap(tagTime),
+        ...(p ? { farm_size_hectares: p.size, quantity_adjusted: p.adjusted, adjustment_reason: p.reason } : {}),
+      };
+    });
     if (rows.length) {
       const claims = await must(sb.from("distribution_claims").insert(rows).select("claim_id"), `tag beneficiaries ${d.program_name}`);
       claims.forEach((c) => remember(ledger.claims, c.claim_id));
@@ -417,6 +482,73 @@ async function main() {
     await captureNotifs(adminAt, ["Your request was approved", "Your request was rejected"]);
   }
 
+  // ---------- Requests the FA President filed for farmers ----------
+  // Saved the way the app files them: filed_by and the endorsement are the
+  // FA President's, and the request goes straight to the MAO as Endorsed. The
+  // insert notifies the MAO and the farmer; Approved/Rejected ones are then
+  // decided by the MAO Admin. Existing farmers are only referenced.
+  const FILED_STATUS = { Endorsed: "forwarded", Approved: "approved", Rejected: "rejected" };
+  for (const r of data.farmer_requests_filed_by_fa ?? []) {
+    const fr = farmerByRsbsa.get(r.rsbsa_number);
+    const cid = commodityId.get(r.commodity);
+    const status = FILED_STATUS[r.status];
+    if (!fr) throw new Error(`Filed request for unknown farmer ${r.rsbsa_number}`);
+    if (!status) throw new Error(`Unknown filed-request status "${r.status}"`);
+    let qty = r.quantity;
+    if (qty === "suggested") {
+      qty = allocationFor(rateOf.get(r.commodity), await farmSizeOf(r.rsbsa_number, fr.id));
+      if (!(qty > 0)) throw new Error(`${r.farmer}: no suggested quantity for ${r.commodity} (no allocation per hectare or farm size).`);
+    }
+    const created = new Date(at(r.request_date, "09:30")).toISOString();
+    if (DRY || fr.dry || typeof cid !== "number" || !faId) { if (DRY) log(`Filed request: would insert ${r.farmer} → ${r.commodity} ${qty} (${r.status}, filed by the FA President)`); continue; }
+    const existing = await maybeOne(sb.from("requests").select("request_id").eq("farmer_id", fr.id).eq("commodity_id", cid).eq("created_at", created), `filed request ${r.farmer}`);
+    if (existing) continue;
+    const req = await must(sb.from("requests").insert({
+      farmer_id: fr.id, commodity_id: cid, quantity_requested: qty, reason: r.reason, status: "forwarded", created_at: created,
+      filed_by: faId, reviewed_by_fa: faId, fa_decision_at: created, forwarded_to_admin_at: created,
+    }).select("request_id").single(), `insert filed request ${r.farmer}`);
+    remember(ledger.requests, req.request_id);
+    bump("requests (filed by the FA President)");
+    saveLedger(ledger);
+    await captureNotifs(created, ["Request awaiting your review", "A request was filed for you"]);
+    if (status === "forwarded") continue;
+    const adminAt = cap(plusDays(created, 1, "14:00"));
+    await must(sb.from("requests").update({
+      status, mao_remarks: r.remarks || null, reviewed_by_mao: maoId, admin_decision_at: adminAt,
+    }).eq("request_id", req.request_id), `decide filed request ${r.farmer}`);
+    await captureNotifs(adminAt, ["Your request was approved", "Your request was rejected"]);
+  }
+
+  // ---------- Association requests (FA President → MAO) ----------
+  // Inserted Pending (notifies the MAO), then moved to their status by the
+  // MAO Admin (notifies the FA President). Matched on title + requester.
+  const ASSOC_TYPE = { Machinery: "machinery", Project: "project", Other: "other" };
+  const ASSOC_STATUS = { Pending: "pending", "Under review": "under_review", Approved: "approved", Rejected: "rejected" };
+  for (const a of data.association_requests ?? []) {
+    const type = ASSOC_TYPE[a.type];
+    const status = ASSOC_STATUS[a.status];
+    if (!type || !status) throw new Error(`Association request "${a.title}": unknown type or status`);
+    if (DRY || !faId) { if (DRY) log(`Association request: would insert "${a.title}" (${a.type}, ${a.status})`); continue; }
+    const existing = await maybeOne(sb.from("association_requests").select("association_request_id").eq("requested_by", faId).eq("title", a.title), `association request ${a.title}`);
+    if (existing) continue;
+    const submitted = cap(a.submitted_at);
+    const row = await must(sb.from("association_requests").insert({
+      request_type: type, title: a.title, description: a.description, item: a.item ?? null, quantity: a.quantity ?? null,
+      estimated_beneficiaries: a.estimated_beneficiaries ?? null, preferred_date: a.preferred_date ?? null,
+      requested_by: faId, created_at: submitted, updated_at: submitted,
+    }).select("association_request_id").single(), `insert association request ${a.title}`);
+    remember(ledger.associationRequests, { association_request_id: row.association_request_id, title: a.title }, "association_request_id");
+    bump("association_requests");
+    saveLedger(ledger);
+    await captureNotifs(submitted, ["New association request"]);
+    if (status === "pending") continue;
+    const reviewedAt = cap(plusDays(submitted, 3, "10:00"));
+    await must(sb.from("association_requests").update({
+      status, admin_remarks: a.remarks || null, reviewed_by: maoId, reviewed_at: reviewedAt,
+    }).eq("association_request_id", row.association_request_id), `review association request ${a.title}`);
+    await captureNotifs(reviewedAt, ["Association request under review", "Association request approved", "Association request rejected"]);
+  }
+
   // ---------- Announcements ----------
   for (const a of data.announcements) {
     const existing = await maybeOne(sb.from("announcements").select("announcement_id").eq("title", a.title), `announcement ${a.title}`);
@@ -456,6 +588,7 @@ async function main() {
       distribution_events: ledger.events.map((x) => x.event_id), distribution_event_items: ledger.eventItems,
       distribution_claims: ledger.claims, crop_validations: ledger.cropValidations.map((x) => x.validation_id),
       requests: ledger.requests, announcements: ledger.announcements.map((x) => x.announcement_id),
+      association_requests: ledger.associationRequests.map((x) => x.association_request_id),
     };
     for (const [table, pk] of Object.entries(AUDITED)) {
       for (const ids of chunk(idsFor[table].map(String))) {

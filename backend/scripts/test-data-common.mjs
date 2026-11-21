@@ -27,6 +27,7 @@ export const AUDITED = {
   crop_validations: "validation_id",
   requests: "request_id",
   announcements: "announcement_id",
+  association_requests: "association_request_id",
 };
 
 export function adminClient() {
@@ -67,7 +68,7 @@ export function emptyLedger() {
     note: "Rows/accounts/files created by backend/scripts/seed-test-data.mjs. Removed by cleanup-test-data.mjs.",
     authUsers: [], farmers: [], addresses: [], farmParcels: [], crops: [], commodities: [],
     events: [], eventItems: [], claims: [], cropValidations: [], requests: [], announcements: [],
-    notifications: [], auditLogs: [], storage: [],
+    associationRequests: [], notifications: [], auditLogs: [], storage: [],
   };
 }
 

@@ -10,7 +10,9 @@
 // the seeded accounts created while testing (requests, submissions, uploads,
 // tags on other distributions, audit entries). Maui Pelaez, Claude Oclarit
 // and Luna Cuizon and their own records are never touched — only the seeded
-// rows that reference them go. If a test account changed a real record
+// rows that reference them go (including requests the test FA President
+// filed on their behalf). Association requests sent by the test FA President
+// and their attachments go too. If a test account changed a real record
 // (e.g. the test FA President forwarded a real farmer's request), cleanup
 // stops and lists it instead of editing that record.
 import fs from "node:fs";
@@ -98,6 +100,12 @@ async function main() {
     if (row && row.name !== c.name) throw new StopError(`Commodity ${c.commodity_id} is now "${row.name}". Not deleting it.`);
   }
 
+  const assocRows = await selectIn("association_requests", "association_request_id, title", "association_request_id", ledger.associationRequests.map((a) => a.association_request_id));
+  for (const a of ledger.associationRequests) {
+    const row = assocRows.find((r) => r.association_request_id === a.association_request_id);
+    if (row && row.title !== a.title) throw new StopError(`Association request ${a.association_request_id} is now "${row.title}". Not deleting it.`);
+  }
+
   const cvRows = await selectIn("crop_validations", "validation_id, farmer_id", "validation_id", ledger.cropValidations.map((v) => v.validation_id));
   for (const v of ledger.cropValidations) {
     const row = cvRows.find((r) => r.validation_id === v.validation_id);
@@ -108,6 +116,13 @@ async function main() {
   const requestIds = [
     ...ledger.requests,
     ...(await selectIn("requests", "request_id", "farmer_id", farmerIds)).map((r) => r.request_id),
+    // Filed by the test FA President for any farmer (real ones included):
+    // test activity, not the farmer's own request.
+    ...(await selectIn("requests", "request_id", "filed_by", profileIds)).map((r) => r.request_id),
+  ];
+  const assocIds = [
+    ...assocRows.map((r) => r.association_request_id),
+    ...(await selectIn("association_requests", "association_request_id", "requested_by", profileIds)).map((r) => r.association_request_id),
   ];
   const validationIds = [
     ...cvRows.map((r) => r.validation_id),
@@ -127,7 +142,8 @@ async function main() {
       rows.filter((r) => keep(r, key)).forEach((r) => blockers.push(`${table} ${r[key]} (${col} = test account)`));
     }
   };
-  await checkRefs("requests", "request_id", ["reviewed_by_fa", "reviewed_by_mao"], notIn(requestIds));
+  await checkRefs("requests", "request_id", ["reviewed_by_fa", "reviewed_by_mao", "filed_by"], notIn(requestIds));
+  await checkRefs("association_requests", "association_request_id", ["reviewed_by"], notIn(assocIds));
   await checkRefs("crop_validations", "validation_id", ["reviewed_by"], notIn(validationIds));
   await checkRefs("distribution_events", "event_id", ["created_by", "status_updated_by", "deleted_by"], notIn(eventIds));
   await checkRefs("distribution_claims", "claim_id", ["released_by"], notIn(claimIds));
@@ -154,9 +170,9 @@ async function main() {
   for (const id of stillUsed) log(`Keeping commodity ${comRows.find((c) => c.commodity_id === id).name}: real records use it now.`);
 
   // Files: ledger paths + anything else the seeded accounts uploaded.
-  const files = { avatars: new Set(), "crop-validation-photos": new Set() };
+  const files = { avatars: new Set(), "crop-validation-photos": new Set(), "association-attachments": new Set() };
   ledger.storage.forEach((s) => files[s.bucket]?.add(s.path));
-  for (const [bucket, folders] of [["avatars", profileIds], ["crop-validation-photos", farmerIds.map(String)]]) {
+  for (const [bucket, folders] of [["avatars", profileIds], ["crop-validation-photos", farmerIds.map(String)], ["association-attachments", profileIds]]) {
     for (const folder of folders) {
       const { data: objs, error } = await sb.storage.from(bucket).list(folder, { limit: 1000 });
       if (error) throw new Error(`list ${bucket}/${folder}: ${error.message}`);
@@ -168,6 +184,7 @@ async function main() {
   await deleteIn("user_notifications", "id", ledger.notifications);
   await deleteIn("announcements", "announcement_id", annRows.map((a) => a.announcement_id));
   await deleteIn("requests", "request_id", requestIds);
+  await deleteIn("association_requests", "association_request_id", assocIds);
   await deleteIn("crop_validations", "validation_id", validationIds);
   await deleteIn("distribution_claims", "claim_id", strayClaims.map((c) => c.claim_id), "distribution_claims (on real distributions)");
   if (DRY) { count("distribution_claims", seededClaims.length); count("distribution_event_items", itemIdsOfSeededEvents.length); }
@@ -199,6 +216,7 @@ async function main() {
   const idsFor = {
     farmers: farmerIds, commodities: comToDelete, distribution_events: eventIds, distribution_event_items: itemIdsOfSeededEvents,
     distribution_claims: claimIds, crop_validations: validationIds, requests: requestIds, announcements: annRows.map((a) => a.announcement_id),
+    association_requests: assocIds,
   };
   for (const [table, pk] of Object.entries(AUDITED)) {
     for (const ids of chunk([...new Set(idsFor[table])].map(String))) {
