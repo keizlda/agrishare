@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, Inbox, Search, Send, ShieldAlert } from "lucide-react";
+import { CheckCircle2, Inbox, Search, Send, ShieldAlert, Users } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import RequestTimeline from "../components/requests/RequestTimeline.jsx";
+import AssociationRequestsView from "../components/requests/AssociationRequestsView.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
@@ -21,10 +22,44 @@ import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 import { reviewLabel } from "../lib/requestStatus.js";
 
+// Two kinds of requests, one tab each: farmers' commodity requests, and the
+// Farmers' Association President's requests to the MAO for machinery,
+// projects or other support. ?section=association opens the second (links
+// from notifications).
+const SECTIONS = [
+  { key: "farmer", label: "Farmer Requests", icon: Inbox },
+  { key: "association", label: "Association Requests", icon: Users },
+];
+const sectionFrom = (params) => (params.get("section") === "association" ? "association" : "farmer");
+
 export default function Requests() {
   const { user } = useAuth();
   const isMAO = user?.role !== "FA President";
-  return <FarmerRequestsView isMAO={isMAO} />;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [section, setSection] = useState(() => sectionFrom(searchParams));
+
+  // A notification link (?section=…) clicked while already on this page.
+  useEffect(() => {
+    setSection(sectionFrom(searchParams));
+  }, [searchParams]);
+
+  function chooseSection(key) {
+    setSection(key);
+    setSearchParams(key === "association" ? { section: key } : {}, { replace: true });
+  }
+
+  return (
+    <div className="agri-fill-root">
+      <div className="agri-tabs" role="tablist" aria-label="Request type">
+        {SECTIONS.map(({ key, label, icon: Icon }) => (
+          <button key={key} type="button" role="tab" aria-selected={section === key} className={`agri-tab${section === key ? " active" : ""}`} onClick={() => chooseSection(key)}>
+            <Icon size={14} /> {label}
+          </button>
+        ))}
+      </div>
+      {section === "association" ? <AssociationRequestsView isMAO={isMAO} /> : <FarmerRequestsView isMAO={isMAO} />}
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -153,7 +188,7 @@ function FarmerRequestsView({ isMAO }) {
   }
 
   return (
-    <div className="agri-fill-root">
+    <>
       <div className={`agri-split${selected ? " has-detail" : ""}`}>
         <div className="agri-card agri-fill-card" style={{ padding: 16 }}>
           {loadError && (
@@ -298,6 +333,6 @@ function FarmerRequestsView({ isMAO }) {
       </div>
 
       {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
-    </div>
+    </>
   );
 }

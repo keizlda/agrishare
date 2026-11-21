@@ -7,6 +7,7 @@ import { listFarmers } from "../lib/api/farmers.js";
 import { listBeneficiaryReport, listDistributions } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { listSubmissions } from "../lib/api/cropValidation.js";
+import { ASSOCIATION_STATUSES, ASSOCIATION_TYPES, listAssociationRequests } from "../lib/api/associationRequests.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { acknowledgementLabel, dateReceived, isCompleted } from "../lib/distributionStatus.js";
 import { formatDate, formatDateNumeric } from "../lib/dates.js";
@@ -29,9 +30,9 @@ export default function PrintReport() {
     // per commodity, so a since-deleted commodity must still get its row —
     // AccomplishmentReport's "types available" count filters back down to
     // active ones itself.
-    Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true }), listBeneficiaryReport(), listSubmissions()])
-      .then(([farmers, distributions, commodities, beneficiaryClaims, submissions]) =>
-        setData({ farmers, distributions, commodities, beneficiaryClaims, submissions }),
+    Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true }), listBeneficiaryReport(), listSubmissions(), listAssociationRequests()])
+      .then(([farmers, distributions, commodities, beneficiaryClaims, submissions, associationRequests]) =>
+        setData({ farmers, distributions, commodities, beneficiaryClaims, submissions, associationRequests }),
       )
       .catch((err) => setError(friendlyError(err, "Couldn't load this report.")));
   }, []);
@@ -258,7 +259,7 @@ function LiquidationReport({ commodities, distributions, filters }) {
   );
 }
 
-function AccomplishmentReport({ farmers, distributions, commodities, submissions, filters }) {
+function AccomplishmentReport({ farmers, distributions, commodities, submissions, associationRequests, filters }) {
   // Distribution-activity figures respect the report's date/status/barangay
   // filters (this is the period being reported on); the farmer roster and
   // commodity catalog are current-state counts, not scoped to a period.
@@ -280,6 +281,46 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
         <KV label="Total Quantity Distributed" value={totalQty} />
         <KV label="Commodity Types Available" value={commodities.filter((c) => !c.deletedAt).length} />
       </div>
+      <AssociationRequestCounts requests={associationRequests} filters={filters} />
     </div>
+  );
+}
+
+// The day a request was submitted, in Philippine time (YYYY-MM-DD), for the
+// report's date range.
+const manilaDate = (iso) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+
+// Association requests submitted in the report's date range, counted by
+// type (rows) and status (columns). Cancelled requests aren't counted.
+function AssociationRequestCounts({ requests = [], filters: { dateFrom, dateTo } }) {
+  const inRange = requests.filter((r) => (!dateFrom || manilaDate(r.createdAt) >= dateFrom) && (!dateTo || manilaDate(r.createdAt) <= dateTo));
+  const count = (type, status) => inRange.filter((r) => (!type || r.type === type) && (!status || r.statusKey === status)).length;
+  return (
+    <>
+      <div className="pr-section-label" style={{ marginTop: 18 }}>Association Requests</div>
+      <table className="pr-items-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            {ASSOCIATION_STATUSES.map((s) => <th key={s.value} className="pr-num">{s.label}</th>)}
+            <th className="pr-num">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ASSOCIATION_TYPES.map((t) => (
+            <tr key={t.value}>
+              <td>{t.label}</td>
+              {ASSOCIATION_STATUSES.map((s) => <td key={s.value} className="pr-num">{count(t.value, s.value)}</td>)}
+              <td className="pr-num">{count(t.value)}</td>
+            </tr>
+          ))}
+          <tr className="pr-items-total">
+            <td>Total</td>
+            {ASSOCIATION_STATUSES.map((s) => <td key={s.value} className="pr-num">{count(null, s.value)}</td>)}
+            <td className="pr-num">{inRange.length}</td>
+          </tr>
+        </tbody>
+      </table>
+    </>
   );
 }

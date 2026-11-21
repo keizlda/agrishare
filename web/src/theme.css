@@ -1385,6 +1385,43 @@ table.agri-table td.agri-wrap {
   opacity: 0.8;
 }
 
+/* ---------- Association request attachment ---------- */
+.agri-attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--agri-divider);
+  border-radius: 10px;
+  background: var(--agri-bg);
+  color: var(--agri-text);
+  font-size: 0.83rem;
+}
+.agri-attachment-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agri-attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--agri-blue-text);
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.agri-attachment-link:hover {
+  text-decoration: underline;
+}
+
 /* ---------- Request timeline (Requests details) ---------- */
 .agri-timeline {
   list-style: none;
