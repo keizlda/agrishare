@@ -1349,6 +1349,107 @@ table.agri-table td.agri-wrap {
   letter-spacing: 0.03em;
 }
 
+/* ---------- Status filter chips (Requests) ---------- */
+.agri-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 12px;
+}
+.agri-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--agri-divider);
+  background: var(--agri-card);
+  color: var(--agri-text-muted);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.agri-filter-chip:hover {
+  color: var(--agri-text);
+  border-color: var(--agri-border-strong);
+}
+.agri-filter-chip.active {
+  background: var(--agri-primary-light);
+  border-color: var(--agri-primary-light);
+  color: var(--agri-primary-dark);
+}
+.agri-filter-chip-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+/* ---------- Request timeline (Requests details) ---------- */
+.agri-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 4px;
+}
+.agri-timeline-step {
+  position: relative;
+  padding: 0 0 12px 22px;
+}
+.agri-timeline-step::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 14px;
+  bottom: 0;
+  width: 2px;
+  background: var(--agri-divider);
+}
+.agri-timeline-step:last-child::before {
+  display: none;
+}
+.agri-timeline-dot {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--agri-primary);
+  border: 2px solid var(--agri-card);
+  box-shadow: 0 0 0 1px var(--agri-primary);
+}
+.agri-timeline-step.rejected .agri-timeline-dot {
+  background: var(--agri-red);
+  box-shadow: 0 0 0 1px var(--agri-red);
+}
+.agri-timeline-step.waiting .agri-timeline-dot {
+  background: var(--agri-orange-bg);
+  box-shadow: 0 0 0 1px var(--agri-orange-text);
+}
+.agri-timeline-step.upcoming .agri-timeline-dot {
+  background: var(--agri-card);
+  box-shadow: 0 0 0 1px var(--agri-border-strong);
+}
+.agri-timeline-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--agri-text);
+}
+.agri-timeline-step.upcoming .agri-timeline-title,
+.agri-timeline-step.waiting .agri-timeline-title {
+  color: var(--agri-text-muted);
+}
+.agri-timeline-meta {
+  font-size: 0.75rem;
+  color: var(--agri-text-muted);
+}
+.agri-timeline-remarks {
+  font-size: 0.78rem;
+  margin-top: 3px;
+  color: var(--agri-text);
+  overflow-wrap: anywhere;
+}
+
 /* ---------- Segmented tab bar (Requests: FA/Admin review stages) ---------- */
 .agri-tabs {
   display: flex;

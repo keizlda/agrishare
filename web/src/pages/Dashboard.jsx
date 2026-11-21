@@ -126,7 +126,7 @@ export default function Dashboard() {
   const chips = [
     isMAO && { count: subStats.pending, label: plural(subStats.pending, "submission to review", "submissions to review"), to: "/validation?status=Pending", dot: "var(--agri-orange)" },
     { count: ongoing, label: plural(ongoing, "ongoing distribution", "ongoing distributions"), to: "/distributions?status=Ongoing", dot: "var(--agri-teal)" },
-    { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: `/requests?tab=${isMAO ? "awaiting" : "pending"}`, dot: "var(--agri-blue)" },
+    { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: `/requests?status=${isMAO ? "endorsed" : "pending"}`, dot: "var(--agri-blue)" },
   ].filter((c) => c && c.count > 0);
 
   return (

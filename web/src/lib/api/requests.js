@@ -1,33 +1,51 @@
 import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
+import { computeAllocation } from "../allocation.js";
+import { farmSummary } from "./farmers.js";
 
 const SELECT = `
-  request_id, quantity_requested, reason, status, fa_remarks, mao_remarks, created_at,
+  request_id, commodity_id, quantity_requested, reason, status, fa_remarks, mao_remarks, created_at,
   reviewed_by_fa, reviewed_by_mao, forwarded_to_admin_at, fa_decision_at, admin_decision_at,
-  farmers ( farmer_id, first_name, surname, rsbsa_no, addresses ( barangay ), profiles!profile_id ( avatar_url ) ),
-  commodities ( name, unit ),
-  fa:profiles!reviewed_by_fa ( full_name )
+  farmers ( farmer_id, first_name, surname, rsbsa_no, addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ) ),
+  commodities ( name, unit, allocation_per_hectare, max_per_farmer ),
+  fa:profiles!reviewed_by_fa ( full_name ),
+  mao:profiles!reviewed_by_mao ( full_name )
 `;
 
 function mapRequest(row) {
+  const farm = farmSummary(row.farmers?.farm_parcels);
+  const commodity = {
+    unit: row.commodities?.unit ?? "kg",
+    allocationPerHectare: row.commodities?.allocation_per_hectare != null ? Number(row.commodities.allocation_per_hectare) : null,
+    maxPerFarmer: row.commodities?.max_per_farmer != null ? Number(row.commodities.max_per_farmer) : null,
+  };
   return {
     id: row.request_id,
     farmerId: row.farmers?.farmer_id,
+    commodityId: row.commodity_id,
     farmerFirstName: row.farmers?.first_name ?? "",
     farmerLastName: row.farmers?.surname ?? "",
     farmerName: `${row.farmers?.first_name ?? ""} ${row.farmers?.surname ?? ""}`.trim(),
     rsbsaNo: row.farmers?.rsbsa_no ?? "",
     barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
+    sitioPurok: row.farmers?.addresses?.[0]?.street ?? "",
     avatarUrl: row.farmers?.profiles?.avatar_url ?? null,
+    farmSize: farm.farmSize,
+    cropType: farm.cropType,
     commodity: row.commodities?.name ?? "",
     quantity: Number(row.quantity_requested),
-    unit: row.commodities?.unit ?? "kg",
+    unit: commodity.unit,
+    // The quantity this farmer's farm size calls for (farm size ×
+    // allocation per hectare), when the commodity has a rate.
+    allocationPerHectare: commodity.allocationPerHectare,
+    suggestedQuantity: farm.farmSize > 0 ? computeAllocation(commodity, farm.farmSize) : null,
     reason: row.reason ?? "",
     requestDate: row.created_at,
     status: dbStatusToLabel(row.status),
     faRemarks: row.fa_remarks ?? "",
     maoRemarks: row.mao_remarks ?? "",
     faPresidentName: row.fa?.full_name ?? "Farmers' Association President",
+    maoName: row.mao?.full_name ?? "MAO Admin",
     // Present once the FA President has acted; lets the UI tell "I
     // reviewed this" apart from "someone else did" and "rejected by FA
     // before it ever reached Admin" apart from "rejected by Admin".
@@ -61,7 +79,8 @@ export async function listRequestsForAdminReview() {
 // only on endorsement) alongside status so the timeline is accurate from the
 // start — RLS still enforces that this can only run on a Pending row and can
 // only land on 'forwarded' or 'rejected' (requests: FA forwards or rejects
-// pending).
+// pending). The database stamps who decided and when itself
+// (request_decision_stamps), whatever is sent here.
 export async function faReviewRequest(requestId, { decision, notes }) {
   const { data: auth } = await supabase.auth.getUser();
   const now = new Date().toISOString();
@@ -95,6 +114,9 @@ export async function adminReviewRequest(requestId, { decision, notes }) {
   return mapRequest(data);
 }
 
+// Every farmer request in every status, newest first. Both the MAO Admin and
+// the Farmers' Association President see all of them (RLS: staff read all
+// requests); each can only act at their own step.
 export async function listRequests() {
   const { data, error } = await supabase.from("requests").select(SELECT).order("created_at", { ascending: false });
   if (error) throw error;
