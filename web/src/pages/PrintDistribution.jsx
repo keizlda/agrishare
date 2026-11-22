@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import PrintLayout, { KV } from "../components/print/PrintLayout.jsx";
+import PrintLayout, { KV, Signatures } from "../components/print/PrintLayout.jsx";
 import { getDistribution, listPrintBeneficiaries } from "../lib/api/distributions.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { acknowledgementLabel, dateReceived } from "../lib/distributionStatus.js";
@@ -98,18 +98,6 @@ export default function PrintDistribution() {
   );
 }
 
-// The report's only signature block, at the very end (it moves to the next
-// page whole if it doesn't fit under the last row).
-function Signatures() {
-  return (
-    <div className="pr-signatures">
-      <SignatureCol label="Prepared by" role="Administrative Staff" />
-      <SignatureCol label="Checked by" role="Agricultural Extension Worker" />
-      <SignatureCol label="Approved by" role="Municipal Agriculture Officer" />
-    </div>
-  );
-}
-
 // Page 2 onward: the masterlist of tagged farmers, RSBSA No. first. Each
 // farmer's Acknowledgement is "Acknowledged" once the distribution is
 // Completed, with the completion date as Date Received; while Ongoing it
@@ -198,14 +186,3 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
   );
 }
 
-function SignatureCol({ label, role }) {
-  return (
-    <div className="pr-sig-col">
-      <div className="pr-kv-label" style={{ marginBottom: 6 }}>{label}</div>
-      <div className="pr-sig-space" />
-      <div className="pr-sig-line" />
-      <div className="pr-sig-name">&nbsp;</div>
-      <div className="pr-sig-role">{role}</div>
-    </div>
-  );
-}

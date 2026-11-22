@@ -15,6 +15,7 @@ import {
   Truck,
   User as UserIcon,
   Users,
+  Wheat,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -35,6 +36,7 @@ const TABS = [
 const MORE_ITEMS = [
   { to: "/validation", label: "Validation", icon: ShieldCheck, roles: ["MAO Admin"] },
   { to: "/requests", label: "Requests", icon: Inbox, roles: ["MAO Admin", "FA President"] },
+  { to: "/harvest", label: "Harvest", icon: Wheat, roles: ["MAO Admin", "FA President"] },
   { to: "/reports", label: "Reports", icon: FileBarChart2, roles: ["MAO Admin"] },
   { to: "/commodities", label: "Commodities", icon: Star, roles: ["MAO Admin", "FA President"] },
   { to: "/announcements", label: "Announcements", icon: Megaphone, roles: ["MAO Admin"] },

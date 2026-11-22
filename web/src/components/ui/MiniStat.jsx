@@ -3,6 +3,8 @@ const MINI_STAT_COLORS = {
   blue: { bg: "var(--agri-blue-bg)", fg: "var(--agri-blue)" },
   red: { bg: "var(--agri-red-bg)", fg: "var(--agri-red-soft)" },
   purple: { bg: "var(--agri-purple-bg)", fg: "var(--agri-purple)" },
+  orange: { bg: "var(--agri-orange-bg)", fg: "var(--agri-orange-text)" },
+  teal: { bg: "color-mix(in srgb, var(--agri-teal) 16%, var(--agri-card))", fg: "var(--agri-teal)" },
 };
 
 // Icon chip + label / value / sub — the dashboard's stat-card style, shared

@@ -12,7 +12,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Users, UserCheck, UserX, Truck, ShieldCheck, FilePlus, UserPlus, ClipboardList, Eye, Megaphone, Newspaper } from "lucide-react";
+import { Users, UserCheck, UserX, Truck, ShieldCheck, FilePlus, UserPlus, ClipboardList, Eye, Megaphone, Newspaper, Sprout, Wheat } from "lucide-react";
+import { formatKg } from "../lib/allocation.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   computeDistributionByCommodity,
@@ -29,6 +30,7 @@ import { formatQuantity, sharedUnit } from "../lib/quantity.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { listSubmissions } from "../lib/api/cropValidation.js";
 import { listRequests } from "../lib/api/requests.js";
+import { listHarvestReports, totals as harvestTotals } from "../lib/api/harvest.js";
 import { useFitCount } from "../hooks/useFitCount.js";
 import Toast from "../components/ui/Toast.jsx";
 import { friendlyError } from "../lib/friendlyError.js";
@@ -68,6 +70,7 @@ export default function Dashboard() {
   const [commodities, setCommodities] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [harvests, setHarvests] = useState([]);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [toast, setToast] = useState(null);
   // First load failure, shown above the cards (the figures would otherwise
@@ -93,6 +96,7 @@ export default function Dashboard() {
   useEffect(() => {
     listSubmissions().then(setSubmissions).catch(loadFailed);
     listRequests().then(setRequests).catch(loadFailed);
+    listHarvestReports().then(setHarvests).catch(loadFailed);
   }, [isMAO]);
 
   const stats = computeFarmerStats(farmers);
@@ -123,10 +127,13 @@ export default function Dashboard() {
 
   const ongoing = distributions.filter((d) => d.status === "Ongoing").length;
   const toReview = requests.filter((r) => r.status === "Pending").length;
+  const harvestSum = harvestTotals(harvests);
+  const harvestToVerify = harvests.filter((h) => h.statusKey === "submitted").length;
   const chips = [
     isMAO && { count: subStats.pending, label: plural(subStats.pending, "submission to review", "submissions to review"), to: "/validation?status=Pending", dot: "var(--agri-orange)" },
     { count: ongoing, label: plural(ongoing, "ongoing distribution", "ongoing distributions"), to: "/distributions?status=Ongoing", dot: "var(--agri-teal)" },
     { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: "/requests?status=pending", dot: "var(--agri-blue)" },
+    isMAO && { count: harvestToVerify, label: plural(harvestToVerify, "harvest report to verify", "harvest reports to verify"), to: "/harvest?status=submitted", dot: "var(--agri-primary)" },
   ].filter((c) => c && c.count > 0);
 
   return (
@@ -219,6 +226,8 @@ export default function Dashboard() {
                 <MiniStat icon={UserCheck} color="blue" label="Active Farmers" value={stats.active.toLocaleString()} sub="Currently active" />
                 <MiniStat icon={UserX} color="red" label="Inactive Farmers" value={stats.inactive.toLocaleString()} sub="Inactive accounts" />
                 <MiniStat icon={Truck} color="purple" label="Total Distributions" value={distributions.length.toLocaleString()} sub="All time" />
+                <MiniStat icon={Wheat} color="orange" label="Harvest Reported" value={formatKg(harvestSum.kg)} sub={`${harvestSum.count.toLocaleString()} ${harvestSum.count === 1 ? "report" : "reports"}${harvestToVerify ? ` · ${harvestToVerify} to verify` : ""}`} />
+                <MiniStat icon={Sprout} color="teal" label="Average Yield" value={harvestSum.perHa != null ? `${harvestSum.perHa.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg/ha` : "—"} sub="All harvest reports" />
               </div>
             </div>
           </div>

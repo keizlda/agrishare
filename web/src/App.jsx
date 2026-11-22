@@ -13,6 +13,7 @@ import Commodities from "./pages/Commodities.jsx";
 import Settings from "./pages/Settings.jsx";
 import Announcements from "./pages/Announcements.jsx";
 import ActivityLog from "./pages/ActivityLog.jsx";
+import Harvest from "./pages/Harvest.jsx";
 import PrintDistribution from "./pages/PrintDistribution.jsx";
 import PrintReport from "./pages/PrintReport.jsx";
 
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/validation" element={<Validation />} />
           <Route path="/distributions" element={<Distributions />} />
           <Route path="/requests" element={<Requests />} />
+          <Route path="/harvest" element={<Harvest />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/commodities" element={<Commodities />} />
           <Route path="/announcements" element={<Announcements />} />

@@ -2159,6 +2159,7 @@ table.agri-table td.agri-wrap {
 
 .agri-toast.success svg { color: var(--agri-primary); }
 .agri-toast.error svg { color: #ff8383; }
+.agri-toast.info svg { color: #8ec5ff; }
 
 /* ==========================================================================
    Mobile web shell (MobileShell.jsx) — only ever rendered below the 860px
@@ -3667,4 +3668,91 @@ input[type="number"] {
 }
 .agri-row-type {
   min-width: 110px;
+}
+
+/* ---------- Harvest reports ---------- */
+.agri-harvest-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.agri-harvest-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border: 1px solid var(--agri-border);
+  border-radius: 12px;
+  background: var(--agri-bg);
+  min-width: 0;
+}
+.agri-harvest-summary span {
+  font-size: 0.7rem;
+  color: var(--agri-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.agri-harvest-summary strong {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agri-harvest-table {
+  table-layout: fixed;
+  font-size: 0.8rem;
+}
+table.agri-table.agri-harvest-table th {
+  white-space: normal;
+  line-height: 1.2;
+  padding: 8px 6px;
+}
+table.agri-table.agri-harvest-table td {
+  font-variant-numeric: tabular-nums;
+  padding: 9px 6px;
+  line-height: 1.3;
+}
+.agri-harvest-table th:nth-child(1) { width: 19%; }
+.agri-harvest-table th:nth-child(2) { width: 13%; }
+.agri-harvest-table th:nth-child(3) { width: 15%; }
+.agri-harvest-table th:nth-child(4) { width: 8%; }
+.agri-harvest-table th:nth-child(5) { width: 6%; }
+.agri-harvest-table th:nth-child(6) { width: 9%; }
+.agri-harvest-table th:nth-child(7) { width: 8%; }
+.agri-harvest-table th:nth-child(8) { width: 10%; }
+.agri-harvest-table th:nth-child(9) { width: 12%; }
+@media (min-width: 1024px) {
+  .agri-split.agri-harvest-split.has-detail {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+.agri-harvest-table .agri-pill {
+  white-space: nowrap;
+}
+.agri-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--agri-divider);
+  font-size: 0.85rem;
+}
+.agri-harvest-photo {
+  height: 200px;
+  cursor: zoom-in;
+}
+.agri-harvest-map {
+  display: block;
+  margin-top: 10px;
+  height: 180px;
+}
+@media (max-width: 767.98px) {
+  .agri-harvest-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .agri-harvest-table {
+    table-layout: auto;
+  }
 }

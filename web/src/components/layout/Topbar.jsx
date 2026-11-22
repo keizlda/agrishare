@@ -16,6 +16,7 @@ import {
   Star,
   Settings,
   Sprout,
+  Wheat,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { to: "/validation", label: "Validation", icon: ShieldCheck, roles: ["MAO Admin"] },
   { to: "/distributions", label: "Distributions", icon: Truck, roles: ["MAO Admin", "FA President"] },
   { to: "/requests", label: "Requests", icon: Inbox, roles: ["MAO Admin", "FA President"] },
+  { to: "/harvest", label: "Harvest", icon: Wheat, roles: ["MAO Admin", "FA President"] },
   { to: "/reports", label: "Reports", icon: FileBarChart2, roles: ["MAO Admin"] },
   { to: "/commodities", label: "Commodities", icon: Star, roles: ["MAO Admin", "FA President"] },
 ];

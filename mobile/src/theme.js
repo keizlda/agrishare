@@ -59,15 +59,15 @@ export const colors = {
 // Status colors — mirrors web/src/components/ui/Pill.jsx's status→color map
 // and theme.css:427-432's color→hex pairs exactly.
 //
-// Note: web styles "For Review" *purple* (the "info" role here) and a
-// request's "Endorsed" *blue* (the "endorsed" role).
+// Note: web styles "For Review" *purple* (the "info" role here) and
+// "Under review" *blue* (the "review" role).
 // ---------------------------------------------------------------------------
 export const statusColors = {
   success: { fg: colors.primaryDark, bg: colors.primaryLight },
   danger: { fg: colors.red, bg: colors.redBg },
   warning: { fg: colors.orangeText, bg: colors.orangeBg },
   info: { fg: colors.purple, bg: colors.purpleBg },
-  endorsed: { fg: colors.blueText, bg: colors.blueBg },
+  review: { fg: colors.blueText, bg: colors.blueBg },
   neutral: { fg: colors.gray, bg: colors.grayBg },
 };
 
@@ -80,21 +80,22 @@ export const statusColor = (status) => {
     case "Completed":
     case "Approved":
     case "Received":
+    case "Verified":
       return statusColors.success;
     case "Inactive":
     case "Not Validated":
     case "Rejected":
+    case "Returned":
       return statusColors.danger;
     case "Pending":
     case "Ongoing":
     case "Upcoming":
+    case "Submitted":
       return statusColors.warning;
     case "For Review":
       return statusColors.info;
-    // Requests: Pending -> Endorsed -> Approved / Rejected; "Not endorsed"
-    // is gray (default), as on web.
-    case "Endorsed":
-      return statusColors.endorsed;
+    case "Under review":
+      return statusColors.review;
     // Mobile-only labels (commodity stock levels) that Pill.jsx doesn't
     // define on web — mapped by closest fit rather than pulled from web.
     case "In Stock":

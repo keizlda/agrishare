@@ -8,7 +8,11 @@ import { formatDate, formatDateTime } from "../lib/dates.js";
 import { barangays, reportTypes } from "../data/mockData.js";
 import { listCommodities } from "../lib/api/commodities.js";
 
+// Distribution reports filter by the distribution's status; the Harvest
+// Report by the harvest report's.
 const STATUS_OPTIONS = ["All Status", "Ongoing", "Completed"];
+const HARVEST_STATUS_OPTIONS = ["All Status", "Submitted", "Verified", "Returned"];
+const statusOptionsFor = (type) => (type === "Harvest Report" ? HARVEST_STATUS_OPTIONS : STATUS_OPTIONS);
 
 // Generated-report history is a session convenience log (what got downloaded,
 // when) rather than domain data from the paper's ERD, so it stays local —
@@ -81,11 +85,18 @@ export default function Reports() {
           <div className="agri-report-form-grid">
             <div>
               <label className="agri-form-label">Report Type</label>
-              <select className="form-select mb-3" value={reportType} onChange={(e) => setReportType(e.target.value)}>
+              <select
+                className="form-select mb-3"
+                value={reportType}
+                onChange={(e) => {
+                  setReportType(e.target.value);
+                  if (!statusOptionsFor(e.target.value).includes(status)) setStatus("All Status");
+                }}
+              >
                 {reportTypes.map((t) => <option key={t}>{t}</option>)}
               </select>
 
-              <label className="agri-form-label">Commodity</label>
+              <label className="agri-form-label">{reportType === "Harvest Report" ? "Crop" : "Commodity"}</label>
               <select className="form-select mb-3" value={commodity} onChange={(e) => setCommodity(e.target.value)}>
                 <option>All Commodities</option>
                 {commodityOptions.map((c) => <option key={c}>{c}</option>)}
@@ -93,7 +104,7 @@ export default function Reports() {
 
               <label className="agri-form-label">Status</label>
               <select className="form-select mb-3" value={status} onChange={(e) => setStatus(e.target.value)}>
-                {STATUS_OPTIONS.map((s) => <option key={s}>{s}</option>)}
+                {statusOptionsFor(reportType).map((s) => <option key={s}>{s}</option>)}
               </select>
             </div>
 

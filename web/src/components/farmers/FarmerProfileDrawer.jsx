@@ -5,6 +5,9 @@ import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { getFarmerProfileExtras } from "../../lib/api/farmers.js";
 import { listFarmerDistributionHistory } from "../../lib/api/distributions.js";
 import { listSubmissionsForFarmer } from "../../lib/api/cropValidation.js";
+import { listHarvestReports, totals as harvestTotals } from "../../lib/api/harvest.js";
+import { formatKg } from "../../lib/allocation.js";
+import { Link } from "react-router-dom";
 import { formatDate } from "../../lib/dates.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
@@ -35,6 +38,8 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
   const [extras, setExtras] = useState(null);
   const [history, setHistory] = useState(null);
   const [submissions, setSubmissions] = useState(null);
+  const [harvests, setHarvests] = useState(null);
+  const [harvestError, setHarvestError] = useState("");
   const [error, setError] = useState("");
   const closeRef = useRef(null);
 
@@ -57,6 +62,17 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
         setSubmissions(subs);
       })
       .catch((err) => !cancelled && setError(friendlyError(err, "Couldn't load this farmer's profile. Please try again.")));
+    return () => {
+      cancelled = true;
+    };
+  }, [farmer.id]);
+
+  // Harvest History loads on its own, so a problem here doesn't hide the rest.
+  useEffect(() => {
+    let cancelled = false;
+    listHarvestReports({ farmerId: farmer.id })
+      .then((rows) => !cancelled && setHarvests(rows))
+      .catch((err) => !cancelled && setHarvestError(friendlyError(err, "Couldn't load the harvest history.")));
     return () => {
       cancelled = true;
     };
@@ -223,6 +239,47 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
                   </tbody>
                 </table>
               </div>
+            )}
+          </section>
+
+          <section className="agri-profile-section">
+            <div className="agri-detail-section-title">Harvest History</div>
+            {!harvests ? (
+              <div className="agri-muted agri-profile-note">{harvestError || "Loading…"}</div>
+            ) : harvests.length === 0 ? (
+              <div className="agri-muted agri-profile-note">No harvest reported yet.</div>
+            ) : (
+              <>
+                <div className="agri-profile-table-wrap">
+                  <table className="agri-table agri-profile-table">
+                    <thead>
+                      <tr>
+                        <th>Season</th>
+                        <th>Crop / Type</th>
+                        <th className="text-end">Area (ha)</th>
+                        <th className="text-end">Harvest (kg)</th>
+                        <th className="text-end">kg/ha</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {harvests.map((h) => (
+                        <tr key={h.id}>
+                          <td><Link to={`/harvest?id=${h.id}`} onClick={onClose}>{h.seasonLabel}</Link></td>
+                          <td className="agri-profile-wrap">{show(h.crop)}</td>
+                          <td className="text-end">{h.areaHa.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                          <td className="text-end">{h.yieldKg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                          <td className="text-end">{h.yieldPerHa != null ? h.yieldPerHa.toLocaleString(undefined, { maximumFractionDigits: 2 }) : DASH}</td>
+                          <td><Pill status={h.status} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="agri-profile-total">
+                  Total harvested: <strong>{formatKg(harvestTotals(harvests).kg)}</strong> across {harvests.length} {harvests.length === 1 ? "report" : "reports"}
+                </div>
+              </>
             )}
           </section>
         </div>

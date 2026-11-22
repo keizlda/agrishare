@@ -91,6 +91,7 @@ export default function AnnouncementsScreen({ navigation }) {
     }
     if (u.type === "validated" || u.type === "rejected") navigation.navigate("MainTabs", { screen: "Validation" });
     else if (u.type === "request") navigation.navigate("Requests");
+    else if (u.type === "harvest") navigation.navigate("Harvest");
     else if (u.type === "distribution") navigation.navigate("MyDistributions");
     else if (u.type === "announcement") setTab("Announcements");
   }

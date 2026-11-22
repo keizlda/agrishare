@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, Info, XCircle } from "lucide-react";
 
 // `action` ({ label, onClick }) adds an inline button (e.g. Undo); a toast
 // with an action stays up longer so there's time to click it.
@@ -11,7 +11,7 @@ export default function Toast({ message, tone = "success", onDone, action, durat
     return () => clearTimeout(timer);
   }, [onDone, ms]);
 
-  const Icon = tone === "error" ? XCircle : CheckCircle2;
+  const Icon = tone === "error" ? XCircle : tone === "info" ? Info : CheckCircle2;
 
   return (
     <div className={`agri-toast ${tone}`} role="status">

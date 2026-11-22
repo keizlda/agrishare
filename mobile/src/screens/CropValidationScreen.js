@@ -13,71 +13,9 @@ import { submitCropValidation, uploadCropPhoto } from "../lib/api/cropValidation
 import { listMyDistributions } from "../lib/api/distributions";
 import { formatDate, formatDateLong, formatDateTime, maskTypedDate, todayIso, typedToIso } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
+import { FAR_THRESHOLD_KM, LANGAPUD_REF, accuracyRating, compassLabel, haversineKm, mapEmbedHtml, withTimeout } from "../lib/geotag";
 
 const CROP_TYPES = ["Rice", "Corn", "Vegetables", "Other"];
-
-function accuracyRating(meters) {
-  if (meters == null) return "Unknown";
-  if (meters <= 10) return "High";
-  if (meters <= 30) return "Medium";
-  return "Low";
-}
-
-// Barangay Langapud's approximate center — the schema has no per-parcel GPS
-// coordinates, so this is the only geographic anchor available to flag a
-// submission that's obviously nowhere near the declared parcel. Mirrors the
-// same reference point and threshold the MAO/FA review screen on web uses,
-// so both sides agree on what counts as "far."
-const LANGAPUD_REF = { lat: 7.8333, lng: 123.6333 };
-const FAR_THRESHOLD_KM = 5;
-
-function haversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// Degrees-minutes-seconds — the traditional cadastral survey convention,
-// alongside the decimal form GPS actually returns.
-function toDMS(value, isLat) {
-  const dir = isLat ? (value >= 0 ? "N" : "S") : value >= 0 ? "E" : "W";
-  const abs = Math.abs(value);
-  const deg = Math.floor(abs);
-  const minFloat = (abs - deg) * 60;
-  const min = Math.floor(minFloat);
-  const sec = ((minFloat - min) * 60).toFixed(1);
-  return `${deg}°${min}'${sec}"${dir}`;
-}
-
-const COMPASS_POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-function compassLabel(deg) {
-  return COMPASS_POINTS[Math.round(deg / 45) % 8];
-}
-
-// reverseGeocodeAsync and getHeadingAsync each depend on a platform backend
-// (a geocoder service, a magnetometer callback) that can stall indefinitely
-// instead of rejecting — e.g. no geocoder backend, or a compass that never
-// fires an initial reading. Neither is required for a valid geotag (see the
-// call sites below), so a hang here must not be allowed to leave the farmer
-// stuck on "Locating…" forever with no error and no way forward.
-function withTimeout(promise, ms) {
-  return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error("timed out")), ms))]);
-}
-
-// The keyless output=embed URL only renders when it's actually loaded inside
-// an <iframe> — Google's page checks window.top !== window.self and refuses
-// otherwise. A WebView's top-level document IS window.top, so loading the
-// URL directly trips that check. Wrapping it in a one-line local HTML page
-// that itself puts the map in a real iframe satisfies the check.
-function mapEmbedHtml(latitude, longitude) {
-  const src = `https://www.google.com/maps?q=${latitude},${longitude}&z=15&output=embed`;
-  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>html,body{margin:0;padding:0;height:100%;}iframe{border:0;width:100%;height:100%;}</style></head>
-    <body><iframe src="${src}"></iframe></body></html>`;
-}
 
 // Both the photo and GPS geotag are real: the photo comes from the device
 // camera via expo-image-picker, and the location from expo-location, each

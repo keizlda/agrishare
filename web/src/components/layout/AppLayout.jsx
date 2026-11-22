@@ -3,6 +3,7 @@ import { RotateCw, WifiOff } from "lucide-react";
 import Topbar from "./Topbar.jsx";
 import MobileShell from "./MobileShell.jsx";
 import ErrorBoundary from "../ui/ErrorBoundary.jsx";
+import Toast from "../ui/Toast.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useIsMobile } from "../../hooks/useIsMobile.js";
 
@@ -19,10 +20,10 @@ const MAO_ONLY_ROUTES = ["/validation", "/reports", "/activity-log"];
 // CSS is scoped to >=1024px). Everything else keeps normal page scrolling.
 // The Dashboard has its own height-aware fill rules (.agri-app-dash), since
 // it falls back to scrolling on short screens rather than always filling.
-const FILL_ROUTES = ["/farmers", "/validation", "/commodities", "/distributions", "/requests", "/announcements", "/activity-log"];
+const FILL_ROUTES = ["/farmers", "/validation", "/commodities", "/distributions", "/requests", "/harvest", "/announcements", "/activity-log"];
 
 export default function AppLayout() {
-  const { isAuthenticated, initializing, user, bootError, retryRestore } = useAuth();
+  const { isAuthenticated, initializing, user, bootError, retryRestore, notice, clearNotice } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
 
@@ -64,8 +65,17 @@ export default function AppLayout() {
   // Mobile gets its own shell entirely (bottom tabs, app-style navigation)
   // rather than a reflowed version of the desktop one — desktop's branch
   // below is untouched from before this split existed.
+  // "You signed in as another account in another tab." after following a
+  // sign-in made in another tab.
+  const noticeToast = notice && <Toast tone="info" message={notice} duration={6000} onDone={clearNotice} />;
+
   if (isMobile) {
-    return <MobileShell />;
+    return (
+      <>
+        <MobileShell />
+        {noticeToast}
+      </>
+    );
   }
 
   return (
@@ -78,6 +88,7 @@ export default function AppLayout() {
           <Outlet />
         </ErrorBoundary>
       </div>
+      {noticeToast}
     </div>
   );
 }

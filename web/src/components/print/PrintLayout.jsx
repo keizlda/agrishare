@@ -34,10 +34,11 @@ function readPaper() {
 // Every page repeats the header (seal, the four institutional lines, the
 // green rule); the report title appears once, on page 1. There is no page
 // footer. `backTo`: where Back goes when the page wasn't opened in its own
-// tab.
-export default function PrintLayout({ title, subtitle, backTo = "/", children }) {
+// tab. `landscape`: wide tables (10+ columns) print across the page.
+export default function PrintLayout({ title, subtitle, backTo = "/", landscape = false, children }) {
   const [paperKey, setPaperKey] = useState(readPaper);
-  const paper = PAPERS[paperKey];
+  const paperSize = PAPERS[paperKey];
+  const paper = landscape ? { ...paperSize, width: paperSize.height, height: paperSize.width } : paperSize;
   const [pageCount, setPageCount] = useState(0);
   const [scale, setScale] = useState(1);
   const measureRef = useRef(null);
@@ -68,7 +69,7 @@ export default function PrintLayout({ title, subtitle, backTo = "/", children })
     const headerHeight = flow.getBoundingClientRect().top - header.getBoundingClientRect().top;
     plansRef.current = planPages(flow, contentHeight - headerHeight);
     setPageCount(plansRef.current.length);
-  }, [paperKey, contentHeight, title, subtitle, children]);
+  }, [paperKey, contentHeight, contentWidth, title, subtitle, children]);
 
   // Fill each sheet with its page.
   useLayoutEffect(() => {
@@ -128,7 +129,7 @@ export default function PrintLayout({ title, subtitle, backTo = "/", children })
 
   return (
     <div className="pr-app" data-paper={paperKey}>
-      <style>{`@page { size: ${paper.css} portrait; margin: 0; }`}</style>
+      <style>{`@page { size: ${paper.css} ${landscape ? "landscape" : "portrait"}; margin: 0; }`}</style>
 
       <header className="pr-toolbar" aria-label="Print preview">
         <button type="button" className="btn btn-outline-secondary pr-toolbar-btn" onClick={leave}>
@@ -209,4 +210,28 @@ export function KV({ label, value }) {
 
 export function EmptyValue() {
   return <span className="pr-empty">—</span>;
+}
+
+// The report's only signature block, at the very end (it moves to the next
+// page whole if it doesn't fit under the last row).
+export function Signatures() {
+  return (
+    <div className="pr-signatures">
+      <SignatureCol label="Prepared by" role="Administrative Staff" />
+      <SignatureCol label="Checked by" role="Agricultural Extension Worker" />
+      <SignatureCol label="Approved by" role="Municipal Agriculture Officer" />
+    </div>
+  );
+}
+
+function SignatureCol({ label, role }) {
+  return (
+    <div className="pr-sig-col">
+      <div className="pr-kv-label" style={{ marginBottom: 6 }}>{label}</div>
+      <div className="pr-sig-space" />
+      <div className="pr-sig-line" />
+      <div className="pr-sig-name">&nbsp;</div>
+      <div className="pr-sig-role">{role}</div>
+    </div>
+  );
 }

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, Sprout, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { friendlyError, SESSION_EXPIRED_MESSAGE } from "../lib/friendlyError.js";
@@ -7,7 +7,7 @@ import loginBg from "../assets/login-bg.jpg";
 import daSeal from "../assets/da-seal.png";
 
 export default function Login() {
-  const { login, signOutReason } = useAuth();
+  const { login, signOutReason, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,6 +15,9 @@ export default function Login() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const emailRef = useRef(null);
+
+  // Already signed in (e.g. from another tab): straight to the home page.
+  if (isAuthenticated && !submitting) return <Navigate to="/" replace />;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -72,6 +75,10 @@ export default function Login() {
             {error ? (
               <div className="agri-pill red" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }} role="alert">
                 {error}
+              </div>
+            ) : signOutReason === "other-tab" ? (
+              <div className="agri-pill orange" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }} role="status">
+                You were logged out in another tab. Log in again to continue.
               </div>
             ) : signOutReason === "expired" && (
               <div className="agri-pill orange" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }} role="status">
