@@ -120,7 +120,14 @@ begin
   if v_role = 'farmer' and new.farmer_id is distinct from public.current_farmer_id() then
     raise exception 'You can only report your own harvest.';
   end if;
-  if tg_op = 'INSERT' then
+  -- A signed-in user always starts a Submitted report filed by themselves.
+  -- Only the service role (no signed-in user: seed data, maintenance) may
+  -- load other values; the harvest rules below still apply to it.
+  if tg_op = 'INSERT' and v_role is null then
+    new.status := coalesce(new.status, 'submitted');
+    new.created_at := coalesce(new.created_at, now());
+    new.updated_at := coalesce(new.updated_at, new.created_at);
+  elsif tg_op = 'INSERT' then
     new.status := 'submitted';
     new.submitted_by := auth.uid();
     new.review_remarks := null;
@@ -130,7 +137,7 @@ begin
     new.created_at := now();
     new.updated_at := now();
     new.deleted_at := null;
-  else
+  elsif v_role is not null then
     select coalesce(array_agg(key), '{}') into changed
     from jsonb_each(to_jsonb(new)) n
     join jsonb_each(to_jsonb(old)) o using (key)
@@ -296,13 +303,15 @@ declare
   v_link text := '/harvest?id=' || new.harvest_report_id;
 begin
   select f.profile_id, btrim(f.first_name || ' ' || f.surname) as name into v_farmer from public.farmers f where f.farmer_id = new.farmer_id;
-  select role into v_role from public.profiles where id = auth.uid();
+  -- Who filed it (the farmer, the Farmers' Association President or the
+  -- MAO Admin) decides who is told about a new report.
+  select role into v_role from public.profiles where id = coalesce(new.submitted_by, auth.uid());
   v_what := rtrim(rtrim(to_char(new.yield_kg, 'FM999,999,990.00'), '0'), '.') || ' kg of ' || coalesce((select name from public.commodities where commodity_id = new.commodity_id), 'crop')
     || coalesce(' · ' || (select name from public.commodity_types where commodity_type_id = new.commodity_type_id), '')
     || ' (' || initcap(new.season) || ' season ' || new.season_year || ')';
 
   if tg_op = 'INSERT' then
-    if v_role = 'farmer' then
+    if v_role is null or v_role = 'farmer' then
       perform public.notify_role('mao_admin', 'harvest', 'New harvest report', v_farmer.name || ' reported ' || v_what || '.', v_link);
       perform public.notify_role('fa_president', 'harvest', 'New harvest report', v_farmer.name || ' reported ' || v_what || '.', v_link);
     else

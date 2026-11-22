@@ -50,7 +50,7 @@ function validateForm(form, others) {
   const name = nameError(form.name, others);
   if (name) errors.name = name;
   if (!form.category.trim()) errors.category = "Enter a category, e.g. Rice or Fertilizer.";
-  if (!form.unit.trim()) errors.unit = "Enter a unit, e.g. kg, bag or set.";
+  if (!form.unit.trim()) errors.unit = "Enter a unit, e.g. kg, set or head.";
   const typeErrors = validateTypeRows(form.types);
   if (Object.keys(typeErrors).length) errors.types = typeErrors;
   if (form.types.some((t) => !t.removed) && !isKg(form.unit)) errors.unit = "Types and rates are only for commodities measured in kg.";

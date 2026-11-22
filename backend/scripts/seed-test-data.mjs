@@ -27,6 +27,16 @@
 // its reason); the FA President files requests on farmers' behalf (Maui,
 // Claude, Luna and a seeded farmer — new request rows that only reference
 // them); and the FA President sends association requests in every status.
+//
+// MAO presentation (Nov 22, 2026): commodity types with kg/ha rates (Rice
+// Seeds: Inbred (RCEF) 40, Hybrid 15; Corn Seeds: Standard 20 — added only
+// when missing, never changed), each seeded farmer's Program / type,
+// requests that go straight to the MAO (Pending, some Recommended by the
+// Farmers' Association President, Approved, Rejected), association request
+// items from the MAO's list, a distribution with a 2,000 kg barangay
+// allocation by hectare and type, harvest reports in kg (Submitted,
+// Verified, Returned; Maui, Claude and Luna only as new rows), and the
+// default-password reminder turned off for the seeded (evaluator) farmers.
 import sharp from "sharp";
 import fs from "node:fs";
 import {
@@ -131,20 +141,29 @@ async function renderAvatar(f) {
   }
 }
 
-async function renderPlaceholderPhoto(s) {
+// Harvest: the same field, golden, with its own caption.
+async function renderHarvestPhoto(hr) {
+  return renderPlaceholderPhoto(
+    { farmer: hr.farmer, crop_type: `${hr.yield_kg.toLocaleString("en-US")} kg`, submitted_at: hr.harvest_date, latitude: hr.latitude, longitude: hr.longitude },
+    { title: "SAMPLE HARVEST PHOTO · TEST DATA", field: ["#e2c15a", "#b48a2c"], rowColor: "#9c7424" },
+  );
+}
+
+async function renderPlaceholderPhoto(s, look = {}) {
   const w = 1280, h = 960, horizon = 330;
+  const [fieldTop, fieldBottom] = look.field ?? ["#8cc06a", "#4f8f37"];
   const rows = Array.from({ length: 15 }, (_, i) => {
     const x = (i - 7) * 190;
-    return `<path d="M${w / 2 + x * 0.12} ${horizon} L${w / 2 + x * 1.6 - 40} ${h} L${w / 2 + x * 1.6 + 40} ${h} Z" fill="#3f8f3a" opacity="0.55"/>`;
+    return `<path d="M${w / 2 + x * 0.12} ${horizon} L${w / 2 + x * 1.6 - 40} ${h} L${w / 2 + x * 1.6 + 40} ${h} Z" fill="${look.rowColor ?? "#3f8f3a"}" opacity="0.55"/>`;
   }).join("");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
     <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd0ef"/><stop offset="1" stop-color="#e6f3f8"/></linearGradient>
-    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8cc06a"/><stop offset="1" stop-color="#4f8f37"/></linearGradient></defs>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${fieldTop}"/><stop offset="1" stop-color="${fieldBottom}"/></linearGradient></defs>
     <rect width="${w}" height="${horizon}" fill="url(#sky)"/><circle cx="1060" cy="120" r="56" fill="#ffe08a"/>
     <path d="M0 ${horizon} Q 320 ${horizon - 60} 640 ${horizon} T 1280 ${horizon} V ${horizon + 10} H 0 Z" fill="#6d9f55"/>
     <rect y="${horizon}" width="${w}" height="${h - horizon}" fill="url(#field)"/>${rows}
     <rect y="${h - 170}" width="${w}" height="170" fill="#0b1f12" opacity="0.62"/>
-    <text x="40" y="${h - 110}" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700" fill="#ffffff">SAMPLE PROOF-OF-PLANTING PHOTO · TEST DATA</text>
+    <text x="40" y="${h - 110}" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700" fill="#ffffff">${look.title ?? "SAMPLE PROOF-OF-PLANTING PHOTO · TEST DATA"}</text>
     <text x="40" y="${h - 58}" font-family="Segoe UI, Arial, sans-serif" font-size="30" fill="#e8f2ea">${xml(`${s.farmer} · ${s.crop_type} · ${s.submitted_at.slice(0, 10)} · ${s.latitude}, ${s.longitude}`)}</text>
   </svg>`;
   return sharp(Buffer.from(svg)).jpeg({ quality: 82 }).toBuffer();
@@ -228,6 +247,48 @@ async function main() {
     log(`Commodity inserted: ${c.name}`);
   }
   if (!DRY) saveLedger(ledger);
+
+  // ---------- Commodity types and kg/ha rates: add only the missing ones ----------
+  const typeOf = new Map(); // "commodity|type" -> { id, rate }
+  for (const c of data.commodities) {
+    const cid = commodityId.get(c.name);
+    if (!(c.types ?? []).length) continue;
+    const existing = typeof cid === "number"
+      ? await must(sb.from("commodity_types").select("commodity_type_id, name, rate_kg_per_ha, is_default").eq("commodity_id", cid).is("deleted_at", null), `types of ${c.name}`)
+      : [];
+    for (const t of c.types) {
+      let row = existing.find((x) => x.name.toLowerCase() === t.name.toLowerCase());
+      if (row) {
+        if (Number(row.rate_kg_per_ha) !== t.rate_kg_per_ha && !ledger.commodityTypes.some((x) => x.commodity_type_id === row.commodity_type_id)) {
+          log(`Type reused (not modified): ${c.name} · ${row.name} ${Number(row.rate_kg_per_ha)} kg/ha (JSON: ${t.rate_kg_per_ha})`);
+        }
+      } else if (DRY || typeof cid !== "number") {
+        log(`Type: would add ${c.name} · ${t.name} ${t.rate_kg_per_ha} kg/ha`);
+        typeOf.set(`${c.name}|${t.name}`, { id: `(new ${t.name})`, rate: t.rate_kg_per_ha });
+        continue;
+      } else {
+        row = await must(sb.from("commodity_types").insert({
+          commodity_id: cid, name: t.name, rate_kg_per_ha: t.rate_kg_per_ha, is_default: !!t.default && !existing.some((x) => x.is_default), updated_by: maoId,
+        }).select("commodity_type_id, name, rate_kg_per_ha, is_default").single(), `insert type ${c.name} · ${t.name}`);
+        existing.push(row);
+        remember(ledger.commodityTypes, { commodity_type_id: row.commodity_type_id, name: `${c.name} · ${t.name}` }, "commodity_type_id");
+        bump("commodity_types");
+        saveLedger(ledger);
+        log(`Type added: ${c.name} · ${t.name} ${t.rate_kg_per_ha} kg/ha`);
+      }
+      typeOf.set(`${c.name}|${t.name}`, { id: row.commodity_type_id, rate: Number(row.rate_kg_per_ha) });
+    }
+  }
+  const typeFor = (commodity, name) => {
+    if (!name) return null;
+    const t = typeOf.get(`${commodity}|${name}`);
+    if (!t) throw new Error(`Unknown type "${name}" for ${commodity}`);
+    return t;
+  };
+  // The commodity a farmer's crop gets its type from (category = crop).
+  const commodityForCrop = (crop, typeName) => data.commodities.find((c) => c.category === crop && (c.types ?? []).some((t) => t.name === typeName))?.name ?? null;
+  // Farm size × rate, 2 decimals (worked in hundredths, as the database does).
+  const byRate = (rate, size) => Math.round((Math.round(Number(size) * 100) * Math.round(Number(rate) * 100)) / 100) / 100;
 
   // Allocation rule per commodity: the database's (what the app uses) when it
   // has one, otherwise the JSON's (a dry run before the migration).
@@ -318,6 +379,28 @@ async function main() {
   if (!DRY) saveLedger(ledger);
   log(`Seeded farmers: ${data.farmers.length} (${inserted.farmers ?? 0} new${DRY ? `, ${[...farmerByRsbsa.values()].filter((x) => x.dry).length} would be created` : ""})`);
 
+  // ---------- Seeded farmers: Program / type, and no default-password reminder ----------
+  // Only seeded farmers (never Maui, Claude or Luna). A type already set in
+  // the app is left as it is.
+  for (const f of data.farmers) {
+    const fr = farmerByRsbsa.get(f.rsbsa_number);
+    const commodity = commodityForCrop(f.commodity, f.program_type);
+    const t = commodity ? typeFor(commodity, f.program_type) : null;
+    if (DRY || fr.dry) { if (DRY && t) log(`Farmer ${f.login_id}: Program / type ${f.program_type}`); continue; }
+    if (!ledger.farmers.some((x) => x.farmer_id === fr.id)) throw new StopError(`${f.rsbsa_number} is not a seeded farmer. Not changing it.`);
+    if (t && typeof t.id === "number") {
+      const cur = await must(sb.from("farmers").select("commodity_type_id").eq("farmer_id", fr.id).single(), `type of ${f.login_id}`);
+      if (cur.commodity_type_id == null) {
+        await must(sb.from("farmers").update({ commodity_type_id: t.id }).eq("farmer_id", fr.id), `set type ${f.login_id}`);
+        bump("farmers (Program / type set)");
+      }
+    }
+    if (fr.profileId) {
+      const off = await must(sb.from("profiles").update({ must_change_password: false }).eq("id", fr.profileId).eq("must_change_password", true).select("id"), `reminder off ${f.login_id}`);
+      if (off.length) bump("profiles (password reminder off)");
+    }
+  }
+
   // ---------- Profile pictures (seeded farmers only; never overwrite) ----------
   const avatarReport = { uploaded: [], kept: [], none: [] };
   for (const f of data.farmers) {
@@ -365,7 +448,26 @@ async function main() {
     // hectare; a number in the JSON instead is an adjusted quantity and needs
     // its adjustment_reason (as the app requires).
     let plan = null;
-    if (d.allocation === "farm_size") {
+    if (d.allocation === "by_type") {
+      // Each farmer: farm size × their Program / type's kg/ha rate (the
+      // commodity's default type when they have none); a number in the JSON
+      // is an adjusted quantity with its reason. The total must fit the
+      // barangay allocation.
+      plan = new Map();
+      const defaultName = data.commodities.find((c) => c.name === d.commodity)?.types?.find((t) => t.default)?.name;
+      for (const b of d.beneficiaries) {
+        const seeded = data.farmers.find((f) => f.rsbsa_number === b.rsbsa_number);
+        const t = typeFor(d.commodity, seeded?.program_type ?? defaultName);
+        const size = await farmSizeOf(b.rsbsa_number, farmerByRsbsa.get(b.rsbsa_number).id);
+        const computed = byRate(t.rate, size);
+        const qty = typeof b.quantity_received === "number" ? b.quantity_received : computed;
+        const adjusted = qty !== computed;
+        if (adjusted && !b.adjustment_reason) throw new Error(`${b.name}: an adjusted quantity needs an adjustment_reason.`);
+        plan.set(b.rsbsa_number, { qty, size, adjusted, reason: adjusted ? b.adjustment_reason : null, typeId: t.id, rate: t.rate });
+      }
+      const total = [...plan.values()].reduce((a, p) => a + p.qty, 0);
+      if (d.allocation_kg && total > d.allocation_kg) throw new Error(`"${d.program_name}": ${total} kg is more than the ${d.allocation_kg} kg barangay allocation.`);
+    } else if (d.allocation === "farm_size") {
       const rate = rateOf.get(d.commodity);
       plan = new Map();
       for (const b of d.beneficiaries) {
@@ -388,6 +490,7 @@ async function main() {
       ev = await must(sb.from("distribution_events").insert({
         program_name: d.program_name, event_date: d.date, venue: d.venue, barangay: d.barangay, funding_source: d.funding_source,
         status, completed_at: completedAt, beneficiaries_count: d.beneficiaries.length, created_at: createdAt,
+        ...(d.allocation_kg ? { allocation_kg: d.allocation_kg } : {}),
       }).select("event_id").single(), `insert event ${d.program_name}`);
       remember(ledger.events, { event_id: ev.event_id, program_name: d.program_name, event_date: d.date }, "event_id");
       bump("distribution_events");
@@ -408,6 +511,7 @@ async function main() {
         event_id: ev.event_id, commodity_id: cid, farmer_id: farmerByRsbsa.get(b.rsbsa_number).id,
         quantity_received: p ? p.qty : b.quantity_received, claimed_at: cap(tagTime),
         ...(p ? { farm_size_hectares: p.size, quantity_adjusted: p.adjusted, adjustment_reason: p.reason } : {}),
+        ...(p?.typeId ? { commodity_type_id: p.typeId, rate_kg_per_ha: p.rate } : {}),
       };
     });
     if (rows.length) {
@@ -456,93 +560,105 @@ async function main() {
     }
   }
 
-  // ---------- Commodity requests ----------
-  const REQUEST_STATUS = { "Pending FA review": "pending", "Forwarded to MAO": "forwarded", Approved: "approved", Rejected: "rejected" };
+  // ---------- Commodity requests (straight to the MAO) ----------
+  // Inserted Pending the way the app does (notifies the MAO Admin and the
+  // FA President); "Recommended" adds the FA President's recommendation
+  // (notifies the MAO); Approved / Rejected are then decided by the MAO
+  // Admin (notifies the farmer). Existing farmers are only referenced.
+  const REQUEST_STATUS = { Pending: "pending", Recommended: "pending", Approved: "approved", Rejected: "rejected" };
+  async function suggestedQty(r, fr) {
+    const t = typeFor(r.commodity, r.type);
+    const qty = t ? byRate(t.rate, await farmSizeOf(r.rsbsa_number, fr.id)) : allocationFor(rateOf.get(r.commodity), await farmSizeOf(r.rsbsa_number, fr.id));
+    if (!(qty > 0)) throw new Error(`${r.farmer}: no suggested quantity for ${r.commodity} (no rate or farm size).`);
+    return qty;
+  }
+  async function recommend(requestId, remarks, when) {
+    await must(sb.from("requests").update({
+      fa_recommended: true, fa_recommended_at: when, fa_remarks: remarks || null, reviewed_by_fa: faId,
+    }).eq("request_id", requestId), "recommend request");
+    await captureNotifs(when, ["Request recommended"]);
+  }
+  async function decide(requestId, status, remarks, when) {
+    await must(sb.from("requests").update({
+      status, mao_remarks: remarks || null, reviewed_by_mao: maoId, admin_decision_at: when,
+    }).eq("request_id", requestId), "decide request");
+    await captureNotifs(when, ["Your request was approved", "Your request was rejected"]);
+  }
+
   for (const r of data.commodity_requests) {
     const fr = farmerByRsbsa.get(r.rsbsa_number);
     const cid = commodityId.get(r.commodity);
     const status = REQUEST_STATUS[r.status];
     if (!status) throw new Error(`Unknown request status "${r.status}"`);
     const created = new Date(at(r.request_date, "08:30")).toISOString();
-    if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Request: would insert ${r.farmer} → ${r.commodity} (${status})`); continue; }
+    if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Request: would insert ${r.farmer} → ${r.commodity}${r.type ? ` · ${r.type}` : ""} (${r.status})`); continue; }
     const existing = await maybeOne(sb.from("requests").select("request_id").eq("farmer_id", fr.id).eq("commodity_id", cid).eq("created_at", created), `request ${r.farmer}`);
     if (existing) continue;
+    const t = typeFor(r.commodity, r.type);
+    const qty = r.quantity === "suggested" ? await suggestedQty(r, fr) : r.quantity;
     const req = await must(sb.from("requests").insert({
-      farmer_id: fr.id, commodity_id: cid, quantity_requested: r.quantity, reason: DEFAULT_REASON, status: "pending", created_at: created,
+      farmer_id: fr.id, commodity_id: cid, commodity_type_id: t?.id ?? null, quantity_requested: qty, reason: r.reason ?? DEFAULT_REASON, status: "pending", created_at: created,
     }).select("request_id").single(), `insert request ${r.farmer}`);
     remember(ledger.requests, req.request_id);
     bump("requests");
     saveLedger(ledger);
     await captureNotifs(created, ["New commodity request"]);
+    if (r.status === "Recommended" || r.fa_remarks) await recommend(req.request_id, r.fa_remarks ?? FA_FORWARD_REMARK, cap(plusDays(created, 1, "10:00")));
     if (status === "pending") continue;
-
-    const faAt = cap(plusDays(created, 1, "10:00"));
-    await must(sb.from("requests").update({
-      status: "forwarded", fa_remarks: FA_FORWARD_REMARK, reviewed_by_fa: faId, fa_decision_at: faAt, forwarded_to_admin_at: faAt,
-    }).eq("request_id", req.request_id), `forward request ${r.farmer}`);
-    await captureNotifs(faAt, ["Request awaiting your review"]);
-    if (status === "forwarded") continue;
-
-    const adminAt = cap(plusDays(created, 2, "14:00"));
-    await must(sb.from("requests").update({
-      status, mao_remarks: r.remarks || null, reviewed_by_mao: maoId, admin_decision_at: adminAt,
-    }).eq("request_id", req.request_id), `decide request ${r.farmer}`);
-    await captureNotifs(adminAt, ["Your request was approved", "Your request was rejected"]);
+    await decide(req.request_id, status, r.remarks, cap(plusDays(created, 2, "14:00")));
   }
 
   // ---------- Requests the FA President filed for farmers ----------
-  // Saved the way the app files them: filed_by and the endorsement are the
-  // FA President's, and the request goes straight to the MAO as Endorsed. The
-  // insert notifies the MAO and the farmer; Approved/Rejected ones are then
-  // decided by the MAO Admin. Existing farmers are only referenced.
-  const FILED_STATUS = { Endorsed: "forwarded", Approved: "approved", Rejected: "rejected" };
+  // Saved the way the app files them: Pending, filed_by the FA President
+  // (notifies the MAO Admin and the farmer); some also recommended;
+  // Approved / Rejected ones are then decided by the MAO Admin.
   for (const r of data.farmer_requests_filed_by_fa ?? []) {
     const fr = farmerByRsbsa.get(r.rsbsa_number);
     const cid = commodityId.get(r.commodity);
-    const status = FILED_STATUS[r.status];
+    const status = REQUEST_STATUS[r.status];
     if (!fr) throw new Error(`Filed request for unknown farmer ${r.rsbsa_number}`);
-    if (!status) throw new Error(`Unknown filed-request status "${r.status}"`);
-    let qty = r.quantity;
-    if (qty === "suggested") {
-      qty = allocationFor(rateOf.get(r.commodity), await farmSizeOf(r.rsbsa_number, fr.id));
-      if (!(qty > 0)) throw new Error(`${r.farmer}: no suggested quantity for ${r.commodity} (no allocation per hectare or farm size).`);
-    }
+    if (!status || r.status === "Recommended") throw new Error(`Unknown filed-request status "${r.status}"`);
     const created = new Date(at(r.request_date, "09:30")).toISOString();
-    if (DRY || fr.dry || typeof cid !== "number" || !faId) { if (DRY) log(`Filed request: would insert ${r.farmer} → ${r.commodity} ${qty} (${r.status}, filed by the FA President)`); continue; }
+    if (DRY || fr.dry || typeof cid !== "number" || !faId) { if (DRY) log(`Filed request: would insert ${r.farmer} → ${r.commodity}${r.type ? ` · ${r.type}` : ""} (${r.status}${r.recommended ? ", recommended" : ""}, filed by the FA President)`); continue; }
     const existing = await maybeOne(sb.from("requests").select("request_id").eq("farmer_id", fr.id).eq("commodity_id", cid).eq("created_at", created), `filed request ${r.farmer}`);
     if (existing) continue;
+    const t = typeFor(r.commodity, r.type);
+    const qty = r.quantity === "suggested" ? await suggestedQty(r, fr) : r.quantity;
     const req = await must(sb.from("requests").insert({
-      farmer_id: fr.id, commodity_id: cid, quantity_requested: qty, reason: r.reason, status: "forwarded", created_at: created,
-      filed_by: faId, reviewed_by_fa: faId, fa_decision_at: created, forwarded_to_admin_at: created,
+      farmer_id: fr.id, commodity_id: cid, commodity_type_id: t?.id ?? null, quantity_requested: qty, reason: r.reason, status: "pending", created_at: created, filed_by: faId,
     }).select("request_id").single(), `insert filed request ${r.farmer}`);
     remember(ledger.requests, req.request_id);
     bump("requests (filed by the FA President)");
     saveLedger(ledger);
-    await captureNotifs(created, ["Request awaiting your review", "A request was filed for you"]);
-    if (status === "forwarded") continue;
-    const adminAt = cap(plusDays(created, 1, "14:00"));
-    await must(sb.from("requests").update({
-      status, mao_remarks: r.remarks || null, reviewed_by_mao: maoId, admin_decision_at: adminAt,
-    }).eq("request_id", req.request_id), `decide filed request ${r.farmer}`);
-    await captureNotifs(adminAt, ["Your request was approved", "Your request was rejected"]);
+    await captureNotifs(created, ["New commodity request", "A request was filed for you"]);
+    if (r.recommended) await recommend(req.request_id, r.fa_remarks ?? FA_FORWARD_REMARK, cap(plusDays(created, 0, "09:45")));
+    if (status === "pending") continue;
+    await decide(req.request_id, status, r.remarks, cap(plusDays(created, 1, "14:00")));
   }
 
   // ---------- Association requests (FA President → MAO) ----------
   // Inserted Pending (notifies the MAO), then moved to their status by the
-  // MAO Admin (notifies the FA President). Matched on title + requester.
+  // MAO Admin (notifies the FA President). The item comes from the MAO's
+  // item list ("Other (specify)" with the specific item). Matched on the
+  // requester + submitted time (older runs: + title).
   const ASSOC_TYPE = { Machinery: "machinery", Project: "project", Other: "other" };
   const ASSOC_STATUS = { Pending: "pending", "Under review": "under_review", Approved: "approved", Rejected: "rejected" };
+  const itemList = await must(sb.from("association_request_items").select("item_id, name, is_other").is("deleted_at", null), "association request items");
   for (const a of data.association_requests ?? []) {
     const type = ASSOC_TYPE[a.type];
     const status = ASSOC_STATUS[a.status];
     if (!type || !status) throw new Error(`Association request "${a.title}": unknown type or status`);
-    if (DRY || !faId) { if (DRY) log(`Association request: would insert "${a.title}" (${a.type}, ${a.status})`); continue; }
-    const existing = await maybeOne(sb.from("association_requests").select("association_request_id").eq("requested_by", faId).eq("title", a.title), `association request ${a.title}`);
-    if (existing) continue;
+    const listItem = itemList.find((i) => i.name.toLowerCase() === (a.list_item ?? "").toLowerCase());
+    if (!listItem) throw new Error(`Association request "${a.title}": "${a.list_item}" is not on the item list.`);
+    if (DRY || !faId) { if (DRY) log(`Association request: would insert "${a.title}" (${a.type}, ${listItem.is_other ? a.item_other : listItem.name}, ${a.status})`); continue; }
     const submitted = cap(a.submitted_at);
+    const existing = (await maybeOne(sb.from("association_requests").select("association_request_id").eq("requested_by", faId).eq("created_at", submitted), `association request ${a.title}`))
+      ?? (await maybeOne(sb.from("association_requests").select("association_request_id").eq("requested_by", faId).eq("title", a.title), `association request ${a.title}`));
+    if (existing) continue;
     const row = await must(sb.from("association_requests").insert({
-      request_type: type, title: a.title, description: a.description, item: a.item ?? null, quantity: a.quantity ?? null,
-      estimated_beneficiaries: a.estimated_beneficiaries ?? null, preferred_date: a.preferred_date ?? null,
+      request_type: type, title: a.title, description: a.description, item_id: listItem.item_id, item_other: listItem.is_other ? a.item_other : null,
+      quantity: type === "machinery" ? a.quantity ?? 1 : null,
+      estimated_beneficiaries: a.estimated_beneficiaries, preferred_date: a.preferred_date ?? null,
       requested_by: faId, created_at: submitted, updated_at: submitted,
     }).select("association_request_id").single(), `insert association request ${a.title}`);
     remember(ledger.associationRequests, { association_request_id: row.association_request_id, title: a.title }, "association_request_id");
@@ -555,6 +671,62 @@ async function main() {
       status, admin_remarks: a.remarks || null, reviewed_by: maoId, reviewed_at: reviewedAt,
     }).eq("association_request_id", row.association_request_id), `review association request ${a.title}`);
     await captureNotifs(reviewedAt, ["Association request under review", "Association request approved", "Association request rejected"]);
+  }
+
+  // ---------- Harvest reports (kg) ----------
+  // Inserted Submitted the way the apps file them (a farmer's own report
+  // notifies the MAO Admin and the FA President; one the FA President filed
+  // notifies the MAO Admin and the farmer), then Verified or Returned by the
+  // MAO Admin (notifies the farmer). Maui, Claude and Luna only get new
+  // report rows that reference them. Matched on farmer + season + harvest date.
+  const SEASON = { Wet: "wet", Dry: "dry" };
+  const HARVEST_STATUS = { Submitted: "submitted", Verified: "verified", Returned: "returned" };
+  for (const hr of data.harvest_reports ?? []) {
+    const fr = farmerByRsbsa.get(hr.rsbsa_number);
+    const cid = commodityId.get(hr.commodity);
+    const season = SEASON[hr.season];
+    const status = HARVEST_STATUS[hr.status];
+    if (!fr) throw new Error(`Harvest report for unknown farmer ${hr.rsbsa_number}`);
+    if (!season || !status) throw new Error(`Harvest report for ${hr.farmer}: unknown season or status`);
+    if (status === "returned" && !hr.review_remarks) throw new Error(`Harvest report for ${hr.farmer}: Returned needs review_remarks.`);
+    const t = typeFor(hr.commodity, hr.type);
+    if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Harvest report: would insert ${hr.farmer} ${hr.season} ${hr.season_year} · ${hr.commodity}${hr.type ? ` · ${hr.type}` : ""} · ${hr.area_ha} ha · ${hr.yield_kg} kg (${hr.status}${hr.filed_by ? ", filed by the FA President" : ""})`); continue; }
+    const existing = await maybeOne(sb.from("harvest_reports").select("harvest_report_id").eq("farmer_id", fr.id).eq("season", season).eq("season_year", hr.season_year).eq("harvest_date", hr.harvest_date).is("deleted_at", null), `harvest report ${hr.farmer}`);
+    if (existing) {
+      if (!ledger.harvestReports.some((x) => x.harvest_report_id === existing.harvest_report_id)) notes.push(`A real harvest report by ${hr.farmer} for ${hr.season} ${hr.season_year} already exists; skipped.`);
+      continue;
+    }
+    const filedByFa = hr.filed_by === "fa_president";
+    if (filedByFa && !faId) continue;
+    const submittedBy = filedByFa ? faId : fr.profileId;
+    if (!submittedBy) throw new Error(`Harvest report for ${hr.farmer}: the farmer has no account; file it as the FA President.`);
+    const created = cap(plusDays(at(hr.harvest_date, "09:00"), 1, "09:00"));
+    let photoPath = null;
+    if (hr.photo) {
+      photoPath = `${fr.id}/${BATCH}-harvest-${loginIdFromRsbsa(hr.rsbsa_number)}-${hr.season_year}${season}.jpg`;
+      const { error: upErr } = await sb.storage.from("harvest-photos").upload(photoPath, await renderHarvestPhoto(hr), { contentType: "image/jpeg", upsert: true });
+      if (upErr) throw new Error(`upload harvest photo ${hr.farmer}: ${upErr.message}`);
+      remember(ledger.storage, { bucket: "harvest-photos", path: photoPath }, "path");
+      bump("storage harvest photos");
+      saveLedger(ledger);
+    }
+    const row = await must(sb.from("harvest_reports").insert({
+      farmer_id: fr.id, season, season_year: hr.season_year, commodity_id: cid, commodity_type_id: t?.id ?? null,
+      area_harvested_ha: hr.area_ha, yield_kg: hr.yield_kg, harvest_date: hr.harvest_date, remarks: hr.remarks || null,
+      photo_path: photoPath, latitude: hr.latitude ?? null, longitude: hr.longitude ?? null,
+      gps_accuracy_meters: hr.latitude != null ? GPS_ACCURACY_M : null, photo_captured_at: photoPath ? cap(at(hr.harvest_date, "15:00")) : null,
+      status: "submitted", submitted_by: submittedBy, created_at: created, updated_at: created,
+    }).select("harvest_report_id").single(), `insert harvest report ${hr.farmer}`);
+    remember(ledger.harvestReports, { harvest_report_id: row.harvest_report_id, farmer: hr.farmer }, "harvest_report_id");
+    bump("harvest_reports");
+    saveLedger(ledger);
+    await captureNotifs(created, ["New harvest report", "A harvest was reported for you"]);
+    if (status === "submitted") continue;
+    const reviewedAt = cap(plusDays(created, 2, "10:00"));
+    await must(sb.from("harvest_reports").update({
+      status, review_remarks: hr.review_remarks || null, reviewed_by: maoId, reviewed_at: reviewedAt, updated_at: reviewedAt,
+    }).eq("harvest_report_id", row.harvest_report_id), `review harvest report ${hr.farmer}`);
+    await captureNotifs(reviewedAt, ["Harvest report verified", "Harvest report returned"]);
   }
 
   // ---------- Announcements ----------
@@ -597,6 +769,8 @@ async function main() {
       distribution_claims: ledger.claims, crop_validations: ledger.cropValidations.map((x) => x.validation_id),
       requests: ledger.requests, announcements: ledger.announcements.map((x) => x.announcement_id),
       association_requests: ledger.associationRequests.map((x) => x.association_request_id),
+      harvest_reports: ledger.harvestReports.map((x) => x.harvest_report_id),
+      commodity_types: ledger.commodityTypes.map((x) => x.commodity_type_id),
     };
     for (const [table, pk] of Object.entries(AUDITED)) {
       for (const ids of chunk(idsFor[table].map(String))) {

@@ -28,6 +28,8 @@ export const AUDITED = {
   requests: "request_id",
   announcements: "announcement_id",
   association_requests: "association_request_id",
+  harvest_reports: "harvest_report_id",
+  commodity_types: "commodity_type_id",
 };
 
 export function adminClient() {
@@ -69,6 +71,7 @@ export function emptyLedger() {
     authUsers: [], farmers: [], addresses: [], farmParcels: [], crops: [], commodities: [],
     events: [], eventItems: [], claims: [], cropValidations: [], requests: [], announcements: [],
     associationRequests: [], notifications: [], auditLogs: [], storage: [],
+    commodityTypes: [], harvestReports: [],
   };
 }
 

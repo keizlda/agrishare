@@ -128,6 +128,14 @@ async function main() {
     ...cvRows.map((r) => r.validation_id),
     ...(await selectIn("crop_validations", "validation_id", "farmer_id", farmerIds)).map((r) => r.validation_id),
   ];
+  // Harvest reports: seeded ones, any for seeded farmers, and any the test
+  // accounts filed (including for Maui, Claude and Luna — new rows only).
+  const harvestRows = [
+    ...(await selectIn("harvest_reports", "harvest_report_id, photo_path", "harvest_report_id", ledger.harvestReports.map((h) => h.harvest_report_id))),
+    ...(await selectIn("harvest_reports", "harvest_report_id, photo_path", "farmer_id", farmerIds)),
+    ...(await selectIn("harvest_reports", "harvest_report_id, photo_path", "submitted_by", profileIds)),
+  ];
+  const harvestIds = [...new Set(harvestRows.map((h) => h.harvest_report_id))];
   // Seeded farmers tagged onto distributions that aren't seeded: drop only those tags.
   const strayClaims = (await selectIn("distribution_claims", "claim_id, event_id", "farmer_id", farmerIds)).filter((c) => !eventIds.includes(c.event_id));
   const seededClaims = await selectIn("distribution_claims", "claim_id", "event_id", eventIds);
@@ -145,6 +153,7 @@ async function main() {
   await checkRefs("requests", "request_id", ["reviewed_by_fa", "reviewed_by_mao", "filed_by"], notIn(requestIds));
   await checkRefs("association_requests", "association_request_id", ["reviewed_by"], notIn(assocIds));
   await checkRefs("crop_validations", "validation_id", ["reviewed_by"], notIn(validationIds));
+  await checkRefs("harvest_reports", "harvest_report_id", ["reviewed_by", "submitted_by"], notIn(harvestIds));
   await checkRefs("distribution_events", "event_id", ["created_by", "status_updated_by", "deleted_by"], notIn(eventIds));
   await checkRefs("distribution_claims", "claim_id", ["released_by"], notIn(claimIds));
   await checkRefs("farmers", "farmer_id", ["created_by", "deleted_by"], notIn(farmerIds));
@@ -169,10 +178,25 @@ async function main() {
   const comToDelete = comIds.filter((id) => !stillUsed.has(id));
   for (const id of stillUsed) log(`Keeping commodity ${comRows.find((c) => c.commodity_id === id).name}: real records use it now.`);
 
+  // Seed-added commodity types (e.g. Corn Seeds · Standard): removed unless
+  // a real record now uses them (a real farmer's Program / type, a real
+  // distribution row, request or harvest report).
+  const typeIds = ledger.commodityTypes.map((t) => t.commodity_type_id);
+  const typeUsedBy = async (table, key, dropIds) => (await selectIn(table, `${key}, commodity_type_id`, "commodity_type_id", typeIds)).filter((r) => !dropIds.includes(r[key])).map((r) => r.commodity_type_id);
+  const typesStillUsed = new Set([
+    ...await typeUsedBy("farmers", "farmer_id", farmerIds),
+    ...await typeUsedBy("distribution_claims", "claim_id", claimIds),
+    ...await typeUsedBy("requests", "request_id", requestIds),
+    ...await typeUsedBy("harvest_reports", "harvest_report_id", harvestIds),
+  ]);
+  const typesToDelete = typeIds.filter((id) => !typesStillUsed.has(id));
+  for (const id of typesStillUsed) log(`Keeping type ${ledger.commodityTypes.find((t) => t.commodity_type_id === id).name}: real records use it now.`);
+
   // Files: ledger paths + anything else the seeded accounts uploaded.
-  const files = { avatars: new Set(), "crop-validation-photos": new Set(), "association-attachments": new Set() };
+  const files = { avatars: new Set(), "crop-validation-photos": new Set(), "association-attachments": new Set(), "harvest-photos": new Set() };
   ledger.storage.forEach((s) => files[s.bucket]?.add(s.path));
-  for (const [bucket, folders] of [["avatars", profileIds], ["crop-validation-photos", farmerIds.map(String)], ["association-attachments", profileIds]]) {
+  harvestRows.filter((h) => h.photo_path).forEach((h) => files["harvest-photos"].add(h.photo_path));
+  for (const [bucket, folders] of [["avatars", profileIds], ["crop-validation-photos", farmerIds.map(String)], ["association-attachments", profileIds], ["harvest-photos", farmerIds.map(String)]]) {
     for (const folder of folders) {
       const { data: objs, error } = await sb.storage.from(bucket).list(folder, { limit: 1000 });
       if (error) throw new Error(`list ${bucket}/${folder}: ${error.message}`);
@@ -186,6 +210,7 @@ async function main() {
   await deleteIn("requests", "request_id", requestIds);
   await deleteIn("association_requests", "association_request_id", assocIds);
   await deleteIn("crop_validations", "validation_id", validationIds);
+  await deleteIn("harvest_reports", "harvest_report_id", harvestIds);
   await deleteIn("distribution_claims", "claim_id", strayClaims.map((c) => c.claim_id), "distribution_claims (on real distributions)");
   if (DRY) { count("distribution_claims", seededClaims.length); count("distribution_event_items", itemIdsOfSeededEvents.length); }
   await deleteIn("distribution_events", "event_id", eventIds, "distribution_events (+ their items and claims)");
@@ -193,6 +218,7 @@ async function main() {
     count("addresses / farm_parcels / crops (cascade)", (await selectIn("addresses", "address_id", "farmer_id", farmerIds)).length);
   }
   await deleteIn("farmers", "farmer_id", farmerIds, "farmers (+ addresses, parcels, crops)");
+  await deleteIn("commodity_types", "commodity_type_id", typesToDelete);
   await deleteIn("commodities", "commodity_id", comToDelete);
 
   for (const [bucket, set] of Object.entries(files)) {
@@ -216,7 +242,7 @@ async function main() {
   const idsFor = {
     farmers: farmerIds, commodities: comToDelete, distribution_events: eventIds, distribution_event_items: itemIdsOfSeededEvents,
     distribution_claims: claimIds, crop_validations: validationIds, requests: requestIds, announcements: annRows.map((a) => a.announcement_id),
-    association_requests: assocIds,
+    association_requests: assocIds, harvest_reports: harvestIds, commodity_types: typesToDelete,
   };
   for (const [table, pk] of Object.entries(AUDITED)) {
     for (const ids of chunk([...new Set(idsFor[table])].map(String))) {
