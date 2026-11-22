@@ -130,10 +130,10 @@ export default function Dashboard() {
   const harvestSum = harvestTotals(harvests);
   const harvestToVerify = harvests.filter((h) => h.statusKey === "submitted").length;
   const chips = [
-    isMAO && { count: subStats.pending, label: plural(subStats.pending, "submission to review", "submissions to review"), to: "/validation?status=Pending", dot: "var(--agri-orange)" },
+    isMAO && { count: subStats.pending, label: plural(subStats.pending, "submission to review", "submissions to review"), to: "/validation?type=planting", dot: "var(--agri-orange)" },
     { count: ongoing, label: plural(ongoing, "ongoing distribution", "ongoing distributions"), to: "/distributions?status=Ongoing", dot: "var(--agri-teal)" },
     { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: "/requests?status=pending", dot: "var(--agri-blue)" },
-    isMAO && { count: harvestToVerify, label: plural(harvestToVerify, "harvest report to verify", "harvest reports to verify"), to: "/harvest?status=submitted", dot: "var(--agri-primary)" },
+    isMAO && { count: harvestToVerify, label: plural(harvestToVerify, "harvest report to verify", "harvest reports to verify"), to: "/validation?type=harvest", dot: "var(--agri-primary)" },
   ].filter((c) => c && c.count > 0);
 
   return (

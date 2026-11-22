@@ -3,7 +3,7 @@ import { supabase } from "../supabaseClient.js";
 const SELECT = `
   validation_id, farmer_id, photo_url, latitude, longitude, gps_accuracy_meters,
   captured_at, status, remarks, reviewed_by, reviewed_at, created_at,
-  crop:crops ( crop_type ),
+  crop:crops ( crop_type, area_planted ),
   farmers (
     farmer_id, rsbsa_no, surname, first_name, sex, birth_date, contact_no, status, deleted_at,
     addresses ( street, barangay, municipality, province ),
@@ -32,6 +32,7 @@ function mapSubmission(row) {
     // The submission's own crop when it was linked to one, otherwise the
     // farmer's recorded commodity (mobile submissions don't set crop_id).
     crop: row.crop?.crop_type ?? parcel?.crops?.[0]?.crop_type ?? "",
+    areaPlanted: row.crop?.area_planted != null ? Number(row.crop.area_planted) : null,
     remarks: row.remarks ?? "",
     reviewedBy: row.reviewer?.full_name ?? null,
     reviewedAt: row.reviewed_at,

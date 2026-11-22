@@ -14,18 +14,21 @@ import { useIsMobile } from "../../hooks/useIsMobile.js";
 // /announcements is shared too — FA President gets a read-only view there
 // with a "Forward to farmers" action (RLS already limits what they can see
 // and change; the page itself hides MAO-only controls for that role).
-const MAO_ONLY_ROUTES = ["/validation", "/reports", "/activity-log"];
+const MAO_ONLY_ROUTES = ["/reports", "/activity-log"];
 
 // Pages that fill the viewport height below the navbar (desktop only — the
 // CSS is scoped to >=1024px). Everything else keeps normal page scrolling.
 // The Dashboard has its own height-aware fill rules (.agri-app-dash), since
 // it falls back to scrolling on short screens rather than always filling.
-const FILL_ROUTES = ["/farmers", "/validation", "/commodities", "/distributions", "/requests", "/harvest", "/announcements", "/activity-log"];
+const FILL_ROUTES = ["/farmers", "/validation", "/commodities", "/distributions", "/requests", "/announcements", "/activity-log"];
 
 export default function AppLayout() {
   const { isAuthenticated, initializing, user, bootError, retryRestore, notice, clearNotice } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
+  // The page section ("/validation" for /validation/harvest/12): sub-pages
+  // fill the screen like their page and keep its state when opened.
+  const section = `/${location.pathname.split("/")[1] ?? ""}`;
 
   if (initializing) {
     return (
@@ -58,7 +61,7 @@ export default function AppLayout() {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (user?.role === "FA President" && MAO_ONLY_ROUTES.includes(location.pathname)) {
+  if (user?.role === "FA President" && MAO_ONLY_ROUTES.includes(section)) {
     return <Navigate to="/" replace />;
   }
 
@@ -80,11 +83,11 @@ export default function AppLayout() {
 
   return (
     <div
-      className={`agri-app${FILL_ROUTES.includes(location.pathname) ? " agri-app-fill" : ""}${location.pathname === "/" ? " agri-app-dash" : ""}`}
+      className={`agri-app${FILL_ROUTES.includes(section) ? " agri-app-fill" : ""}${location.pathname === "/" ? " agri-app-dash" : ""}`}
     >
       <Topbar />
       <div className="agri-content">
-        <ErrorBoundary key={location.pathname}>
+        <ErrorBoundary key={section}>
           <Outlet />
         </ErrorBoundary>
       </div>

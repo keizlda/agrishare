@@ -36,7 +36,7 @@ const SELECT = `
   remarks, status, review_remarks, reviewed_at, submitted_by, resubmitted_at, created_at, updated_at,
   commodities ( name ),
   commodity_types ( name ),
-  farmers ( farmer_id, rsbsa_no, first_name, surname, profile_id, addresses ( barangay, street ), farm_parcels ( farm_size_hectares ) ),
+  farmers ( farmer_id, rsbsa_no, first_name, surname, profile_id, addresses ( barangay, street ), farm_parcels ( farm_size_hectares ), profiles!profile_id ( avatar_url ) ),
   reviewer:profiles!reviewed_by ( full_name ),
   submitter:profiles!submitted_by ( full_name, role )
 `;
@@ -55,6 +55,9 @@ function mapHarvest(row) {
     id: row.harvest_report_id,
     farmerId: row.farmer_id,
     farmerName: f ? `${f.first_name} ${f.surname}` : "Farmer",
+    firstName: f?.first_name ?? "",
+    lastName: f?.surname ?? "",
+    avatarUrl: f?.profiles?.avatar_url ?? null,
     rsbsaNo: f?.rsbsa_no ?? "",
     barangay: f?.addresses?.[0]?.barangay ?? "Langapud",
     sitioPurok: f?.addresses?.[0]?.street ?? "",

@@ -1,529 +1,186 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  Image as ImageIcon,
-  Search,
-  User as UserIcon,
-  X,
-  XCircle,
-} from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Inbox, Plus, Search } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
-import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
-import Pagination from "../components/ui/Pagination.jsx";
 import Toast from "../components/ui/Toast.jsx";
+import TableFooter from "../components/ui/TableFooter.jsx";
+import EmptyState from "../components/ui/EmptyState.jsx";
+import HarvestReportModal from "../components/harvest/HarvestReportModal.jsx";
+import SubmissionView from "../components/validation/SubmissionView.jsx";
+import KindTag from "../components/validation/KindTag.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
-import { usePagination } from "../hooks/usePagination.js";
-import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
-import { getSignedPhotoUrl, listSubmissions, rejectSubmission, validateSubmission } from "../lib/api/cropValidation.js";
-import { listFarmers } from "../lib/api/farmers.js";
-import { formatDate, formatDateTime } from "../lib/dates.js";
-import { friendlyError } from "../lib/friendlyError.js";
+import { useFitPageSize } from "../hooks/useFitPageSize.js";
+import { KINDS, STATUS_FILTERS, TYPE_TABS, applyFilters, filterQuery, loadInbox, readFilters, toItem } from "../lib/validationInbox.js";
+import { formatDate } from "../lib/dates.js";
+import { rowLinkProps } from "../lib/rowLink.js";
 
-const PAGE_SIZE = 15;
-const STATUS_TABS = ["All", "Pending", "Validated", "Rejected"];
+const EMPTY = {
+  pending: ["No pending submissions", "Everything has been reviewed."],
+  approved: ["No validated or verified submissions", "Submissions the MAO Admin approves appear here."],
+  declined: ["No rejected or returned submissions", "Submissions sent back to farmers appear here."],
+  all: ["No submissions yet", "Proof of planting and harvest reports from farmers appear here."],
+};
 
-// Barangay Langapud's approximate center — the schema has no per-parcel GPS
-// coordinates, so this is the only geographic anchor available to flag a
-// submission photo that's obviously nowhere near the declared parcel.
-const LANGAPUD_REF = { lat: 7.8333, lng: 123.6333 };
-
-function haversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function relativeTime(iso) {
-  if (!iso) return "";
-  const date = new Date(iso);
-  const diffMs = Date.now() - date.getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
-  // Older than a week: the row already shows the full submitted date.
-  return "";
-}
-
+// Validation inbox (MAO Admin and Farmers' Association President): proof of
+// planting and harvest reports in one list, like an email inbox. Opening one
+// (/validation/planting/:id or /validation/harvest/:id) shows it in the same
+// card. The filters, search and page live in the URL, so Back, refresh and
+// shared links keep them.
 export default function Validation() {
   const { user } = useAuth();
+  const isMAO = user?.role === "MAO Admin";
+  const { kind, id } = useParams();
   const navigate = useNavigate();
-  const isReviewer = user?.role === "MAO Admin" || user?.role === "FA President";
-
-  const { data: submissions, setData: setSubmissions, loading, error: loadError } = useSupabaseList(listSubmissions);
-  const [farmers, setFarmers] = useState([]);
-  const [search, setSearch] = useState("");
-  // ?status= preselects a tab (the Dashboard's "submissions to review" chip).
-  const [searchParams] = useSearchParams();
-  const [statusTab, setStatusTab] = useState(() => (STATUS_TABS.includes(searchParams.get("status")) ? searchParams.get("status") : "Pending"));
-  const [sort, setSort] = useState("Newest first");
-  const [selectedId, setSelectedId] = useState(null);
-  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
-  const [viewedIds, setViewedIds] = useState(() => new Set());
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = readFilters(searchParams);
+  const qs = filterQuery(filters);
+  const { data: items, setData: setItems, loading, error: loadError } = useSupabaseList(loadInbox);
   const [toast, setToast] = useState(null);
-  const listRef = useRef(null);
+  const [adding, setAdding] = useState(false);
 
-  useEffect(() => {
-    listFarmers().then(setFarmers).catch(() => {});
-  }, []);
-
-  const counts = useMemo(() => {
-    const c = { All: submissions.length, Pending: 0, Validated: 0, Rejected: 0 };
-    for (const s of submissions) c[s.status] = (c[s.status] ?? 0) + 1;
+  const filtered = useMemo(() => applyFilters(items, filters), [items, filters.type, filters.status, filters.q]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pendingCounts = useMemo(() => {
+    const c = { all: 0, planting: 0, harvest: 0 };
+    for (const i of items) if (i.group === "pending") { c.all++; c[i.kind]++; }
     return c;
-  }, [submissions]);
+  }, [items]);
 
-  const filtered = useMemo(() => {
-    let list = submissions.filter((s) => statusTab === "All" || s.status === statusTab);
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((s) => s.farmer?.fullName.toLowerCase().includes(q) || s.farmer?.rsbsaNo.includes(search));
-    }
-    list = [...list].sort((a, b) => {
-      const diff = new Date(a.submittedAt) - new Date(b.submittedAt);
-      return sort === "Newest first" ? -diff : diff;
-    });
-    return list;
-  }, [submissions, statusTab, search, sort]);
-
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, PAGE_SIZE);
-
-  const selected = submissions.find((s) => s.id === selectedId) ?? null;
-
-  function selectRow(id) {
-    setSelectedId(id);
-    setMobileDetailOpen(true);
-    setViewedIds((prev) => new Set(prev).add(id));
+  function setFilters(next) {
+    setSearchParams(new URLSearchParams(filterQuery({ ...filters, page: 1, ...next }).slice(1)), { replace: true });
   }
 
-  // Up/Down moves the selection through the current page, Escape backs out
-  // of the mobile full-screen detail — skipped while typing in a field.
-  useEffect(() => {
-    function onKeyDown(e) {
-      const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
-        if (e.key === "Escape") setMobileDetailOpen(false);
-        return;
-      }
-      if (e.key === "Escape") {
-        setMobileDetailOpen(false);
-        return;
-      }
-      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-      if (pageItems.length === 0) return;
-      e.preventDefault();
-      const idx = pageItems.findIndex((s) => s.id === selectedId);
-      const nextIdx =
-        e.key === "ArrowDown" ? Math.min(idx + 1, pageItems.length - 1) : Math.max(idx - 1, 0);
-      selectRow(pageItems[Math.max(nextIdx, 0)].id);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageItems, selectedId]);
+  const openItem = useCallback((item) => navigate(`/validation/${item.kind}/${item.id}${qs}`), [navigate, qs]);
+  const backToList = useCallback(() => navigate(`/validation${qs}`), [navigate, qs]);
 
-  function goToFarmerProfile(rsbsaNo) {
-    navigate("/farmers", { state: { presetSearch: rsbsaNo } });
-  }
+  // A changed or added item replaces the old one (or goes on top).
+  const putItem = useCallback(
+    (item) => setItems((prev) => (prev.some((i) => i.key === item.key) ? prev.map((i) => (i.key === item.key ? item : i)) : [item, ...prev])),
+    [setItems],
+  );
 
-  async function handleReview(status, remarksText) {
-    if (!selected) return;
-    try {
-      const updated = status === "validated" ? await validateSubmission(selected.id, remarksText) : await rejectSubmission(selected.id, remarksText);
-      setSubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-      setToast({ tone: "success", message: status === "validated" ? "Submission validated." : "Submission rejected." });
-    } catch (err) {
-      setToast({ tone: "error", message: friendlyError(err, "Couldn't save this decision. Please try again.") });
-    }
+  const addModal = adding && (
+    <HarvestReportModal
+      onClose={() => setAdding(false)}
+      onSaved={(saved) => {
+        const item = toItem.harvest(saved);
+        putItem(item);
+        setAdding(false);
+        setToast({ tone: "success", message: "Harvest report added. The MAO will verify it." });
+        openItem(item);
+      }}
+    />
+  );
+  const toastEl = toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />;
+
+  if (kind) {
+    const item = items.find((i) => i.kind === kind && String(i.id) === String(id)) ?? null;
+    return (
+      <div className="agri-fill-root">
+        <SubmissionView
+          key={`${kind}-${id}`}
+          item={item}
+          loading={loading}
+          loadError={loadError}
+          list={filtered}
+          user={user}
+          isMAO={isMAO}
+          onBack={backToList}
+          onOpen={openItem}
+          onChanged={putItem}
+          onRemoved={(removed) => setItems((prev) => prev.filter((i) => i.key !== removed.key))}
+          onToast={setToast}
+        />
+        {addModal}
+        {toastEl}
+      </div>
+    );
   }
 
   return (
     <div className="agri-fill-root">
-      {/* This page reviews proof-of-planting SUBMISSIONS; a farmer is never
-          validated as a person (their own status is only Active/Inactive). */}
-      <div className="agri-page-title">
-        <h1>Proof of Planting Validation</h1>
-      </div>
-
-      <div className="agri-card agri-fill-card" style={{ padding: 0, overflow: "hidden" }}>
-        {loadError && (
-          <div className="agri-pill red" style={{ display: "block", margin: 16, padding: "8px 12px" }}>
-            {loadError}
-          </div>
-        )}
-
-        <div className={`agri-inbox${mobileDetailOpen ? " detail-open" : ""}`}>
-          <div className="agri-inbox-list" ref={listRef}>
-            <div className="agri-inbox-list-header">
-              <div style={{ display: "flex", gap: 10 }}>
-                <div style={{ position: "relative", flex: 1 }}>
-                  <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: "var(--agri-icon-muted)" }} />
-                  <input
-                    className="form-control"
-                    placeholder="Search by farmer name or RSBSA no."
-                    style={{ paddingLeft: 32 }}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="agri-filter-pills">
-                {STATUS_TABS.map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    className={`agri-filter-pill${statusTab === tab ? " active" : ""}`}
-                    onClick={() => setStatusTab(tab)}
-                  >
-                    {tab} <span className="agri-filter-pill-count">{counts[tab] ?? 0}</span>
-                  </button>
-                ))}
-              </div>
-
-              <select className="form-select" style={{ marginTop: 10 }} value={sort} onChange={(e) => setSort(e.target.value)}>
-                <option>Newest first</option>
-                <option>Oldest first</option>
-              </select>
-            </div>
-
-            <div className="agri-inbox-rows">
-              {loading && <div className="agri-muted text-center py-4" style={{ fontSize: "0.85rem" }}>Loading submissions…</div>}
-
-              {!loading && pageItems.length === 0 && (
-                <div className="agri-inbox-empty">
-                  <ImageIcon size={28} color="var(--agri-icon-faint)" />
-                  <div>No submissions to review.</div>
-                </div>
-              )}
-
-              {pageItems.map((s) => {
-                const isUnread = s.status === "Pending" && !viewedIds.has(s.id);
-                const dueForRevalidation = s.status === "Validated" && s.farmer?.status === "Inactive";
-                return (
-                  <SubmissionRow
-                    key={s.id}
-                    submission={s}
-                    active={s.id === selectedId}
-                    unread={isUnread}
-                    flagged={dueForRevalidation}
-                    onClick={() => selectRow(s.id)}
-                  />
-                );
-              })}
-            </div>
-
-            <div style={{ padding: "10px 16px" }}>
-              <div className="agri-muted" style={{ fontSize: "0.78rem" }}>
-                Showing {pageItems.length} of {filtered.length} submissions
-              </div>
-              <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-            </div>
-          </div>
-
-          <div className="agri-inbox-detail">
-            {selected ? (
-              <SubmissionDetail
-                submission={selected}
-                isReviewer={isReviewer}
-                onBack={() => setMobileDetailOpen(false)}
-                onReview={handleReview}
-                onViewFarmerProfile={() => goToFarmerProfile(selected.farmer?.rsbsaNo)}
-              />
-            ) : (
-              <div className="agri-detail-empty">
-                <ImageIcon size={32} color="var(--agri-icon-faint)" />
-                <div>Select a submission to review.</div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
+      <InboxList
+        filters={filters}
+        filtered={filtered}
+        pendingCounts={pendingCounts}
+        loading={loading}
+        loadError={loadError}
+        onFilters={setFilters}
+        onPage={(page) => setSearchParams(new URLSearchParams(filterQuery({ ...filters, page }).slice(1)), { replace: true })}
+        onOpen={openItem}
+        onAdd={() => setAdding(true)}
+      />
+      {addModal}
+      {toastEl}
     </div>
   );
 }
 
-function SubmissionRow({ submission, active, unread, flagged, onClick }) {
-  const avatarUrl = submission.farmer?.avatarUrl;
+function InboxList({ filters, filtered, pendingCounts, loading, loadError, onFilters, onPage, onOpen, onAdd }) {
+  const tableRef = useRef(null);
+  const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = Math.min(filters.page, totalPages);
+  const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const [title, hint] = filters.q ? [`No submissions match “${filters.q}”`, "Try another name or RSBSA no., or change the filters."] : EMPTY[filters.status];
 
   return (
-    <button
-      type="button"
-      className={`agri-submission-row${active ? " active" : ""}${unread ? " unread" : ""}`}
-      onClick={onClick}
-    >
-      {unread && <span className="agri-submission-dot" />}
-      <div className="agri-submission-thumb">
-        {avatarUrl ? <img src={avatarUrl} alt="" /> : <UserIcon size={16} color="var(--agri-icon-faint)" />}
-        {flagged && <span className="agri-amber-marker" title="Inactive farmer with a validated submission — due for revalidation" />}
-      </div>
-      <div className="agri-submission-body">
-        <div className="agri-submission-name">{submission.farmer?.fullName ?? "Unknown farmer"}</div>
-        <div className="agri-submission-sub">{submission.crop || "—"}</div>
-        <div className="agri-submission-time">
-          Submitted {formatDate(submission.submittedAt)}
-          {relativeTime(submission.submittedAt) && ` · ${relativeTime(submission.submittedAt)}`}
+    <div className="agri-card agri-fill-card agri-vinbox">
+      {loadError && <div className="agri-pill red" role="alert" style={{ display: "block", margin: "12px 16px 0", padding: "8px 12px" }}>{loadError}</div>}
+      <div className="agri-vinbox-bar">
+        <h1 className="agri-vinbox-title">Validation</h1>
+        <div className="agri-text-tabs" role="tablist" aria-label="Submission type">
+          {TYPE_TABS.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              role="tab"
+              aria-selected={filters.type === t.value}
+              className={`agri-text-tab${filters.type === t.value ? " active" : ""}`}
+              onClick={() => onFilters({ type: t.value })}
+            >
+              {t.label}
+              {pendingCounts[t.value] > 0 && <span className="agri-text-tab-count" title={`${pendingCounts[t.value]} pending`}>{pendingCounts[t.value]}</span>}
+            </button>
+          ))}
         </div>
-      </div>
-      <Pill status={submission.status} />
-    </button>
-  );
-}
-
-function SubmissionDetail({ submission, isReviewer, onBack, onReview, onViewFarmerProfile }) {
-  const [photoUrl, setPhotoUrl] = useState(null);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [remarks, setRemarks] = useState("");
-  const [rejectRemarks, setRejectRemarks] = useState("");
-  const [saving, setSaving] = useState(null); // null | "rejected" | "validated"
-  const [confirmReject, setConfirmReject] = useState(false);
-
-  useEscapeToClose(lightboxOpen, () => setLightboxOpen(false));
-
-  const f = submission.farmer;
-
-  useEffect(() => {
-    setRemarks("");
-    setRejectRemarks("");
-    setConfirmReject(false);
-    setPhotoUrl(null);
-    getSignedPhotoUrl(submission.photoPath).then(setPhotoUrl).catch(() => {});
-  }, [submission.id, submission.photoPath]);
-
-  const distanceKm =
-    submission.latitude != null && submission.longitude != null
-      ? haversineKm(submission.latitude, submission.longitude, LANGAPUD_REF.lat, LANGAPUD_REF.lng)
-      : null;
-
-  // The bottom box is optional (it also feeds Validate's remarks); Reject
-  // always opens the confirm modal, prefilled with whatever's already there
-  // so the admin isn't asked to type the same thing twice. The modal's own
-  // Remarks field is what's actually required to reject.
-  function requestReject() {
-    setRejectRemarks(remarks);
-    setConfirmReject(true);
-  }
-
-  async function submitReview(status, remarksText) {
-    setConfirmReject(false);
-    setSaving(status);
-    try {
-      await onReview(status, remarksText.trim());
-    } finally {
-      setSaving(null);
-    }
-  }
-
-  const canReview = submission.status === "Pending" && isReviewer;
-
-  return (
-    <div className="agri-detail-panel">
-    <div className="agri-detail-scroll">
-      <button type="button" className="agri-back-btn" onClick={onBack}>
-        <ArrowLeft size={15} /> Back to list
-      </button>
-
-      <div className="agri-detail-header">
-        <div>
-          <div className="agri-detail-farmer-name">{f?.fullName ?? "Unknown farmer"}</div>
-          <div className="agri-muted" style={{ fontSize: "0.82rem" }}>{f?.rsbsaNo}</div>
+        <div className="agri-toolbar-search agri-vinbox-search">
+          <Search size={15} />
+          <input className="form-control" placeholder="Search farmer name or RSBSA no." aria-label="Search submissions" value={filters.q} onChange={(e) => onFilters({ q: e.target.value })} />
         </div>
-        <Pill status={submission.status} />
-      </div>
-
-      <Section title="Farmer Details">
-        <div className="agri-kv-grid">
-          <KV label="RSBSA Number" value={f?.rsbsaNo} />
-          <KV label="Full Name" value={f?.fullName} />
-          <KV label="Sex" value={f?.sex} />
-          <KV label="Birth Date" value={f?.birthDate ? formatDate(f.birthDate) : null} />
-          <KV label="Contact No." value={f?.contactNo || "—"} />
-          <KV label="Address" value={f?.address || "—"} />
-          <KV label="Commodity" value={f?.commodity || "—"} />
-          <KV label="Farm Size (ha)" value={f?.farmSize != null ? f.farmSize : "—"} />
-          <KV label="Farm Location" value={f?.farmLocation || "—"} />
-          <KV label="Organization Affiliation" value={f?.orgAffiliation || "—"} />
-          <div>
-            <div className="agri-kv-label">Current Status</div>
-            <Pill status={f?.status ?? "Inactive"} />
-            <div className="agri-muted" style={{ fontSize: "0.7rem", marginTop: 4 }}>
-              Status is updated separately from the farmer record.
-            </div>
-          </div>
-        </div>
-        <button type="button" className="btn btn-link p-0" style={{ fontSize: "0.8rem", marginTop: 10 }} onClick={onViewFarmerProfile}>
-          View full profile →
+        <select className="form-select agri-vinbox-status" aria-label="Filter by status" value={filters.status} onChange={(e) => onFilters({ status: e.target.value })}>
+          {STATUS_FILTERS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        <button type="button" className="btn btn-agri-primary d-flex align-items-center gap-2 agri-vinbox-add" onClick={onAdd}>
+          <Plus size={16} /> Add harvest report
         </button>
-      </Section>
+      </div>
 
-      <Section title="Proof of Planting">
-        {photoUrl ? (
-          <img src={photoUrl} alt="Proof of planting" className="agri-proof-photo" onClick={() => setLightboxOpen(true)} />
-        ) : (
-          <div className="agri-proof-photo agri-proof-photo-empty"><ImageIcon size={28} color="var(--agri-icon-faint)" /></div>
-        )}
-        <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>
-          Captured {formatDateTime(submission.capturedAt)}
-        </div>
-      </Section>
-
-      <Section title="GPS Location">
-        {submission.latitude != null && submission.longitude != null ? (
-          <>
-            <iframe
-              title="Submission location"
-              className="agri-map-frame"
-              src={`https://www.google.com/maps?q=${submission.latitude},${submission.longitude}&z=15&output=embed`}
-              loading="lazy"
-            />
-            <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>
-              {submission.latitude.toFixed(6)}, {submission.longitude.toFixed(6)} · captured{" "}
-              {formatDateTime(submission.capturedAt)}
-            </div>
-            {distanceKm != null && (
-              <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 2 }}>
-                ~{distanceKm.toFixed(1)} km from the Barangay Langapud reference point
-                {distanceKm > 5 && (
-                  <span style={{ color: "var(--agri-orange-text)", fontWeight: 600 }}> — far from the declared barangay, worth a closer look</span>
-                )}
-                <span title="Exact parcel coordinates aren't on file, so this compares against the barangay's approximate center."> ⓘ</span>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="agri-muted" style={{ fontSize: "0.85rem" }}>No GPS data recorded for this submission.</div>
-        )}
-      </Section>
-
-      {submission.status !== "Pending" && (
-        <Section title="Review Summary" last>
-          <div className="agri-review-summary">
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {submission.status === "Validated" ? (
-                <CheckCircle2 size={16} color="var(--agri-primary)" />
-              ) : (
-                <XCircle size={16} color="var(--agri-red)" />
-              )}
-              <strong>{submission.status}</strong>
-            </div>
-            <div className="agri-muted" style={{ fontSize: "0.8rem", marginTop: 6 }}>
-              Reviewed by {submission.reviewedBy ?? "—"}
-              {submission.reviewedAt ? ` on ${formatDateTime(submission.reviewedAt)}` : ""}
-            </div>
-            {submission.remarks && submission.status === "Rejected" && (
-              <div className="agri-rejection-callout">
-                <div className="agri-rejection-callout-title">Reason for rejection</div>
-                <div style={{ fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>{submission.remarks}</div>
-                <div className="agri-muted" style={{ fontSize: "0.72rem", marginTop: 6 }}>Shown to the farmer in their app.</div>
-              </div>
-            )}
-            {submission.remarks && submission.status === "Validated" && (
-              <div style={{ fontSize: "0.85rem", marginTop: 8, whiteSpace: "pre-wrap" }}>
-                <span className="agri-kv-label" style={{ display: "block" }}>Remarks</span>
-                {submission.remarks}
-              </div>
-            )}
-
-            {submission.status === "Validated" && (
-              <div className="agri-status-nudge">
-                <AlertTriangle size={14} color="var(--agri-orange)" style={{ flexShrink: 0 }} />
-                <span>
-                  Proof recorded. Update this farmer's status?{" "}
-                  <button type="button" className="btn btn-link p-0" style={{ fontSize: "0.82rem" }} onClick={onViewFarmerProfile}>
-                    Open farmer record
-                  </button>
-                </span>
-              </div>
-            )}
-          </div>
-        </Section>
-      )}
-    </div>
-
-      {canReview && (
-        <div className="agri-detail-footer">
-          <div className="agri-detail-section-title">Review Actions</div>
-          <label className="agri-form-label" htmlFor="review-remarks">Remarks</label>
-          <textarea
-            id="review-remarks"
-            className="form-control mb-2"
-            rows={2}
-            placeholder="Add remarks for the farmer (optional)"
-            value={remarks}
-            disabled={!!saving}
-            onChange={(e) => setRemarks(e.target.value)}
-          />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn btn-outline-danger flex-fill" disabled={!!saving} onClick={requestReject}>
-              {saving === "rejected" ? "Rejecting…" : "Reject"}
-            </button>
-            <button type="button" className="btn btn-agri-primary flex-fill" disabled={!!saving} onClick={() => submitReview("validated", remarks)}>
-              {saving === "validated" ? "Validating…" : "Validate"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {confirmReject && (
-        <ConfirmDialog
-          title="Reject this submission?"
-          message={`${f?.fullName ?? "The farmer"} will be notified and can resubmit.`}
-          confirmLabel="Reject"
-          busy={!!saving}
-          confirmDisabled={!rejectRemarks.trim()}
-          onConfirm={() => submitReview("rejected", rejectRemarks)}
-          onCancel={() => setConfirmReject(false)}
-        >
-          <div className="agri-reject-preview-label">Remarks</div>
-          <textarea
-            className="form-control"
-            rows={3}
-            placeholder="Explain why this submission is being rejected"
-            value={rejectRemarks}
-            disabled={!!saving}
-            onChange={(e) => setRejectRemarks(e.target.value)}
-          />
-        </ConfirmDialog>
-      )}
-
-      {lightboxOpen && photoUrl && (
-        <div className="agri-lightbox" onClick={() => setLightboxOpen(false)}>
-          <button type="button" className="agri-icon-btn" style={{ position: "absolute", top: 20, right: 20, background: "var(--agri-card)" }} onClick={() => setLightboxOpen(false)}>
-            <X size={16} />
-          </button>
-          <img src={photoUrl} alt="Proof of planting" onClick={(e) => e.stopPropagation()} />
-        </div>
-      )}
+      <div className="agri-table-wrap agri-vinbox-list" ref={tableRef}>
+        <table className="agri-table agri-vinbox-table">
+          <caption className="visually-hidden">Submissions, newest first. Pending ones are in bold.</caption>
+          <tbody>
+            {pageItems.map((i) => {
+              const pending = i.group === "pending";
+              const label = `${i.farmerName}, ${KINDS[i.kind]}, ${i.summary}, ${i.status}, ${formatDate(i.date)}${pending ? ", pending" : ""}`;
+              return (
+                <tr key={i.key} {...rowLinkProps(() => onOpen(i))} aria-label={label} className={`agri-row-link agri-vinbox-row${pending ? " unread" : ""}`}>
+                  <td className="agri-vinbox-dot-cell">{pending && <span className="agri-vinbox-dot" aria-hidden="true" />}</td>
+                  <td className="agri-vinbox-name agri-cell-truncate" title={i.farmerName}>{i.farmerName}</td>
+                  <td className="agri-vinbox-kind"><KindTag kind={i.kind} /></td>
+                  <td className="agri-vinbox-summary agri-cell-truncate" title={i.summary}>{i.summary}</td>
+                  <td className="agri-vinbox-status-cell"><Pill status={i.status} /></td>
+                  <td className="agri-vinbox-date">{formatDate(i.date)}</td>
+                </tr>
+              );
+            })}
+            {loading && <tr><td colSpan={6} className="agri-muted text-center py-4">Loading submissions…</td></tr>}
+          </tbody>
+        </table>
+        {!loading && filtered.length === 0 && <EmptyState icon={Inbox} title={title} hint={hint} />}
+      </div>
+      <TableFooter page={page} pageSize={pageSize} total={filtered.length} totalPages={totalPages} onPageChange={onPage} noun={["submission", "submissions"]} />
     </div>
   );
 }
 
-function Section({ title, children, last }) {
-  return (
-    <div className="agri-detail-section" style={{ marginBottom: last ? 0 : 20 }}>
-      <div className="agri-detail-section-title">{title}</div>
-      {children}
-    </div>
-  );
-}
-
-function KV({ label, value }) {
-  return (
-    <div>
-      <div className="agri-kv-label">{label}</div>
-      <div className="agri-kv-value">{value ?? "—"}</div>
-    </div>
-  );
-}

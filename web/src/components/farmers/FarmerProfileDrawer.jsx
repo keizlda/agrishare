@@ -265,7 +265,7 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
                     <tbody>
                       {harvests.map((h) => (
                         <tr key={h.id}>
-                          <td><Link to={`/harvest?id=${h.id}`} onClick={onClose}>{h.seasonLabel}</Link></td>
+                          <td><Link to={`/validation/harvest/${h.id}?type=harvest&status=all`} onClick={onClose}>{h.seasonLabel}</Link></td>
                           <td className="agri-profile-wrap">{show(h.crop)}</td>
                           <td className="text-end">{h.areaHa.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                           <td className="text-end">{h.yieldKg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
