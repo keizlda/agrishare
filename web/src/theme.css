@@ -3490,6 +3490,18 @@ table.agri-table.agri-vinbox-table tr.unread td {
   flex: 1 1 0;
   min-height: 0;
 }
+/* Desktop: the photo and map share the full height of the body (no empty
+   space under them on tall screens). */
+.agri-app-fill .agri-vi-right > .agri-vi-photo {
+  flex: 3 1 0;
+  height: auto;
+  min-height: 150px;
+}
+.agri-app-fill .agri-vi-right > .agri-vi-map {
+  flex: 2 1 0;
+  height: auto;
+  min-height: 130px;
+}
 .agri-vi-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
