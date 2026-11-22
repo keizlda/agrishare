@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Inbox, Plus, Search } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
+import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import HarvestReportModal from "../components/harvest/HarvestReportModal.jsx";
 import SubmissionView from "../components/validation/SubmissionView.jsx";
 import KindTag from "../components/validation/KindTag.jsx";
@@ -38,6 +39,11 @@ export default function Validation() {
   const { data: items, setData: setItems, loading, error: loadError } = useSupabaseList(loadInbox);
   const [toast, setToast] = useState(null);
   const [adding, setAdding] = useState(false);
+  // The last submission opened keeps a subtle highlight back in the list.
+  const [lastOpened, setLastOpened] = useState(null);
+  useEffect(() => {
+    if (kind) setLastOpened(`${kind}-${id}`);
+  }, [kind, id]);
 
   const filtered = useMemo(() => applyFilters(items, filters), [items, filters.type, filters.status, filters.q]); // eslint-disable-line react-hooks/exhaustive-deps
   const pendingCounts = useMemo(() => {
@@ -108,6 +114,7 @@ export default function Validation() {
         onFilters={setFilters}
         onPage={(page) => setSearchParams(new URLSearchParams(filterQuery({ ...filters, page }).slice(1)), { replace: true })}
         onOpen={openItem}
+        lastOpened={lastOpened}
         onAdd={() => setAdding(true)}
       />
       {addModal}
@@ -116,7 +123,7 @@ export default function Validation() {
   );
 }
 
-function InboxList({ filters, filtered, pendingCounts, loading, loadError, onFilters, onPage, onOpen, onAdd }) {
+function InboxList({ filters, filtered, pendingCounts, loading, loadError, onFilters, onPage, onOpen, lastOpened, onAdd }) {
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -162,19 +169,33 @@ function InboxList({ filters, filtered, pendingCounts, loading, loadError, onFil
           <tbody>
             {pageItems.map((i) => {
               const pending = i.group === "pending";
-              const label = `${i.farmerName}, ${KINDS[i.kind]}, ${i.summary}, ${i.status}, ${formatDate(i.date)}${pending ? ", pending" : ""}`;
+              const submitted = `Submitted ${formatDate(i.date)}`;
+              const detail = [i.rsbsaNo, i.summary, submitted].filter(Boolean).join(" · ");
+              const label = `${i.farmerName}, ${KINDS[i.kind]}, ${detail}, ${i.status}${pending ? ", pending" : ""}`;
               return (
-                <tr key={i.key} {...rowLinkProps(() => onOpen(i))} aria-label={label} className={`agri-row-link agri-vinbox-row${pending ? " unread" : ""}`}>
+                <tr
+                  key={i.key}
+                  {...rowLinkProps(() => onOpen(i), { selected: i.key === lastOpened })}
+                  aria-label={label}
+                  className={`agri-row-link agri-vinbox-row${pending ? " unread" : ""}${i.key === lastOpened ? " selected" : ""}`}
+                >
                   <td className="agri-vinbox-dot-cell">{pending && <span className="agri-vinbox-dot" aria-hidden="true" />}</td>
-                  <td className="agri-vinbox-name agri-cell-truncate" title={i.farmerName}>{i.farmerName}</td>
-                  <td className="agri-vinbox-kind"><KindTag kind={i.kind} /></td>
-                  <td className="agri-vinbox-summary agri-cell-truncate" title={i.summary}>{i.summary}</td>
+                  <td className="agri-vinbox-avatar"><FarmerAvatar url={i.avatarUrl} firstName={i.firstName} lastName={i.lastName} size={40} /></td>
+                  <td className="agri-vinbox-main">
+                    <div className="agri-vinbox-main-inner">
+                      <div className="agri-vinbox-text">
+                        <div className="agri-vinbox-name" title={i.farmerName}>{i.farmerName}</div>
+                        <div className="agri-vinbox-sub" title={detail}>{detail}</div>
+                      </div>
+                      <KindTag kind={i.kind} soft />
+                    </div>
+                  </td>
                   <td className="agri-vinbox-status-cell"><Pill status={i.status} /></td>
                   <td className="agri-vinbox-date">{formatDate(i.date)}</td>
                 </tr>
               );
             })}
-            {loading && <tr><td colSpan={6} className="agri-muted text-center py-4">Loading submissions…</td></tr>}
+            {loading && <tr><td colSpan={5} className="agri-muted text-center py-4">Loading submissions…</td></tr>}
           </tbody>
         </table>
         {!loading && filtered.length === 0 && <EmptyState icon={Inbox} title={title} hint={hint} />}

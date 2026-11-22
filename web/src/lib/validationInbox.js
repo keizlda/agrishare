@@ -87,7 +87,8 @@ function fromPlanting(s) {
 }
 
 function fromHarvest(h) {
-  const crop = h.typeName ? `${h.commodityName} (${h.typeName})` : h.commodityName;
+  // "Rice Seeds · Hybrid": the commodity without its variety note, then the type.
+  const crop = [h.commodityName.replace(/\s*\([^)]*\)\s*$/, ""), h.typeName].filter(Boolean).join(" · ");
   return {
     key: `harvest-${h.id}`,
     kind: "harvest",
