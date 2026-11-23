@@ -12,8 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Users, UserCheck, UserX, Truck, ShieldCheck, FilePlus, UserPlus, ClipboardList, Eye, Megaphone, Newspaper, Sprout, Wheat } from "lucide-react";
-import { formatKg } from "../lib/allocation.js";
+import { Users, UserCheck, UserX, Truck, ShieldCheck, FilePlus, UserPlus, ClipboardList, Eye, Megaphone, Newspaper } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   computeDistributionByCommodity,
@@ -30,7 +29,7 @@ import { formatQuantity, sharedUnit } from "../lib/quantity.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { listSubmissions } from "../lib/api/cropValidation.js";
 import { listRequests } from "../lib/api/requests.js";
-import { inYear, listHarvestReports, totals as harvestTotals } from "../lib/api/harvest.js";
+import { listHarvestReports } from "../lib/api/harvest.js";
 import { useFitCount } from "../hooks/useFitCount.js";
 import Toast from "../components/ui/Toast.jsx";
 import { friendlyError } from "../lib/friendlyError.js";
@@ -127,9 +126,6 @@ export default function Dashboard() {
 
   const ongoing = distributions.filter((d) => d.status === "Ongoing").length;
   const toReview = requests.filter((r) => r.status === "Pending").length;
-  // Harvests this year, by harvest date (no seasons).
-  const harvestYear = Number(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }).slice(0, 4));
-  const harvestSum = harvestTotals(inYear(harvests, harvestYear));
   const harvestToVerify = harvests.filter((h) => h.statusKey === "submitted").length;
   const chips = [
     isMAO && { count: subStats.pending, label: plural(subStats.pending, "submission to review", "submissions to review"), to: "/validation?type=planting", dot: "var(--agri-orange)" },
@@ -228,8 +224,6 @@ export default function Dashboard() {
                 <MiniStat icon={UserCheck} color="blue" label="Active Farmers" value={stats.active.toLocaleString()} sub="Currently active" />
                 <MiniStat icon={UserX} color="red" label="Inactive Farmers" value={stats.inactive.toLocaleString()} sub="Inactive accounts" />
                 <MiniStat icon={Truck} color="purple" label="Total Distributions" value={distributions.length.toLocaleString()} sub="All time" />
-                <MiniStat icon={Wheat} color="orange" label="Harvest Reported" value={formatKg(harvestSum.kg)} sub={`${harvestSum.count.toLocaleString()} ${harvestSum.count === 1 ? "report" : "reports"} harvested in ${harvestYear}${harvestToVerify ? ` · ${harvestToVerify} to verify` : ""}`} />
-                <MiniStat icon={Sprout} color="teal" label="Average Yield" value={harvestSum.perHa != null ? `${harvestSum.perHa.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg/ha` : "—"} sub={`Harvests in ${harvestYear}`} />
               </div>
             </div>
           </div>

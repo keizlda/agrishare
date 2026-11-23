@@ -1,14 +1,13 @@
 import { supabase } from "../supabaseClient.js";
-import { isNetworkError } from "../friendlyError.js";
 
 // Harvest reports (MAO presentation, Nov 2026), in kilograms. The database
 // decides who may do what (harvest_reports RLS + its guard trigger):
 //   Farmer (mobile): adds their own; corrects/resubmits while Submitted or
 //     Returned.
-//   Farmers' Association President: reads all; adds for a farmer; corrects
-//     the ones they filed before verification.
-//   MAO Admin: reads all; adds for a farmer; Verify / Return (remarks
-//     required to return).
+//   Farmers' Association President: reads all; corrects the ones they filed
+//     earlier, before verification (only farmers add reports, from the
+//     mobile app).
+//   MAO Admin: reads all; Verify / Return (remarks required to return).
 
 // A harvest is identified by its harvest date (no Wet/Dry season since Nov
 // 24, 2026): summaries show the month and year, e.g. "8,400 kg · Nov 2026".
@@ -22,8 +21,6 @@ const STATUS_LABEL = Object.fromEntries(HARVEST_STATUSES.map((s) => [s.value, s.
 export const HARVEST_LIMITS = { remarks: 500, maxKg: 10000000 };
 
 const BUCKET = "harvest-photos";
-export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
-export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const SELECT = `
   harvest_report_id, farmer_id, commodity_id, area_harvested_ha, yield_kg, yield_per_ha,
@@ -99,39 +96,8 @@ export async function listHarvestReports({ farmerId } = {}) {
   return data.map(mapHarvest);
 }
 
-// ---------------------------------------------------------------------------
-// Photo (optional on web): JPG, PNG or WebP up to 10 MB, in the farmer's
-// folder of the private harvest-photos bucket.
-// ---------------------------------------------------------------------------
-async function looksLike(file) {
-  const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
-  const ascii = (from, to) => String.fromCharCode(...head.slice(from, to));
-  if (file.type === "image/webp") return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
-  if (file.type === "image/png") return [0x89, 0x50, 0x4e, 0x47].every((b, i) => head[i] === b);
-  return [0xff, 0xd8, 0xff].every((b, i) => head[i] === b);
-}
-
-export async function validatePhoto(file) {
-  if (!PHOTO_TYPES.includes(file.type)) return "Attach a JPG, PNG or WebP photo.";
-  if (file.size > MAX_PHOTO_BYTES) return "The photo must be 10 MB or smaller.";
-  if (!(await looksLike(file))) return "That file doesn't look like the photo its name says. Choose another file.";
-  return null;
-}
-
-async function uploadPhoto(farmerId, file) {
-  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  const path = `${farmerId}/${random}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
-  if (error) {
-    if (isNetworkError(error)) throw error;
-    if (String(error.statusCode ?? error.status) === "413" || /maximum allowed size|too large/i.test(error.message ?? "")) throw new Error("The photo must be 10 MB or smaller.");
-    if (/mime type|not supported|invalid file type/i.test(error.message ?? "")) throw new Error("Attach a JPG, PNG or WebP photo.");
-    throw error;
-  }
-  return path;
-}
-
+// The report's photo (taken by the farmer in the mobile app), from the
+// private harvest-photos bucket.
 export async function getHarvestPhotoUrl(path, expiresInSeconds = 600) {
   if (!path) return null;
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, expiresInSeconds);
@@ -149,18 +115,6 @@ const toRow = (form) => ({
   harvest_date: form.harvestDate,
   remarks: form.remarks.trim() || null,
 });
-
-// Staff add a report for a farmer (the photo, if any, is uploaded first).
-export async function createHarvestReport(farmerId, form, photo) {
-  const photoPath = photo ? await uploadPhoto(farmerId, photo) : null;
-  const row = { ...toRow(form), farmer_id: farmerId, photo_path: photoPath, photo_captured_at: photo ? new Date().toISOString() : null };
-  const { data, error } = await supabase.from("harvest_reports").insert(row).select(SELECT).single();
-  if (error) {
-    if (photoPath) await supabase.storage.from(BUCKET).remove([photoPath]).catch(() => {});
-    throw error;
-  }
-  return mapHarvest(data);
-}
 
 // Correct a report (before verification); a Returned one goes back to
 // Submitted.

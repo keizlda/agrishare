@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Package, Pencil, Plus, Search, Trash2, X } from "lucide-react";
-import Pill from "../components/ui/Pill.jsx";
+
 import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Toast from "../components/ui/Toast.jsx";
@@ -14,7 +14,7 @@ import { useCardLabels } from "../hooks/useCardLabels.js";
 import { useRevealDetail } from "../hooks/useRevealDetail.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard.js";
-import { COMMODITY_CATEGORIES, categoryOption, deleteCommodity, listCommodities, saveCommodity, setCommodityStatus } from "../lib/api/commodities.js";
+import { COMMODITY_CATEGORIES, categoryOption, deleteCommodity, listCommodities, saveCommodity } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
 import { formatRate } from "../lib/allocation.js";
 import { formatDate } from "../lib/dates.js";
@@ -29,7 +29,7 @@ const RATE_HINT = "Leave blank for items not given by hectare (quantities are th
 
 // Inline edit (Commodity Details card): the fields that become inputs.
 function editFormFor(commodity) {
-  return { name: commodity.name, category: categoryOption(commodity.category), rate: commodity.rate == null ? "" : String(commodity.rate), status: commodity.status };
+  return { name: commodity.name, category: categoryOption(commodity.category), rate: commodity.rate == null ? "" : String(commodity.rate) };
 }
 const sameForm = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -75,7 +75,7 @@ function RateInput({ id, value, onChange, invalid, disabled, small }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        placeholder="Not set"
+        placeholder="e.g. 40"
         aria-describedby={`${id}-hint`}
       />
       <span className="agri-unit-input-unit" aria-hidden="true">kg/ha</span>
@@ -92,7 +92,7 @@ export default function Commodities() {
   const [distributions, setDistributions] = useState([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
+
   const [selectedId, setSelectedId] = useState(null);
   const [adding, setAdding] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -121,10 +121,9 @@ export default function Commodities() {
     return commodities.filter((c) => {
       const matchesSearch = !search || c.name.toLowerCase().includes(search.toLowerCase());
       const matchesCategory = categoryFilter === "All" || categoryOption(c.category) === categoryFilter;
-      const matchesStatus = statusFilter === "All" || c.status === statusFilter;
-      return matchesSearch && matchesCategory && matchesStatus;
+      return matchesSearch && matchesCategory;
     });
-  }, [commodities, search, categoryFilter, statusFilter]);
+  }, [commodities, search, categoryFilter]);
 
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
@@ -178,7 +177,6 @@ export default function Commodities() {
         name: edit.name.trim().replace(/\s+/g, " "),
         category: edit.category,
         rate: edit.rate.trim(),
-        status: edit.status,
       });
       setCommodities((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
       stopEditing();
@@ -207,18 +205,6 @@ export default function Commodities() {
     }
   }
 
-  async function toggleStatus(id) {
-    setActionError("");
-    const current = commodities.find((c) => c.id === id);
-    if (!current) return;
-    const nextStatus = current.status === "Active" ? "Inactive" : "Active";
-    try {
-      await setCommodityStatus(id, nextStatus);
-      setCommodities((prev) => prev.map((c) => (c.id === id ? { ...c, status: nextStatus } : c)));
-    } catch (err) {
-      setActionError(friendlyError(err, "Couldn't update this commodity's status."));
-    }
-  }
 
   const Card = edit ? "form" : "div";
 
@@ -245,28 +231,29 @@ export default function Commodities() {
               <option value="All">All Categories</option>
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "130px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
-              <option value="All">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+
           </div>
 
           <div className="agri-table-wrap" ref={tableRef}>
-            <table className="agri-table agri-table-cards">
-              <thead><tr><th>Name</th><th>Category</th><th className="text-end">Rate</th><th>Status</th><th>Date Added</th></tr></thead>
+            <table className="agri-table agri-table-cards agri-commodity-table">
+              <colgroup>
+                <col style={{ width: "31%" }} />
+                <col style={{ width: "23%" }} />
+                <col style={{ width: "23%" }} />
+                <col style={{ width: "23%" }} />
+              </colgroup>
+              <thead><tr><th>Name</th><th>Category</th><th>Rate</th><th>Date Added</th></tr></thead>
               <tbody>
                 {pageItems.map((c) => (
                   <tr key={c.id} {...rowLinkProps(() => selectRow(c.id), { selected: c.id === selectedId })}>
                     <td><span className="agri-row-title">{c.name}</span></td>
                     <td>{categoryOption(c.category)}</td>
-                    <td className="text-end">{formatRate(c.rate)}</td>
-                    <td><Pill status={c.status} /></td>
+                    <td>{formatRate(c.rate)}</td>
                     <td>{formatDate(c.dateAdded)}</td>
                   </tr>
                 ))}
                 {loading && (
-                  <tr><td colSpan={5} className="agri-muted text-center py-4">Loading commodities…</td></tr>
+                  <tr><td colSpan={4} className="agri-muted text-center py-4">Loading commodities…</td></tr>
                 )}
               </tbody>
             </table>
@@ -274,7 +261,7 @@ export default function Commodities() {
               <EmptyState
                 icon={Package}
                 title="No commodities found"
-                hint={search || categoryFilter !== "All" || statusFilter !== "All" ? "Try a different search or clear the filters." : "Add a commodity to make it available for distribution."}
+                hint={search || categoryFilter !== "All" ? "Try a different search or clear the filters." : "Add a commodity to make it available for distribution."}
               />
             )}
           </div>
@@ -285,7 +272,6 @@ export default function Commodities() {
           <Card ref={detailRef} className="agri-card agri-fill-card" style={{ padding: 18 }} {...(edit ? { onSubmit: saveEdit, noValidate: true } : {})}>
             <div className="agri-panel-header">
               <div style={{ fontWeight: 700 }}>{edit ? "Edit Commodity" : "Commodity Details"}</div>
-              <Pill status={selected.status} />
             </div>
             <div className="agri-detail-body">
               {edit && editErrors.form && (
@@ -325,23 +311,6 @@ export default function Commodities() {
               )}
               <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{formatQuantity(selectedDistributedQty, selected.unit)}</div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{formatDate(selected.dateAdded)}</div></div>
-
-              {canEdit && (
-                <>
-                  <label className="agri-form-label" style={{ marginTop: 14 }} htmlFor="commodity-status-select">Status</label>
-                  {edit ? (
-                    <select id="commodity-status-select" className="form-select mb-3" value={edit.status} onChange={(e) => updateField("status", e.target.value)} disabled={saving}>
-                      <option>Active</option>
-                      <option>Inactive</option>
-                    </select>
-                  ) : (
-                    <select id="commodity-status-select" className="form-select mb-3" value={selected.status} onChange={() => toggleStatus(selected.id)}>
-                      <option>Active</option>
-                      <option>Inactive</option>
-                    </select>
-                  )}
-                </>
-              )}
             </div>
 
             {canEdit && (
@@ -430,7 +399,7 @@ function EditField({ label, id, error, hint, children }) {
 }
 
 function AddCommodityModal({ existing, onClose, onSaved }) {
-  const [form, setForm] = useState({ name: "", category: "", rate: "", status: "Active" });
+  const [form, setForm] = useState({ name: "", category: "", rate: "" });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -453,7 +422,7 @@ function AddCommodityModal({ existing, onClose, onSaved }) {
     savingRef.current = true;
     setSaving(true);
     try {
-      onSaved(await saveCommodity(null, { name: form.name.trim().replace(/\s+/g, " "), category: form.category, rate: form.rate.trim(), status: "Active" }));
+      onSaved(await saveCommodity(null, { name: form.name.trim().replace(/\s+/g, " "), category: form.category, rate: form.rate.trim() }));
     } catch (err) {
       setFormError(friendlyError(err, "Couldn't save this commodity. Please try again."));
     } finally {

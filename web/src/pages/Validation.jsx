@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Inbox, Plus, Search } from "lucide-react";
+import { Inbox, Search } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
-import HarvestReportModal from "../components/harvest/HarvestReportModal.jsx";
 import SubmissionView from "../components/validation/SubmissionView.jsx";
 import KindTag from "../components/validation/KindTag.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
-import { KINDS, STATUS_FILTERS, TYPE_TABS, applyFilters, filterQuery, loadInbox, readFilters, toItem } from "../lib/validationInbox.js";
+import { KINDS, STATUS_FILTERS, TYPE_TABS, applyFilters, filterQuery, loadInbox, readFilters } from "../lib/validationInbox.js";
 import { formatDate } from "../lib/dates.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
@@ -38,7 +37,6 @@ export default function Validation() {
   const qs = filterQuery(filters);
   const { data: items, setData: setItems, loading, error: loadError } = useSupabaseList(loadInbox);
   const [toast, setToast] = useState(null);
-  const [adding, setAdding] = useState(false);
   // The last submission opened keeps a subtle highlight back in the list.
   const [lastOpened, setLastOpened] = useState(null);
   useEffect(() => {
@@ -65,18 +63,6 @@ export default function Validation() {
     [setItems],
   );
 
-  const addModal = adding && (
-    <HarvestReportModal
-      onClose={() => setAdding(false)}
-      onSaved={(saved) => {
-        const item = toItem.harvest(saved);
-        putItem(item);
-        setAdding(false);
-        setToast({ tone: "success", message: "Harvest report added. The MAO will verify it." });
-        openItem(item);
-      }}
-    />
-  );
   const toastEl = toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />;
 
   if (kind) {
@@ -97,7 +83,6 @@ export default function Validation() {
           onRemoved={(removed) => setItems((prev) => prev.filter((i) => i.key !== removed.key))}
           onToast={setToast}
         />
-        {addModal}
         {toastEl}
       </div>
     );
@@ -115,15 +100,13 @@ export default function Validation() {
         onPage={(page) => setSearchParams(new URLSearchParams(filterQuery({ ...filters, page }).slice(1)), { replace: true })}
         onOpen={openItem}
         lastOpened={lastOpened}
-        onAdd={() => setAdding(true)}
       />
-      {addModal}
       {toastEl}
     </div>
   );
 }
 
-function InboxList({ filters, filtered, pendingCounts, loading, loadError, onFilters, onPage, onOpen, lastOpened, onAdd }) {
+function InboxList({ filters, filtered, pendingCounts, loading, loadError, onFilters, onPage, onOpen, lastOpened }) {
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -158,9 +141,6 @@ function InboxList({ filters, filtered, pendingCounts, loading, loadError, onFil
         <select className="form-select agri-vinbox-status" aria-label="Filter by status" value={filters.status} onChange={(e) => onFilters({ status: e.target.value })}>
           {STATUS_FILTERS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
-        <button type="button" className="btn btn-agri-primary d-flex align-items-center gap-2 agri-vinbox-add" onClick={onAdd}>
-          <Plus size={16} /> Add harvest report
-        </button>
       </div>
 
       <div className="agri-table-wrap agri-vinbox-list" ref={tableRef}>

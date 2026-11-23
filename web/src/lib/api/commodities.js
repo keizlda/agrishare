@@ -55,7 +55,9 @@ export async function listCommodities({ includeDeleted = false } = {}) {
 const rateValue = (rate) => (rate === "" || rate == null ? null : Number(rate));
 
 // Adds a commodity (always measured in kg) or edits one. `rate` is kg per
-// hectare, or "" / null for "not given by hectare".
+// hectare, or "" / null for "not given by hectare". Commodities are either
+// available or deleted (soft delete); the Active / Inactive status is no
+// longer set from the app.
 export async function saveCommodity(commodityId, { name, category, rate, status }) {
   const row = { name: name.trim(), category, allocation_per_hectare: rateValue(rate) };
   if (status) row.status = labelToDbStatus(status);
@@ -69,11 +71,6 @@ export async function saveCommodity(commodityId, { name, category, rate, status 
   }
   if (!data) throw new Error("Only the MAO Admin can add or edit commodities.");
   return mapCommodity(data);
-}
-
-export async function setCommodityStatus(commodityId, statusLabel) {
-  const { error } = await supabase.from("commodities").update({ status: labelToDbStatus(statusLabel) }).eq("commodity_id", commodityId);
-  if (error) throw error;
 }
 
 // Soft delete: sets deleted_at instead of removing the row, so distribution

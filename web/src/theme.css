@@ -593,6 +593,30 @@ textarea:focus-visible,
   gap: clamp(12px, 2vh, 20px) clamp(16px, 1.6vw, 28px);
 }
 
+/* Proof of Planting card: the four farmer stats in a 2x2 grid, centered
+   beside the donut; on tall screens the donut and stats grow to fill the
+   card instead of leaving empty space around them. */
+.agri-dash-validation .agri-dash-stats {
+  align-content: center;
+  row-gap: clamp(12px, 3.5vh, 44px);
+}
+@media (min-width: 1280px) and (min-height: 900px) {
+  .agri-dash-validation {
+    --agri-dash-donut: clamp(180px, 24vh, 270px);
+  }
+  .agri-dash-validation .agri-mini-stat-icon {
+    width: 46px;
+    height: 46px;
+  }
+  .agri-dash-validation .agri-mini-stat-value {
+    font-size: 1.6rem;
+  }
+  .agri-dash-validation .agri-mini-stat-label,
+  .agri-dash-validation .agri-mini-stat-sub {
+    font-size: 0.82rem;
+  }
+}
+
 @media (max-width: 479.98px) {
   .agri-dash-stats {
     grid-template-columns: 1fr;
@@ -3355,17 +3379,15 @@ input[type="number"] {
   line-height: 1.6;
   text-align: center;
 }
+/* Search and status share the rest of the bar, right-aligned. */
 .agri-vinbox-search {
-  flex: 1 1 220px;
-  max-width: 360px;
+  flex: 1 1 260px;
+  max-width: 520px;
   margin-left: auto;
 }
 .agri-vinbox-status {
   flex: none;
-  width: 190px;
-}
-.agri-vinbox-add {
-  flex: none;
+  width: 220px;
 }
 /* Rows like the earlier Validation list: about 72–80px tall, a 40px avatar,
    two lines of text, thin dividers, a light green hover, and a green edge on
@@ -3645,10 +3667,7 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
     max-width: none;
     margin-left: 0;
   }
-  .agri-vinbox-add {
-    flex: 1 1 100%;
-    justify-content: center;
-  }
+
   table.agri-table.agri-vinbox-table,
   table.agri-table.agri-vinbox-table tbody {
     display: block;
