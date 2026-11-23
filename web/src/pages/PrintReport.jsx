@@ -50,9 +50,11 @@ export default function PrintReport() {
   }
 
   const subtitleParts = [];
-  if (dateFrom && dateTo) subtitleParts.push(`Date Range: ${formatDate(dateFrom)} to ${formatDate(dateTo)}`);
-  else if (dateFrom) subtitleParts.push(`From: ${formatDate(dateFrom)}`);
-  else if (dateTo) subtitleParts.push(`Through: ${formatDate(dateTo)}`);
+  // The Harvest Report's range is on the harvest date.
+  const rangeLabel = reportType === "Harvest Report" ? "Harvest Date" : "Date Range";
+  if (dateFrom && dateTo) subtitleParts.push(`${rangeLabel}: ${formatDate(dateFrom)} to ${formatDate(dateTo)}`);
+  else if (dateFrom) subtitleParts.push(`${reportType === "Harvest Report" ? "Harvested from" : "From"}: ${formatDate(dateFrom)}`);
+  else if (dateTo) subtitleParts.push(`${reportType === "Harvest Report" ? "Harvested through" : "Through"}: ${formatDate(dateTo)}`);
   if (status !== "All Status") subtitleParts.push(`Status: ${status}`);
   if (barangay !== "All Barangays") subtitleParts.push(`Barangay: ${barangay}`);
   if (commodity !== "All Commodities") subtitleParts.push(`Commodity: ${commodity}`);
@@ -376,7 +378,7 @@ function harvestSummary(list) {
 }
 
 // Harvest Report: one row per report (RSBSA No. first), then totals per
-// crop / type. Kilograms only.
+// crop. Kilograms only. The date range filters on the harvest date.
 function HarvestReport({ harvests, filters }) {
   const rows = filterHarvests(harvests, filters).sort((a, b) => a.rsbsaNo.localeCompare(b.rsbsaNo) || (a.harvestDate ?? "").localeCompare(b.harvestDate ?? ""));
   const all = harvestTotals(rows);
@@ -393,10 +395,9 @@ function HarvestReport({ harvests, filters }) {
       <table className="pr-items-table pr-dense-table" style={{ marginTop: 14 }}>
         <colgroup>
           <col style={{ width: "15%" }} />
-          <col style={{ width: "13%" }} />
-          <col style={{ width: "8%" }} />
-          <col style={{ width: "15%" }} />
-          <col style={{ width: "8%" }} />
+          <col style={{ width: "14%" }} />
+          <col style={{ width: "9%" }} />
+          <col style={{ width: "21%" }} />
           <col style={{ width: "6%" }} />
           <col style={{ width: "8%" }} />
           <col style={{ width: "8%" }} />
@@ -408,8 +409,7 @@ function HarvestReport({ harvests, filters }) {
             <th>RSBSA No.</th>
             <th>Farmer</th>
             <th>Barangay</th>
-            <th>Crop / Type</th>
-            <th>Season</th>
+            <th>Crop</th>
             <th className="pr-num">Area (ha)</th>
             <th className="pr-num">Harvest (kg)</th>
             <th className="pr-num">kg/ha</th>
@@ -424,7 +424,6 @@ function HarvestReport({ harvests, filters }) {
               <td>{h.farmerName}</td>
               <td>{h.barangay}</td>
               <td>{h.crop}</td>
-              <td>{h.seasonLabel}</td>
               <td className="pr-num">{fmt2(h.areaHa)}</td>
               <td className="pr-num">{fmt2(h.yieldKg)}</td>
               <td className="pr-num">{fmt2(h.yieldPerHa)}</td>
@@ -434,7 +433,7 @@ function HarvestReport({ harvests, filters }) {
           ))}
           {rows.length > 0 && (
             <tr className="pr-items-total">
-              <td colSpan={5}>Total ({rows.length.toLocaleString()} {rows.length === 1 ? "report" : "reports"})</td>
+              <td colSpan={4}>Total ({rows.length.toLocaleString()} {rows.length === 1 ? "report" : "reports"})</td>
               <td className="pr-num">{fmt2(all.ha)}</td>
               <td className="pr-num">{fmt2(all.kg)}</td>
               <td className="pr-num">{fmt2(all.perHa)}</td>
@@ -447,11 +446,11 @@ function HarvestReport({ harvests, filters }) {
 
       {byCrop.length > 1 && (
         <>
-          <div className="pr-section-label" style={{ marginTop: 18 }}>By Crop / Type</div>
+          <div className="pr-section-label" style={{ marginTop: 18 }}>By Crop</div>
           <table className="pr-items-table">
             <thead>
               <tr>
-                <th>Crop / Type</th>
+                <th>Crop</th>
                 <th className="pr-num">Reports</th>
                 <th className="pr-num">Area (ha)</th>
                 <th className="pr-num">Harvest (kg)</th>

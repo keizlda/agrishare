@@ -10,12 +10,8 @@ import { isNetworkError } from "../friendlyError.js";
 //   MAO Admin: reads all; adds for a farmer; Verify / Return (remarks
 //     required to return).
 
-export const SEASONS = [
-  { value: "wet", label: "Wet" },
-  { value: "dry", label: "Dry" },
-];
-const SEASON_LABEL = Object.fromEntries(SEASONS.map((s) => [s.value, s.label]));
-
+// A harvest is identified by its harvest date (no Wet/Dry season since Nov
+// 24, 2026): summaries show the month and year, e.g. "8,400 kg · Nov 2026".
 export const HARVEST_STATUSES = [
   { value: "submitted", label: "Submitted" },
   { value: "verified", label: "Verified" },
@@ -30,7 +26,7 @@ export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const SELECT = `
-  harvest_report_id, farmer_id, season, season_year, commodity_id, area_harvested_ha, yield_kg, yield_per_ha,
+  harvest_report_id, farmer_id, commodity_id, area_harvested_ha, yield_kg, yield_per_ha,
   harvest_date, photo_path, latitude, longitude, gps_accuracy_meters, photo_captured_at, distribution_claim_id, request_id,
   remarks, status, review_remarks, reviewed_at, submitted_by, resubmitted_at, created_at, updated_at,
   commodities ( name ),
@@ -41,8 +37,11 @@ const SELECT = `
 
 const num = (v) => (v == null ? null : Number(v));
 
-export function seasonLabel(season, year) {
-  return `${SEASON_LABEL[season] ?? season} ${year}`;
+// "Nov 2026" for a harvest date ("2026-11-08").
+export function harvestMonth(iso) {
+  if (!iso) return "";
+  const [y, m] = String(iso).slice(0, 10).split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 function mapHarvest(row) {
@@ -60,9 +59,7 @@ function mapHarvest(row) {
     barangay: f?.addresses?.[0]?.barangay ?? "Langapud",
     sitioPurok: f?.addresses?.[0]?.street ?? "",
     farmSize,
-    season: row.season,
-    seasonYear: row.season_year,
-    seasonLabel: seasonLabel(row.season, row.season_year),
+    harvestMonth: harvestMonth(row.harvest_date),
     commodityId: row.commodity_id,
     commodityName: row.commodities?.name ?? "",
     crop: row.commodities?.name ?? "",
@@ -146,8 +143,6 @@ export async function getHarvestPhotoUrl(path, expiresInSeconds = 600) {
 const idOf = (v) => (v === "" || v == null ? null : /^\d+$/.test(String(v)) ? Number(v) : v);
 
 const toRow = (form) => ({
-  season: form.season,
-  season_year: Number(form.seasonYear),
   commodity_id: idOf(form.commodityId),
   area_harvested_ha: Number(form.areaHa),
   yield_kg: Number(form.yieldKg),
@@ -201,15 +196,33 @@ export function harvestCrops(commodities) {
   return withRate.length ? withRate : active;
 }
 
-// The season a harvest on this date most likely belongs to: wet-season
-// crops are harvested from about August to January, dry-season crops from
-// about February to July. Only a starting value; the user can change it.
-export function guessSeason(iso) {
-  const [y, m] = (iso || new Date().toISOString().slice(0, 10)).split("-").map(Number);
-  if (m >= 8) return { season: "wet", seasonYear: y };
-  if (m === 1) return { season: "wet", seasonYear: y - 1 };
-  return { season: "dry", seasonYear: y };
+// The "already reported" warning: another report by this farmer for the same
+// crop with a harvest date within 60 days of this one (a warning only — two
+// harvests can be that close). Null when there's none or it can't be checked.
+export const DUPLICATE_WINDOW_DAYS = 60;
+export async function findRecentHarvest({ farmerId, commodityId, harvestDate, excludeId = null }) {
+  if (!farmerId || !commodityId || !/^\d{4}-\d{2}-\d{2}$/.test(harvestDate ?? "")) return null;
+  const shift = (days) => new Date(new Date(`${harvestDate}T00:00:00Z`).getTime() + days * 86400000).toISOString().slice(0, 10);
+  let query = supabase
+    .from("harvest_reports")
+    .select("harvest_report_id, harvest_date, yield_kg, status")
+    .eq("farmer_id", farmerId)
+    .eq("commodity_id", idOf(commodityId))
+    .gte("harvest_date", shift(-DUPLICATE_WINDOW_DAYS))
+    .lte("harvest_date", shift(DUPLICATE_WINDOW_DAYS))
+    .is("deleted_at", null)
+    .order("harvest_date", { ascending: false })
+    .limit(2);
+  if (excludeId != null) query = query.neq("harvest_report_id", excludeId);
+  const { data, error } = await query;
+  if (error || !data?.length) return null;
+  const r = data[0];
+  return { id: r.harvest_report_id, harvestDate: r.harvest_date, yieldKg: num(r.yield_kg), status: STATUS_LABEL[r.status] ?? r.status };
 }
+
+// Harvests whose harvest date falls in a year ("this year" on the
+// dashboard), by the Philippine calendar.
+export const inYear = (list, year) => list.filter((h) => String(h.harvestDate ?? "").startsWith(String(year)));
 
 // "3,200 kg/ha" style rounding helpers shared by the page and reports.
 export const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;

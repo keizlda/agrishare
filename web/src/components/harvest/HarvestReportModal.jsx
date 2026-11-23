@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, ImageIcon, X } from "lucide-react";
+import { AlertTriangle, Camera, ImageIcon, X } from "lucide-react";
 import DateInput from "../ui/DateInput.jsx";
 import FarmerSearchField from "../farmers/FarmerSearchField.jsx";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
@@ -7,15 +7,14 @@ import { listCommodities } from "../../lib/api/commodities.js";
 import {
   HARVEST_LIMITS,
   PHOTO_TYPES,
-  SEASONS,
   createHarvestReport,
-  guessSeason,
+  findRecentHarvest,
   harvestCrops,
   updateHarvestReport,
   validatePhoto,
 } from "../../lib/api/harvest.js";
 import { formatHectares } from "../../lib/allocation.js";
-import { todayIso } from "../../lib/dates.js";
+import { formatDate, todayIso } from "../../lib/dates.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
 const Required = () => <span style={{ color: "var(--agri-red)" }}>*</span>;
@@ -25,8 +24,6 @@ const kgText = (n) => `${(Math.round(n * 100) / 100).toLocaleString(undefined, {
 function initialForm(report) {
   if (report) {
     return {
-      season: report.season,
-      seasonYear: String(report.seasonYear),
       commodityId: String(report.commodityId),
       areaHa: String(report.areaHa),
       yieldKg: String(report.yieldKg),
@@ -34,18 +31,13 @@ function initialForm(report) {
       remarks: report.remarks,
     };
   }
-  const today = todayIso();
-  const guess = guessSeason(today);
-  return { season: guess.season, seasonYear: String(guess.seasonYear), commodityId: "", areaHa: "", yieldKg: "", harvestDate: today, remarks: "" };
+  return { commodityId: "", areaHa: "", yieldKg: "", harvestDate: todayIso(), remarks: "" };
 }
 
 // The same rules the database checks, as plain messages per field.
 function validate(form, { farmer, crop, dateTyped }) {
   const e = {};
-  const thisYear = Number(todayIso().slice(0, 4));
   if (!farmer) e.farmer = "Search for the farmer this report is for.";
-  const year = Number(form.seasonYear);
-  if (!/^\d{4}$/.test(form.seasonYear.trim()) || year < 2000 || year > thisYear + 1) e.seasonYear = `Enter a year from 2000 to ${thisYear + 1}.`;
   if (!crop) e.commodityId = "Choose the crop.";
   if (!form.areaHa.trim()) e.areaHa = "Enter the area harvested.";
   else if (!twoDecimals(form.areaHa) || Number(form.areaHa) <= 0) e.areaHa = "Enter the area in hectares, more than 0 (up to 2 decimals).";
@@ -96,6 +88,19 @@ export default function HarvestReportModal({ report, presetFarmer = null, onClos
   }, []);
 
   const crop = crops?.find((c) => String(c.id) === form.commodityId) ?? null;
+
+  // Another report by this farmer for the same crop within 60 days of this
+  // harvest date: a warning, not a block.
+  const [recent, setRecent] = useState(null);
+  useEffect(() => {
+    setRecent(null);
+    if (!farmer?.id || !form.commodityId || !form.harvestDate) return undefined;
+    let cancelled = false;
+    findRecentHarvest({ farmerId: farmer.id, commodityId: form.commodityId, harvestDate: form.harvestDate, excludeId: report?.id ?? null })
+      .then((r) => { if (!cancelled) setRecent(r); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [farmer?.id, form.commodityId, form.harvestDate, report?.id]);
 
   function update(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -189,26 +194,12 @@ export default function HarvestReportModal({ report, presetFarmer = null, onClos
           {fieldError("farmer")}
 
           <div className="row g-3 mt-0">
-            <div className="col-6 col-sm-3">
-              <label className="agri-form-label" htmlFor="harvest-season">Season <Required /></label>
-              <select id="harvest-season" className="form-select" value={form.season} onChange={(e) => update("season", e.target.value)} disabled={saving}>
-                {SEASONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
-            </div>
-            <div className="col-6 col-sm-3">
-              <label className="agri-form-label" htmlFor="harvest-year">Year <Required /></label>
-              <input id="harvest-year" inputMode="numeric" maxLength={4} className={`form-control${errors.seasonYear ? " is-invalid" : ""}`} value={form.seasonYear} onChange={(e) => update("seasonYear", e.target.value)} disabled={saving} />
-              {fieldError("seasonYear")}
-            </div>
-            <div className="col-12 col-sm-6">
+            <div className="col-12 col-sm-5">
               <label className="agri-form-label" htmlFor="harvest-date">Harvest Date <Required /></label>
               <DateInput id="harvest-date" value={form.harvestDate} max={todayIso()} onChange={(v) => update("harvestDate", v)} invalid={!!errors.harvestDate} disabled={saving} aria-label="Harvest date" />
               {fieldError("harvestDate")}
             </div>
-          </div>
-
-          <div className="row g-3 mt-0">
-            <div className="col-12">
+            <div className="col-12 col-sm-7">
               <label className="agri-form-label" htmlFor="harvest-crop">Crop <Required /></label>
               <select id="harvest-crop" className={`form-select${errors.commodityId ? " is-invalid" : ""}`} value={form.commodityId} onChange={(e) => chooseCrop(e.target.value)} disabled={saving || !crops}>
                 <option value="">{crops ? "Choose the crop" : "Loading…"}</option>
@@ -217,6 +208,14 @@ export default function HarvestReportModal({ report, presetFarmer = null, onClos
               {fieldError("commodityId")}
             </div>
           </div>
+          {recent && (
+            <div className="agri-warning-box" role="status">
+              <AlertTriangle size={14} style={{ flex: "none", marginTop: 2 }} />
+              <div>
+                {farmer?.firstName ? `${farmer.firstName} already` : "This farmer already"} reported {crop?.name ?? "this crop"} harvested {formatDate(recent.harvestDate)} ({recent.yieldKg?.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg, {recent.status}), within 60 days of this date. Check that this isn&apos;t the same harvest. You can still save it.
+              </div>
+            </div>
+          )}
 
           <div className="row g-3 mt-0">
             <div className="col-6">

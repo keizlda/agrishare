@@ -315,7 +315,7 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
       {confirmRemove && (
         <ConfirmDialog
           title="Remove this harvest report?"
-          message={`${item.farmerName}'s ${raw.seasonLabel} report (${formatKg(raw.yieldKg)}) will be removed from the list and reports. The record is kept in the Activity Log.`}
+          message={`${item.farmerName}'s ${raw.harvestMonth} harvest report (${formatKg(raw.yieldKg)}) will be removed from the list and reports. The record is kept in the Activity Log.`}
           confirmLabel="Remove"
           busy={saving === "remove"}
           onConfirm={remove}
@@ -349,11 +349,10 @@ function plantingRows(s, lat, lng) {
 function harvestRows(h) {
   return [
     ["Crop", h.crop || null],
-    ["Season", h.seasonLabel],
+    ["Harvest Date", formatDate(h.harvestDate)],
     ["Area Harvested", formatHectares(h.areaHa)],
     ["Harvest", formatKg(h.yieldKg)],
     ["Yield", h.yieldPerHa != null ? `${fmt(h.yieldPerHa)} kg/ha` : null],
-    ["Harvest Date", formatDate(h.harvestDate)],
     [h.filedByStaff ? "Remarks" : "Farmer's Remarks", h.remarks || null, true],
   ];
 }

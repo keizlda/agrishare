@@ -13,6 +13,7 @@ import { submitCropValidation, uploadCropPhoto } from "../lib/api/cropValidation
 import { listMyDistributions } from "../lib/api/distributions";
 import { formatDate, formatDateLong, formatDateTime, maskTypedDate, todayIso, typedToIso } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
+import { backToValidation, setFlash } from "../lib/flash";
 import { FAR_THRESHOLD_KM, LANGAPUD_REF, accuracyRating, compassLabel, haversineKm, mapEmbedHtml, withTimeout } from "../lib/geotag";
 
 const CROP_TYPES = ["Rice", "Corn", "Vegetables", "Other"];
@@ -20,16 +21,19 @@ const CROP_TYPES = ["Rice", "Corn", "Vegetables", "Other"];
 // Both the photo and GPS geotag are real: the photo comes from the device
 // camera via expo-image-picker, and the location from expo-location, each
 // gated behind a real native permission prompt before the record is built.
-export default function CropValidationScreen({ navigation }) {
+// route.params.resubmit: a rejected submission being sent again — its crop,
+// area and planting date are filled in, and the MAO's reason is shown.
+export default function CropValidationScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { farmer } = useAuth();
+  const prev = route?.params?.resubmit ?? null;
   // The farmer's most recent received distribution (what they're proving
   // was planted): undefined while loading, null if none yet.
   const [received, setReceived] = useState(undefined);
-  const [cropType, setCropType] = useState("Rice");
-  const [areaPlanted, setAreaPlanted] = useState("0.50");
+  const [cropType, setCropType] = useState(prev?.cropType && CROP_TYPES.includes(prev.cropType) ? prev.cropType : prev?.cropType ? "Other" : "Rice");
+  const [areaPlanted, setAreaPlanted] = useState(prev?.areaHa != null ? Number(prev.areaHa).toFixed(2) : "0.50");
   // Typed MM/DD/YYYY; plantingIso is the real date it spells, or null.
-  const [plantingDate, setPlantingDate] = useState("");
+  const [plantingDate, setPlantingDate] = useState(prev?.plantingIso ? `${prev.plantingIso.slice(5, 7)}/${prev.plantingIso.slice(8, 10)}/${prev.plantingIso.slice(0, 4)}` : "");
   const plantingIso = typedToIso(plantingDate);
   const plantingInFuture = !!plantingIso && plantingIso > todayIso();
   const [remarks, setRemarks] = useState("");
@@ -262,8 +266,8 @@ export default function CropValidationScreen({ navigation }) {
         gpsAccuracyMeters: location.accuracy,
         remarks: remarks || `${cropType} · ${areaPlanted} ha · planted ${formatDate(plantingIso)}`,
       });
-      Alert.alert("Submitted", "Your crop validation has been submitted for review by the MAO.");
-      navigation.goBack();
+      setFlash(prev ? "Proof of planting resubmitted for review." : "Proof of planting sent for review by the MAO.");
+      backToValidation(navigation);
     } catch (err) {
       Alert.alert("Not submitted", friendlyError(err, "Your proof of planting couldn't be submitted. Please try again."));
     } finally {
@@ -284,6 +288,13 @@ export default function CropValidationScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {prev && (
+          <View style={styles.resubmitBox}>
+            <Text style={styles.resubmitLabel}>Reason it was rejected</Text>
+            <Text style={styles.resubmitText}>{prev.remarks || "No reason was provided."}</Text>
+            <Text style={styles.resubmitHint}>Your earlier details are filled in. Capture your location and a new photo, then submit again.</Text>
+          </View>
+        )}
         <Card title="Farmer Information" icon="person-outline">
           <InfoRow label="Farmer Name" value={farmer ? `${farmer.firstName} ${farmer.lastName}` : "—"} />
           <InfoRow label="RSBSA Number" value={farmer?.rsbsaNo ?? "—"} />
@@ -529,6 +540,10 @@ function InfoRow({ label, value, small, last, warn }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  resubmitBox: { backgroundColor: colors.redBg, borderRadius: radius.md, padding: 12, marginBottom: 12 },
+  resubmitLabel: { fontSize: 10.5, fontWeight: "800", color: colors.red, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 },
+  resubmitText: { fontSize: 12.5, color: colors.text, lineHeight: 18 },
+  resubmitHint: { fontSize: 11, color: colors.textMuted, marginTop: 6, lineHeight: 15 },
   header: {
     flexDirection: "row",
     alignItems: "center",

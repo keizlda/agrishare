@@ -44,9 +44,14 @@ Updated November 23, 2026 (see "Update: one rate per commodity" below).
   shows "Enrolled in …". It can be filtered on the Farmers page.
 - **Harvest reports are reviewed on the Validation page with proof of
   planting.** One email-style inbox lists both kinds of submission; the MAO
-  Admin verifies or returns harvest reports there. On the mobile app the
-  Harvest Reports screen looks like Proof of Planting (big "Report Harvest"
-  card, status tracker for the latest report, history).
+  Admin verifies or returns harvest reports there. On the mobile app both
+  are under the Validation tab: "Proof of Planting" and "Report Harvest"
+  cards, the latest submission's status, and one list of both kinds
+  (filter All / Planting / Harvest).
+- **No Wet/Dry season on harvest reports.** A harvest is identified by its
+  harvest date; lists show the month and year ("8,400 kg · Nov 2026"), the
+  Harvest Report filters by a harvest date range, and the dashboard counts
+  harvests dated this year.
 - **Farmer requests go straight to the MAO.** The endorsement step is gone.
   A request is Pending until the MAO Admin approves or rejects it (a reason
   is required to reject). The Farmers' Association President sees every
@@ -67,6 +72,52 @@ Updated November 23, 2026 (see "Update: one rate per commodity" below).
 - **Multi-tab sign-in fix.** If another tab logs out, logs in, or switches to
   a different account, this tab follows instead of acting as the wrong
   account.
+
+## Update: Validation tab and no season (November 24, 2026)
+
+Migration `20261124000000_harvest_without_season.sql`; web deployed, mobile
+update published over the air (update group
+`ad03c4e1-eb29-4d35-b1be-3f73c9f0c4ef`). No new APK is needed.
+
+- **Mobile Validation tab:** title "Validation"; two action cards side by
+  side ("Proof of Planting", green #2F9E44, camera icon; "Report Harvest",
+  darker green #1F7A34, plant icon) that open the existing forms; "Latest
+  submission" (the newest of either type, with a Planting / Harvest tag and a
+  Submitted → Under review → Validated / Verified tracker; Rejected /
+  Returned in red with the MAO's remarks and Resubmit); "My submissions"
+  with All / Planting / Harvest chips and one list, newest first (photo or
+  icon, crop, status, type tag and "1.5 ha · Validated Sep 12" or
+  "8,400 kg · Nov 2026"); full details on tap (photo, map location,
+  details, remarks, timeline); empty state "You haven't submitted anything
+  yet.".
+- The separate Harvest Reports screen and Home's "Report Harvest" card were
+  removed. Notifications about a submission open it on the Validation tab.
+  After sending either form the app returns to the Validation tab with a
+  confirmation, and the new submission is the latest. Resubmit opens the
+  matching form filled in with the earlier details.
+- **Season removed:** from the mobile and web harvest forms, details, lists,
+  the latest submission card, the printed Harvest Report (Harvest Date
+  column, harvest date range, totals follow it), the farmer profile's
+  Harvest History (by harvest date, with this year's total) and the
+  dashboard stat (harvests dated this year). Notifications say "(harvested
+  Nov 2026)". The database columns are kept but optional (older reports keep
+  their value); the test data leaves them empty.
+- **Duplicate check:** a warning (not a block) when the same farmer already
+  reported the same crop with a harvest date within 60 days.
+
+| Check | Result |
+| --- | --- |
+| Database on a local copy (with this migration) | 19/19 |
+| Mobile Validation tab on the Expo web preview, 360 and 412 px | 33/34 (see below) |
+| Web: inbox, opened report, Add harvest report, Harvest Report date range, drawer, dashboard, fit | 13/13 (+ earlier suites 41, 43, 18, 23, 8, 10 — all pass) |
+| Live database, as each role, rolled back | 47/47, nothing left behind |
+| Live site and mobile preview (FA President; farmer 000201) | 15/15 |
+| Lint, web build, Android bundle | Pass (no new warnings) |
+
+Not testable on the web preview: sending a proof of planting needs the
+phone's photo stamping (it can't run in a browser); that part of the form
+didn't change, and the return to the Validation tab with a confirmation is
+the same code the harvest form uses (tested).
 
 ## Update: one rate per commodity (November 23, 2026)
 

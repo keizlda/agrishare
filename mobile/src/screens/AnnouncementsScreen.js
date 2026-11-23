@@ -89,9 +89,12 @@ export default function AnnouncementsScreen({ navigation }) {
       setUpdates((prev) => prev.map((x) => (x.id === u.id ? { ...x, isRead: true } : x)));
       markNotificationRead(u.id).catch(() => {});
     }
-    if (u.type === "validated" || u.type === "rejected") navigation.navigate("MainTabs", { screen: "Validation" });
+    // Proof of planting and harvest reports open on the Validation tab, on
+    // the item itself when the notification names it (/validation/harvest/12).
+    const item = /\/validation\/(planting|harvest)\/(\d+)/.exec(u.link ?? "");
+    if (item) navigation.navigate("MainTabs", { screen: "Validation", params: { open: { kind: item[1], id: Number(item[2]) } } });
+    else if (u.type === "validated" || u.type === "rejected" || u.type === "harvest") navigation.navigate("MainTabs", { screen: "Validation" });
     else if (u.type === "request") navigation.navigate("Requests");
-    else if (u.type === "harvest") navigation.navigate("MainTabs", { screen: "Home", params: { screen: "Harvest" } });
     else if (u.type === "distribution") navigation.navigate("MyDistributions");
     else if (u.type === "announcement") setTab("Announcements");
   }

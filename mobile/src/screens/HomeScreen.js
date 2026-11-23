@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { CheckCircle2, ChevronRight, Leaf, Megaphone, Package, Pin, Wheat } from "lucide-react-native";
+import { CheckCircle2, ChevronRight, Leaf, Megaphone, Package, Pin } from "lucide-react-native";
 import TabScreenLayout, { tabCard } from "../components/TabScreenLayout";
 import AnnouncementDetailModal from "../components/AnnouncementDetailModal";
 import Avatar from "../components/Avatar";
@@ -117,17 +117,6 @@ export default function HomeScreen({ navigation }) {
           <View style={{ flex: 1 }}>
             <Text style={styles.requestTitle}>Request Commodity</Text>
             <Text style={styles.requestSub}>Submit a request for seeds, fertilizer, or tools</Text>
-          </View>
-          <ChevronRight size={16} color={colors.primaryDark} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.requestCard} onPress={() => navigation.navigate("Harvest")} accessibilityRole="button">
-          <View style={styles.requestIcon}>
-            <Wheat size={20} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.requestTitle}>Report Harvest</Text>
-            <Text style={styles.requestSub}>Tell the MAO how many kilograms you harvested</Text>
           </View>
           <ChevronRight size={16} color={colors.primaryDark} />
         </TouchableOpacity>

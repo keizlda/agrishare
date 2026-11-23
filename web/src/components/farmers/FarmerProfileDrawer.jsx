@@ -5,13 +5,15 @@ import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { getFarmerProfileExtras } from "../../lib/api/farmers.js";
 import { listFarmerDistributionHistory } from "../../lib/api/distributions.js";
 import { listSubmissionsForFarmer } from "../../lib/api/cropValidation.js";
-import { listHarvestReports, totals as harvestTotals } from "../../lib/api/harvest.js";
+import { inYear, listHarvestReports, totals as harvestTotals } from "../../lib/api/harvest.js";
 import { formatKg } from "../../lib/allocation.js";
 import { Link } from "react-router-dom";
 import { formatDate } from "../../lib/dates.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
 const DASH = "—";
+// Harvests are grouped by harvest date (this year), not by season.
+const THIS_YEAR = Number(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }).slice(0, 4));
 const show = (v) => (v === null || v === undefined || v === "" ? DASH : v);
 
 function ageOn(birthDate, today = new Date()) {
@@ -254,8 +256,8 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
                   <table className="agri-table agri-profile-table">
                     <thead>
                       <tr>
-                        <th>Season</th>
-                        <th>Crop / Type</th>
+                        <th>Harvest Date</th>
+                        <th>Crop</th>
                         <th className="text-end">Area (ha)</th>
                         <th className="text-end">Harvest (kg)</th>
                         <th className="text-end">kg/ha</th>
@@ -265,7 +267,7 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
                     <tbody>
                       {harvests.map((h) => (
                         <tr key={h.id}>
-                          <td><Link to={`/validation/harvest/${h.id}?type=harvest&status=all`} onClick={onClose}>{h.seasonLabel}</Link></td>
+                          <td><Link to={`/validation/harvest/${h.id}?type=harvest&status=all`} onClick={onClose}>{formatDate(h.harvestDate)}</Link></td>
                           <td className="agri-profile-wrap">{show(h.crop)}</td>
                           <td className="text-end">{h.areaHa.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                           <td className="text-end">{h.yieldKg.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
@@ -278,6 +280,7 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
                 </div>
                 <div className="agri-profile-total">
                   Total harvested: <strong>{formatKg(harvestTotals(harvests).kg)}</strong> across {harvests.length} {harvests.length === 1 ? "report" : "reports"}
+                  {inYear(harvests, THIS_YEAR).length > 0 && <> · Harvested in {THIS_YEAR}: <strong>{formatKg(harvestTotals(inYear(harvests, THIS_YEAR)).kg)}</strong></>}
                 </div>
               </>
             )}

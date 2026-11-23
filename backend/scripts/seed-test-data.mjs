@@ -648,21 +648,21 @@ async function main() {
   // notifies the MAO Admin and the FA President; one the FA President filed
   // notifies the MAO Admin and the farmer), then Verified or Returned by the
   // MAO Admin (notifies the farmer). Maui, Claude and Luna only get new
-  // report rows that reference them. Matched on farmer + season + harvest date.
-  const SEASON = { Wet: "wet", Dry: "dry" };
+  // report rows that reference them. Matched on farmer + harvest date. No
+  // Wet/Dry season (retired Nov 24, 2026): the season columns are left empty.
   const HARVEST_STATUS = { Submitted: "submitted", Verified: "verified", Returned: "returned" };
   for (const hr of data.harvest_reports ?? []) {
     const fr = farmerByRsbsa.get(hr.rsbsa_number);
     const cid = commodityId.get(hr.commodity);
-    const season = SEASON[hr.season];
     const status = HARVEST_STATUS[hr.status];
     if (!fr) throw new Error(`Harvest report for unknown farmer ${hr.rsbsa_number}`);
-    if (!season || !status) throw new Error(`Harvest report for ${hr.farmer}: unknown season or status`);
+    if (!status) throw new Error(`Harvest report for ${hr.farmer}: unknown status`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(hr.harvest_date ?? "")) throw new Error(`Harvest report for ${hr.farmer}: harvest_date is required (YYYY-MM-DD).`);
     if (status === "returned" && !hr.review_remarks) throw new Error(`Harvest report for ${hr.farmer}: Returned needs review_remarks.`);
-    if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Harvest report: would insert ${hr.farmer} ${hr.season} ${hr.season_year} · ${hr.commodity} · ${hr.area_ha} ha · ${hr.yield_kg} kg (${hr.status}${hr.filed_by ? ", filed by the FA President" : ""})`); continue; }
-    const existing = await maybeOne(sb.from("harvest_reports").select("harvest_report_id").eq("farmer_id", fr.id).eq("season", season).eq("season_year", hr.season_year).eq("harvest_date", hr.harvest_date).is("deleted_at", null), `harvest report ${hr.farmer}`);
+    if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Harvest report: would insert ${hr.farmer} harvested ${hr.harvest_date} · ${hr.commodity} · ${hr.area_ha} ha · ${hr.yield_kg} kg (${hr.status}${hr.filed_by ? ", filed by the FA President" : ""})`); continue; }
+    const existing = await maybeOne(sb.from("harvest_reports").select("harvest_report_id").eq("farmer_id", fr.id).eq("harvest_date", hr.harvest_date).is("deleted_at", null), `harvest report ${hr.farmer}`);
     if (existing) {
-      if (!ledger.harvestReports.some((x) => x.harvest_report_id === existing.harvest_report_id)) notes.push(`A real harvest report by ${hr.farmer} for ${hr.season} ${hr.season_year} already exists; skipped.`);
+      if (!ledger.harvestReports.some((x) => x.harvest_report_id === existing.harvest_report_id)) notes.push(`A real harvest report by ${hr.farmer} harvested ${hr.harvest_date} already exists; skipped.`);
       continue;
     }
     const filedByFa = hr.filed_by === "fa_president";
@@ -672,7 +672,7 @@ async function main() {
     const created = cap(plusDays(at(hr.harvest_date, "09:00"), 1, "09:00"));
     let photoPath = null;
     if (hr.photo) {
-      photoPath = `${fr.id}/${BATCH}-harvest-${loginIdFromRsbsa(hr.rsbsa_number)}-${hr.season_year}${season}.jpg`;
+      photoPath = `${fr.id}/${BATCH}-harvest-${loginIdFromRsbsa(hr.rsbsa_number)}-${hr.harvest_date}.jpg`;
       const { error: upErr } = await sb.storage.from("harvest-photos").upload(photoPath, await renderHarvestPhoto(hr), { contentType: "image/jpeg", upsert: true });
       if (upErr) throw new Error(`upload harvest photo ${hr.farmer}: ${upErr.message}`);
       remember(ledger.storage, { bucket: "harvest-photos", path: photoPath }, "path");
@@ -680,7 +680,7 @@ async function main() {
       saveLedger(ledger);
     }
     const row = await must(sb.from("harvest_reports").insert({
-      farmer_id: fr.id, season, season_year: hr.season_year, commodity_id: cid,
+      farmer_id: fr.id, commodity_id: cid,
       area_harvested_ha: hr.area_ha, yield_kg: hr.yield_kg, harvest_date: hr.harvest_date, remarks: hr.remarks || null,
       photo_path: photoPath, latitude: hr.latitude ?? null, longitude: hr.longitude ?? null,
       gps_accuracy_meters: hr.latitude != null ? GPS_ACCURACY_M : null, photo_captured_at: photoPath ? cap(at(hr.harvest_date, "15:00")) : null,

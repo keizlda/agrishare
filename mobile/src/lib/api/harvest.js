@@ -9,15 +9,12 @@ import { supabase } from "../supabaseClient";
 
 const BUCKET = "harvest-photos";
 
-export const SEASONS = [
-  { value: "wet", label: "Wet" },
-  { value: "dry", label: "Dry" },
-];
-const SEASON_LABEL = { wet: "Wet", dry: "Dry" };
+// A harvest is identified by its harvest date (no Wet/Dry season): summaries
+// show the month and year, e.g. "8,400 kg · Nov 2026".
 const STATUS_LABEL = { submitted: "Submitted", verified: "Verified", returned: "Returned" };
 
 const SELECT = `
-  harvest_report_id, season, season_year, commodity_id, area_harvested_ha, yield_kg, yield_per_ha,
+  harvest_report_id, commodity_id, area_harvested_ha, yield_kg, yield_per_ha,
   harvest_date, photo_path, latitude, longitude, distribution_claim_id, remarks, status, review_remarks, reviewed_at,
   submitted_by, resubmitted_at, created_at,
   commodities ( name )
@@ -25,12 +22,18 @@ const SELECT = `
 
 const num = (v) => (v == null ? null : Number(v));
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// "Nov 2026" for a harvest date ("2026-11-08").
+export function harvestMonth(iso) {
+  if (!iso) return "";
+  const [y, m] = String(iso).slice(0, 10).split("-").map(Number);
+  return `${MONTHS[m - 1] ?? ""} ${y}`;
+}
+
 function mapHarvest(row) {
   return {
     id: row.harvest_report_id,
-    season: row.season,
-    seasonYear: row.season_year,
-    seasonLabel: `${SEASON_LABEL[row.season] ?? row.season} ${row.season_year}`,
+    harvestMonth: harvestMonth(row.harvest_date),
     commodityId: row.commodity_id,
     crop: row.commodities?.name ?? "",
     areaHa: num(row.area_harvested_ha),
@@ -89,8 +92,6 @@ export async function uploadHarvestPhoto(farmerId, uri) {
 }
 
 const toRow = (form) => ({
-  season: form.season,
-  season_year: Number(form.seasonYear),
   commodity_id: form.commodityId,
   area_harvested_ha: Number(form.areaHa),
   yield_kg: Number(form.yieldKg),
@@ -128,14 +129,26 @@ export async function updateHarvestReport(id, form) {
   return mapHarvest(data);
 }
 
-// The season a harvest on this date most likely belongs to: wet-season
-// crops are harvested from about August to January, dry-season crops from
-// about February to July. Only a starting value.
-export function guessSeason(iso) {
-  const [y, m] = iso.split("-").map(Number);
-  if (m >= 8) return { season: "wet", seasonYear: y };
-  if (m === 1) return { season: "wet", seasonYear: y - 1 };
-  return { season: "dry", seasonYear: y };
+// The "already reported" warning: another of the farmer's reports for the
+// same crop with a harvest date within 60 days of this one (a warning only).
+export const DUPLICATE_WINDOW_DAYS = 60;
+export async function findRecentHarvest({ commodityId, harvestDate, excludeId = null }) {
+  if (!commodityId || !/^\d{4}-\d{2}-\d{2}$/.test(harvestDate ?? "")) return null;
+  const shift = (days) => new Date(new Date(`${harvestDate}T00:00:00Z`).getTime() + days * 86400000).toISOString().slice(0, 10);
+  let query = supabase
+    .from("harvest_reports")
+    .select("harvest_report_id, harvest_date, yield_kg, status")
+    .eq("commodity_id", commodityId)
+    .gte("harvest_date", shift(-DUPLICATE_WINDOW_DAYS))
+    .lte("harvest_date", shift(DUPLICATE_WINDOW_DAYS))
+    .is("deleted_at", null)
+    .order("harvest_date", { ascending: false })
+    .limit(2);
+  if (excludeId != null) query = query.neq("harvest_report_id", excludeId);
+  const { data, error } = await query;
+  if (error || !data?.length) return null;
+  const r = data[0];
+  return { id: r.harvest_report_id, harvestDate: r.harvest_date, yieldKg: num(r.yield_kg), status: STATUS_LABEL[r.status] ?? r.status };
 }
 
 // Crops a harvest can be reported for: active kg commodities with a

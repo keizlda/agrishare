@@ -109,8 +109,8 @@ export default function Reports() {
             </div>
 
             <div>
-              <label className="agri-form-label">Date Range</label>
-              <div className="agri-muted" style={{ fontSize: "0.72rem", marginBottom: 4 }}>Leave blank to include every date.</div>
+              <label className="agri-form-label">{reportType === "Harvest Report" ? "Harvest Date Range" : "Date Range"}</label>
+              <div className="agri-muted" style={{ fontSize: "0.72rem", marginBottom: 4 }}>{reportType === "Harvest Report" ? "Harvests with a harvest date in this range; totals follow it. Leave blank to include every date." : "Leave blank to include every date."}</div>
               <div className={`agri-date-range ${rangeError ? "mb-1" : "mb-3"}`}>
                 <DateInput value={dateFrom} onChange={(v) => { setDateFrom(v); setRangeError(""); }} invalid={!!rangeError} aria-label="From date" />
                 <DateInput value={dateTo} onChange={(v) => { setDateTo(v); setRangeError(""); }} invalid={!!rangeError} aria-label="To date" />

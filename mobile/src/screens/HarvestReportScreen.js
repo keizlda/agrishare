@@ -7,9 +7,10 @@ import { colors, radius, sizes } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listCommodities } from "../lib/api/commodities";
 import { listMyDistributions } from "../lib/api/distributions";
-import { SEASONS, guessSeason, harvestCrops, submitHarvestReport, updateHarvestReport, uploadHarvestPhoto } from "../lib/api/harvest";
+import { findRecentHarvest, harvestCrops, submitHarvestReport, updateHarvestReport, uploadHarvestPhoto } from "../lib/api/harvest";
 import { formatDate, formatDateLong, maskTypedDate, todayIso, typedToIso } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
+import { backToValidation, setFlash } from "../lib/flash";
 
 const MAX_REMARKS = 500;
 const twoDecimals = (text) => /^\d+(\.\d{1,2})?$/.test(text.trim());
@@ -23,12 +24,9 @@ export default function HarvestReportScreen({ navigation, route }) {
   const editing = route?.params?.report ?? null;
   const farmSize = farmer?.farmSizeHa ?? 0;
   const today = todayIso();
-  const start = editing ? { season: editing.season, seasonYear: editing.seasonYear } : guessSeason(today);
 
   const [crops, setCrops] = useState(null);
   const [claims, setClaims] = useState([]);
-  const [season, setSeason] = useState(start.season);
-  const [seasonYear, setSeasonYear] = useState(String(start.seasonYear));
   const [commodityId, setCommodityId] = useState(editing?.commodityId ?? null);
   const [areaHa, setAreaHa] = useState(editing ? String(editing.areaHa) : farmSize > 0 ? farmSize.toFixed(2) : "");
   const [yieldKg, setYieldKg] = useState(editing ? String(editing.yieldKg) : "");
@@ -75,6 +73,19 @@ export default function HarvestReportScreen({ navigation, route }) {
   // Distributions of this crop the farmer received (optional link).
   const cropClaims = crop ? claims.filter((d) => d.item === crop.name).slice(0, 4) : [];
 
+  // Another report for the same crop within 60 days of this harvest date: a
+  // warning, not a block.
+  const [recent, setRecent] = useState(null);
+  useEffect(() => {
+    setRecent(null);
+    if (!commodityId || !dateIso) return undefined;
+    let cancelled = false;
+    findRecentHarvest({ commodityId, harvestDate: dateIso, excludeId: editing?.id ?? null })
+      .then((r) => { if (!cancelled) setRecent(r); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [commodityId, dateIso, editing?.id]);
+
   function chooseCrop(c) {
     setCommodityId(c.id);
     setClaimId(null);
@@ -83,8 +94,6 @@ export default function HarvestReportScreen({ navigation, route }) {
 
   function validate() {
     const e = {};
-    const thisYear = Number(today.slice(0, 4));
-    if (!/^\d{4}$/.test(seasonYear.trim()) || Number(seasonYear) < 2000 || Number(seasonYear) > thisYear + 1) e.year = `Enter a year from 2000 to ${thisYear + 1}.`;
     if (!crop) e.crop = "Choose the crop you harvested.";
     if (!areaHa.trim()) e.area = "Enter the area you harvested.";
     else if (!twoDecimals(areaHa) || Number(areaHa) <= 0) e.area = "Enter the area in hectares, more than 0 (for example 1.5).";
@@ -107,16 +116,16 @@ export default function HarvestReportScreen({ navigation, route }) {
     }
     submittingRef.current = true;
     setSubmitting(true);
-    const form = { season, seasonYear, commodityId, areaHa, yieldKg, harvestDate: dateIso, claimId, remarks, photo, gps: photo ?? gps };
+    const form = { commodityId, areaHa, yieldKg, harvestDate: dateIso, claimId, remarks, photo, gps: photo ?? gps };
     try {
       if (editing) {
         await updateHarvestReport(editing.id, form);
-        Alert.alert("Resubmitted", "Your corrected harvest report was sent back to the MAO.");
+        setFlash("Harvest report resubmitted to the MAO.");
       } else {
         await submitHarvestReport(farmer.farmerId, form);
-        Alert.alert("Harvest reported", "Your harvest report was sent to the MAO for verification. Your Farmers' Association President can see it too.");
+        setFlash("Harvest report sent to the MAO for verification.");
       }
-      navigation.goBack();
+      backToValidation(navigation);
     } catch (err) {
       Alert.alert(editing ? "Not resubmitted" : "Not sent", friendlyError(err, "Your harvest report couldn't be sent. Please try again."));
     } finally {
@@ -151,26 +160,6 @@ export default function HarvestReportScreen({ navigation, route }) {
             <Text style={styles.muted}>
               {farmer ? `${farmer.firstName} ${farmer.lastName}` : ""} · RSBSA {farmer?.rsbsaNo ?? "—"} · Farm size {farmSize > 0 ? `${farmSize.toFixed(2)} ha` : "not recorded"}
             </Text>
-
-            <Text style={styles.label}>Season *</Text>
-            <View style={styles.row}>
-              <View style={[styles.chipRow, { flex: 1 }]}>
-                {SEASONS.map((s) => (
-                  <TouchableOpacity key={s.value} onPress={() => setSeason(s.value)} style={[styles.chip, season === s.value && styles.chipActive]} accessibilityRole="radio" accessibilityState={{ selected: season === s.value }}>
-                    <Text style={[styles.chipText, season === s.value && styles.chipTextActive]}>{s.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TextInput
-                style={[styles.input, styles.yearInput, errors.year && styles.inputInvalid]}
-                value={seasonYear}
-                onChangeText={(v) => edited("year", setSeasonYear)(v.replace(/\D/g, "").slice(0, 4))}
-                keyboardType="number-pad"
-                maxLength={4}
-                accessibilityLabel="Season year"
-              />
-            </View>
-            {fieldError("year")}
 
             <Text style={styles.label}>Crop *</Text>
             <View style={styles.chipRow}>
@@ -212,6 +201,14 @@ export default function HarvestReportScreen({ navigation, route }) {
               accessibilityLabel="Harvest date, month day year"
             />
             {errors.date ? fieldError("date") : harvestDate.length === 10 && dateIso && dateIso <= today ? <Text style={styles.hint}>Harvested on {formatDateLong(dateIso)}</Text> : null}
+            {recent && (
+              <View style={styles.warnBox} accessibilityRole="alert">
+                <Ionicons name="warning-outline" size={15} color={colors.orangeText} />
+                <Text style={styles.warnText}>
+                  You already reported {crop?.name ?? "this crop"} harvested {formatDate(recent.harvestDate)} ({fmt(recent.yieldKg ?? 0)} kg, {recent.status}), within 60 days of this date. Check that this isn't the same harvest. You can still send it.
+                </Text>
+              </View>
+            )}
 
             {cropClaims.length > 0 && (
               <>
@@ -301,7 +298,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   num: { textAlign: "right" },
-  yearInput: { width: 84, textAlign: "center" },
+  warnBox: { flexDirection: "row", gap: 8, alignItems: "flex-start", backgroundColor: colors.orangeBg, borderRadius: radius.sm, padding: 10, marginTop: 8 },
+  warnText: { flex: 1, fontSize: 11.5, color: colors.orangeText, lineHeight: 16 },
   inputInvalid: { borderColor: colors.red },
   hint: { fontSize: 11, color: colors.textMuted, marginTop: 4 },
   error: { fontSize: 11, color: colors.red, marginTop: 4 },
