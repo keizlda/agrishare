@@ -16,6 +16,20 @@ Quantities are in kilograms only; no bags or bag sizes are shown anywhere.
 
 Updated November 23, 2026 (see the updates below).
 
+- **Farmer forms have no pre-filled values.** Add Farmer starts empty: every
+  choice shows a placeholder ("Select sitio/purok", "Select commodity",
+  "Select seed program", "Select status") and required fields show an error
+  when left empty. Edit Farmer keeps the farmer's saved values selected.
+- **Barangay, municipality and province are fixed for Barangay Langapud**
+  (shown as read-only text: Langapud, Labangan, Zamboanga del Sur).
+- **Sitio/purok and farmers' association are chosen from managed lists** to
+  prevent inconsistent data. Both are dropdowns (type to search) whose last
+  option adds a new entry right in the form, after a check for the same or
+  a similar name ("Did you mean Purok 1?"). The farm location uses the same
+  sitio/purok list, and Commodity/Crop comes from a crop list. The MAO Admin
+  renames or deactivates entries in Settings → Lists (an entry in use can't
+  be deleted). The farmers' association shows in the farmer profile, the
+  Farmers page filters and the List of Farmers report.
 - **Commodities are managed inside the distribution form.** There is no
   separate Commodities page any more (old links open Distributions). In the
   New / Edit Distribution window the Commodity field is a searchable
@@ -112,6 +126,74 @@ Updated November 23, 2026 (see the updates below).
 - **Multi-tab sign-in fix.** If another tab logs out, logs in, or switches to
   a different account, this tab follows instead of acting as the wrong
   account.
+
+## Update: sitio/purok, farmers' association and crop lists (November 24, 2026)
+
+Migration `20261124000300_sitios_associations_crops.sql`; web deployed;
+mobile update published over the air (update group
+`ff8f2d27-88c8-4197-8fc2-da659846f089`). No new APK is needed.
+
+- **Add / Edit Farmer:** no pre-filled values; placeholders for every
+  choice; required: RSBSA no., names, sex, birth date, contact no.,
+  sitio/purok, commodity/crop, farm size, ownership, PCIC insured and status
+  (the database checks sitio/purok, commodity/crop, sex, ownership and
+  status too). Seed program, farm location and farmers' association are
+  optional. Barangay, municipality and province are fixed gray text and the
+  database always saves Langapud, Labangan, Zamboanga del Sur.
+- **Lists in the database:** `sitios`, `associations` and `crop_types` (id,
+  name, is_active, created_at). Sitio/Purok and Farm Location use the sitio
+  list; Commodity/Crop the crop list; Farmers' Association the association
+  list. "+ Add new sitio/purok" and "+ Add new association" add an entry
+  inline (MAO Admin and Farmers' Association President) after checking the
+  same name ignoring case and spaces (refused, "Use Purok 1") and similar
+  names ("Did you mean Purok 1?", "A similar association already exists:
+  …"). Names are trimmed and an all-lowercase name is capitalized.
+- **Settings → Lists (MAO Admin only):** Sitios / Puroks, Farmers'
+  Associations and Crops, each with Add, Rename, Deactivate / Reactivate and
+  (only when no farmer uses it) Delete. Renaming renames it on the linked
+  farmer records; a deactivated entry is no longer offered but farmers who
+  have it keep it. Changes are in the Activity Log ("Sitio/Purok renamed:
+  Purok 1 → Purok Uno").
+- **Where it shows:** Farmers page filters (sitio/purok, association,
+  commodity from the lists), the profile drawer ("Farmers' Association"),
+  the List of Farmers report (Farmers' Association column and filter; crop
+  filter from the list) and the farmer's mobile profile (Sitio / Purok and
+  Farmers' Association).
+- **Existing records:** each list started with the values already in farmer
+  records; values that are the same ignoring case and spaces became one
+  entry and nothing else was merged. Records were linked only on an exact
+  match (ignoring case and spaces); their text was left as it was. Not
+  linked: the three records the team keeps unchanged (Maui Pelaez, Claude
+  Oclarit, Luna Cuizon) and farm locations that are the barangay itself
+  ("Langapud"). See "Items to decide" below.
+- **Test data:** the test farmers use list entries; two fictional test
+  associations (Langapud Rice Farmers Association, Langapud Corn and
+  Vegetable Growers Association) were added and are removed by cleanup.
+
+### Items to decide (nothing merged or changed)
+
+| List | Entries | Note |
+| --- | --- | --- |
+| Sitios / Puroks | Balulang ↔ Sitio Balulang; Canitoan ↔ Sitio Canitoan; Macabalan ↔ Sitio Macabalan | Near-duplicates (the short names come from farm locations) |
+| Sitios / Puroks | Iyot, Lami | Look like test entries (farmer "Ge Ge") |
+| Sitios / Puroks | Barra Shoreline, Block 13, Villanena, Lakatan | Not confirmed as sitios of Langapud |
+| Farmers' Associations | Department of Agriculture | A government agency, not a farmers' association; used only by Maui, Claude and Luna (not linked) |
+| Farmers' Associations | Pala Iyot Farmers, Langapod Farmer, Labangan Crew | Look like test entries ("Langapod" may be a misspelling of Langapud) |
+| Unmatched farm location | "Langapud" (the barangay) for Juan Dela Cruz, Maria Santos, Pedro Reyes, Ana Mendoza, Rogelio Torres, Liza Ramirez, Mario Bautista, Claude Oclarit, Luna Cuizon, Maui Pelaez, and the deleted Test Farmer | Kept as text; choose a sitio when editing |
+| No sitio/purok on record | The same farmers, plus dtgrg fgb | Required the next time the farmer is edited |
+
+### Checks run (this update)
+
+| Check | Result |
+| --- | --- |
+| Database on a local copy (records as they were, then this migration) | 46/46 (17 new) |
+| Web on a mock back end: empty form and required errors, pickers with add / same / similar names, saving, Edit keeps values, filters, profile, Settings → Lists (add, rename, deactivate, delete), Activity Log filter, List of Farmers, the Farmers' Association President's views, fit at 1366×768 and 1920×1080 | 44/44 |
+| Earlier web suites (distributions and commodities, farm size × rate, Validation inbox, dashboard, no season) | 65, 29, 43, 9, 13 — all pass |
+| Mobile profile on the Expo web preview (360 and 412 px) | 5/5 |
+| Live database, as each role, rolled back | 66/66, nothing left behind |
+| Live site as the test Farmers' Association President (1366×768, 1920×1080) | 10/10 |
+| Test data re-run | Second run inserts nothing |
+| Lint, web build, mobile bundle | Pass (3 lint warnings, unchanged from before) |
 
 ## Update: distributions, requests, commodities, List of Farmers (November 23, 2026)
 
@@ -448,6 +530,8 @@ number) and `password123`.
 | --- | --- | --- | --- |
 | View commodity rates | Yes | Yes (read-only) | Rates used in their request form |
 | Add / edit / delete commodities and rates (in the distribution form) | Yes | No (refused) | No (refused) |
+| Add a sitio/purok or farmers' association | Yes | Yes | No (refused) |
+| Add a crop; rename, deactivate or delete list entries (Settings → Lists) | Yes | No (refused) | No (refused) |
 | Mark a distribution Completed, or back to Ongoing | Yes | No (read-only badge; refused) | No |
 | Set a farmer's Seed program | Yes | No | No |
 | Barangay allocation, quantities by hectare | Yes | View | Own quantity |

@@ -41,6 +41,11 @@
 // (Submitted, Verified, Returned; Maui, Claude and Luna only as new rows),
 // and the default-password reminder turned off for the seeded (evaluator)
 // farmers.
+//
+// Managed lists (Nov 24, 2026): each seeded farmer's sitio/purok, farm
+// location, crop and farmers' association are linked to the sitio, crop and
+// association lists; the two test associations are added if missing
+// (ledger: sitios / associations / cropTypes).
 import sharp from "sharp";
 import fs from "node:fs";
 import {
@@ -286,6 +291,37 @@ async function main() {
     return Math.round(parcels.reduce((a, p) => a + (Number(p.farm_size_hectares) || 0), 0) * 100) / 100;
   };
 
+  // ---------- Managed lists: sitios/puroks, farmers' associations, crops ----------
+  // Matched by name ignoring case and spaces (as the database does). An entry
+  // the test data needs that isn't on a list yet is added and recorded in
+  // the ledger (cleanup removes it unless a real record uses it by then).
+  const listKey = (v) => String(v ?? "").toLowerCase().replace(/\s+/g, "");
+  const listIds = { sitios: new Map(), associations: new Map(), crop_types: new Map() };
+  const LIST_LEDGER = { sitios: "sitios", associations: "associations", crop_types: "cropTypes" };
+  async function listEntry(table, name) {
+    if (!name) return null;
+    const k = listKey(name);
+    if (listIds[table].has(k)) return listIds[table].get(k);
+    const rows = await must(sb.from(table).select("id, name"), table);
+    const hit = rows.find((r) => listKey(r.name) === k);
+    if (hit) {
+      listIds[table].set(k, hit.id);
+      return hit.id;
+    }
+    if (DRY) {
+      log(`${table}: would add "${name}"`);
+      listIds[table].set(k, null);
+      return null;
+    }
+    const row = await must(sb.from(table).insert({ name }).select("id, name").single(), `add ${table} ${name}`);
+    remember(ledger[LIST_LEDGER[table]], { id: row.id, name: row.name }, "id");
+    bump(table);
+    saveLedger(ledger);
+    listIds[table].set(k, row.id);
+    return row.id;
+  }
+  for (const a of data.associations ?? []) await listEntry("associations", a.name);
+
   // ---------- Farmers + addresses + parcels + crops + login accounts ----------
   for (const f of data.farmers) {
     const loginId = loginIdFromRsbsa(f.rsbsa_number);
@@ -302,6 +338,7 @@ async function main() {
       row = await must(sb.from("farmers").insert({
         rsbsa_no: f.rsbsa_number, surname: f.last_name, first_name: f.first_name, middle_name: f.middle_name || null,
         sex: f.sex.toLowerCase(), birth_date: f.birth_date, contact_no: f.contact_number, status: lower(f.status),
+        association_id: await listEntry("associations", f.farmers_association),
       }).select("farmer_id, profile_id").single(), `insert farmer ${f.rsbsa_number}`);
       remember(ledger.farmers, { farmer_id: row.farmer_id, rsbsa_no: f.rsbsa_number }, "farmer_id");
       bump("farmers");
@@ -313,17 +350,17 @@ async function main() {
     if (!DRY) {
       const addr = await must(sb.from("addresses").select("address_id").eq("farmer_id", row.farmer_id), "addresses");
       if (!addr.length) {
-        const a = await must(sb.from("addresses").insert({ farmer_id: row.farmer_id, street: f.sitio_purok || null, barangay: f.barangay, municipality: f.municipality, province: f.province }).select("address_id").single(), "insert address");
+        const a = await must(sb.from("addresses").insert({ farmer_id: row.farmer_id, street: f.sitio_purok || null, sitio_id: await listEntry("sitios", f.sitio_purok), barangay: f.barangay, municipality: f.municipality, province: f.province }).select("address_id").single(), "insert address");
         remember(ledger.addresses, a.address_id); bump("addresses");
       }
       let parcel = await maybeOne(sb.from("farm_parcels").select("parcel_id").eq("farmer_id", row.farmer_id), "farm parcel");
       if (!parcel) {
-        parcel = await must(sb.from("farm_parcels").insert({ farmer_id: row.farmer_id, farm_location: f.farm_location, farm_size_hectares: f.farm_size_ha, ownership_type: f.ownership || null, is_pcic_insured: f.pcic_insured }).select("parcel_id").single(), "insert parcel");
+        parcel = await must(sb.from("farm_parcels").insert({ farmer_id: row.farmer_id, farm_location: f.farm_location, sitio_id: await listEntry("sitios", f.farm_location), farm_size_hectares: f.farm_size_ha, ownership_type: f.ownership || null, is_pcic_insured: f.pcic_insured }).select("parcel_id").single(), "insert parcel");
         remember(ledger.farmParcels, parcel.parcel_id); bump("farm_parcels");
       }
       const crop = await must(sb.from("crops").select("crop_id").eq("parcel_id", parcel.parcel_id), "crops");
       if (!crop.length) {
-        const c = await must(sb.from("crops").insert({ parcel_id: parcel.parcel_id, crop_type: f.commodity, area_planted: f.farm_size_ha }).select("crop_id").single(), "insert crop");
+        const c = await must(sb.from("crops").insert({ parcel_id: parcel.parcel_id, crop_type: f.commodity, crop_type_id: await listEntry("crop_types", f.commodity), area_planted: f.farm_size_ha }).select("crop_id").single(), "insert crop");
         remember(ledger.crops, c.crop_id); bump("crops");
       }
     }
@@ -377,6 +414,27 @@ async function main() {
     if (fr.profileId) {
       const off = await must(sb.from("profiles").update({ must_change_password: false }).eq("id", fr.profileId).eq("must_change_password", true).select("id"), `reminder off ${f.login_id}`);
       if (off.length) bump("profiles (password reminder off)");
+    }
+    // Sitio/purok, farm location, crop and farmers' association from the
+    // lists (seeded farmers only; a value already linked is left as it is).
+    const sitioId = await listEntry("sitios", f.sitio_purok);
+    const farmSitioId = await listEntry("sitios", f.farm_location);
+    const cropTypeId = await listEntry("crop_types", f.commodity);
+    const associationId = await listEntry("associations", f.farmers_association);
+    const linked = await must(sb.from("addresses").update({ sitio_id: sitioId }).eq("farmer_id", fr.id).is("sitio_id", null).select("address_id"), `sitio of ${f.login_id}`);
+    if (linked.length) bump("addresses (sitio/purok linked)");
+    const parcels = await must(sb.from("farm_parcels").select("parcel_id, sitio_id").eq("farmer_id", fr.id), `parcels of ${f.login_id}`);
+    for (const pc of parcels) {
+      if (pc.sitio_id == null && farmSitioId) {
+        await must(sb.from("farm_parcels").update({ sitio_id: farmSitioId }).eq("parcel_id", pc.parcel_id), `farm location of ${f.login_id}`);
+        bump("farm_parcels (farm location linked)");
+      }
+      const crops = await must(sb.from("crops").update({ crop_type_id: cropTypeId }).eq("parcel_id", pc.parcel_id).is("crop_type_id", null).select("crop_id"), `crop of ${f.login_id}`);
+      if (crops.length) bump("crops (crop linked)");
+    }
+    if (associationId) {
+      const joined = await must(sb.from("farmers").update({ association_id: associationId }).eq("farmer_id", fr.id).is("association_id", null).select("farmer_id"), `association of ${f.login_id}`);
+      if (joined.length) bump("farmers (association set)");
     }
   }
 
@@ -705,6 +763,9 @@ async function main() {
       association_requests: ledger.associationRequests.map((x) => x.association_request_id),
       harvest_reports: ledger.harvestReports.map((x) => x.harvest_report_id),
       commodity_types: ledger.commodityTypes.map((x) => x.commodity_type_id),
+      sitios: ledger.sitios.map((x) => x.id),
+      associations: ledger.associations.map((x) => x.id),
+      crop_types: ledger.cropTypes.map((x) => x.id),
     };
     for (const [table, pk] of Object.entries(AUDITED)) {
       for (const ids of chunk(idsFor[table].map(String))) {

@@ -27,6 +27,7 @@ export default function PrintReport() {
   const commodity = searchParams.get("commodity") || "All Commodities";
   const barangay = searchParams.get("barangay") || "All Barangays";
   const sex = searchParams.get("sex") || "All";
+  const association = searchParams.get("association") || "All";
 
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -63,8 +64,9 @@ export default function PrintReport() {
   if (barangay !== "All Barangays") subtitleParts.push(`Barangay: ${barangay}`);
   if (commodity !== "All Commodities") subtitleParts.push(`${farmerList ? "Crop" : "Commodity"}: ${commodity}`);
   if (farmerList && sex !== "All") subtitleParts.push(`Sex: ${sex}`);
+  if (farmerList && association !== "All") subtitleParts.push(association === "None" ? "No farmers' association" : `Association: ${association}`);
 
-  const filters = { barangay, commodity, dateFrom, dateTo, status, sex };
+  const filters = { barangay, commodity, dateFrom, dateTo, status, sex, association };
 
   return (
     <PrintLayout title={reportType} subtitle={subtitleParts.join(" · ") || undefined} backTo="/reports" landscape={WIDE_REPORTS.includes(reportType)}>
@@ -386,12 +388,13 @@ function ageOn(birthDate, today = new Date()) {
 }
 const masterName = (f) => `${f.lastName}, ${f.firstName}${f.middleName ? ` ${f.middleName.trim()[0]}.` : ""}`;
 
-function FarmerList({ farmers, filters: { barangay, status, commodity, sex, dateFrom, dateTo } }) {
+function FarmerList({ farmers, filters: { barangay, status, commodity, sex, association, dateFrom, dateTo } }) {
   const rows = farmers
     .filter((f) => barangay === "All Barangays" || ciEquals(f.barangay, barangay))
     .filter((f) => status === "All Status" || f.status === status)
     .filter((f) => commodity === "All Commodities" || ciEquals(f.commodity, commodity))
     .filter((f) => sex === "All" || f.sex === sex)
+    .filter((f) => association === "All" || (association === "None" ? !f.orgAffiliation : ciEquals(f.orgAffiliation, association)))
     .filter((f) => !dateFrom || (f.dateRegistered ?? "") >= dateFrom)
     .filter((f) => !dateTo || (f.dateRegistered ?? "") <= dateTo)
     .sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
@@ -403,18 +406,19 @@ function FarmerList({ farmers, filters: { barangay, status, commodity, sex, date
     <div className="pr-section">
       <table className="pr-items-table pr-dense-table">
         <colgroup>
-          <col style={{ width: "12%" }} />
-          <col style={{ width: "13%" }} />
-          <col style={{ width: "4%" }} />
-          <col style={{ width: "7.5%" }} />
-          <col style={{ width: "4%" }} />
-          <col style={{ width: "8.5%" }} />
+          <col style={{ width: "11%" }} />
+          <col style={{ width: "11.5%" }} />
+          <col style={{ width: "3.5%" }} />
+          <col style={{ width: "7%" }} />
+          <col style={{ width: "3.5%" }} />
           <col style={{ width: "8%" }} />
           <col style={{ width: "7%" }} />
-          <col style={{ width: "8%" }} />
-          <col style={{ width: "6%" }} />
-          <col style={{ width: "14%" }} />
-          <col style={{ width: "8%" }} />
+          <col style={{ width: "6.5%" }} />
+          <col style={{ width: "6.5%" }} />
+          <col style={{ width: "5.5%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "11.5%" }} />
+          <col style={{ width: "6.5%" }} />
         </colgroup>
         <thead>
           <tr>
@@ -429,6 +433,7 @@ function FarmerList({ farmers, filters: { barangay, status, commodity, sex, date
             <th>Commodity/<wbr />Crop</th>
             <th className="pr-num">Farm Size (ha)</th>
             <th>Seed Program</th>
+            <th>Farmers&apos; Association</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -446,6 +451,7 @@ function FarmerList({ farmers, filters: { barangay, status, commodity, sex, date
               <td>{f.commodity || "—"}</td>
               <td className="pr-num">{f.farmSize > 0 ? Number(f.farmSize).toFixed(2) : "—"}</td>
               <td>{f.seedProgram || "—"}</td>
+              <td>{f.orgAffiliation || "—"}</td>
               <td>{f.status}</td>
             </tr>
           ))}

@@ -144,7 +144,7 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
 
           {/* Add/Edit form: Affiliation & Status */}
           <ProfileSection title="Affiliation & Status">
-            <Info label="Organization Affiliation" value={f.orgAffiliation} />
+            <Info label="Farmers' Association" value={f.orgAffiliation} />
             <Info label="Status" value={f.status} />
           </ProfileSection>
 

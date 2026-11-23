@@ -141,13 +141,15 @@ export default function ProfileScreen({ navigation }) {
 
         <Section title="Personal Information">
           <Row label="RSBSA Number" value={farmer?.rsbsaNo} />
+          <Row label="Sitio / Purok" value={farmer?.sitioPurok || "—"} />
           <Row label="Barangay" value={farmer?.barangay} />
           <Row label="Contact Number" value={farmer?.contactNo} />
         </Section>
 
         <Section title="Farming Information">
           <Row label="Farm Size" value={farmer?.farmSize} />
-          <Row label="Primary Commodity" value={farmer?.primaryCommodity} last />
+          <Row label="Primary Commodity" value={farmer?.primaryCommodity} />
+          <Row label="Farmers' Association" value={farmer?.association || "—"} last />
         </Section>
 
         <View style={styles.note}>

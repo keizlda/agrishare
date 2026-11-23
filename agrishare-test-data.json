@@ -1,5 +1,5 @@
 {
-  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
+  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Sitios/puroks, farmers' associations and crops come from the managed lists (Nov 24, 2026): test farmers use list entries; the two test associations are added to the list if missing. Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
   "accounts": {
     "fa_president": {
       "name": "Pedro Lagunay",
@@ -27,6 +27,14 @@
       "last_name": "Cuizon"
     }
   ],
+  "associations": [
+    {
+      "name": "Langapud Rice Farmers Association"
+    },
+    {
+      "name": "Langapud Corn and Vegetable Growers Association"
+    }
+  ],
   "farmers": [
     {
       "rsbsa_number": "09-73-00-000-000201",
@@ -48,7 +56,8 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Hybrid"
+      "seed_program": "Rice Seeds – Hybrid",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000202",
@@ -70,7 +79,8 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000203",
@@ -92,7 +102,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Corn Seeds"
+      "seed_program": "Corn Seeds",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000204",
@@ -114,7 +125,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000205",
@@ -136,7 +148,8 @@
       "pcic_insured": false,
       "status": "Inactive",
       "password": "password123",
-      "seed_program": "Rice Seeds – Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)",
+      "farmers_association": null
     },
     {
       "rsbsa_number": "09-73-00-000-000206",
@@ -157,7 +170,8 @@
       "ownership": "Tenant",
       "pcic_insured": false,
       "status": "Active",
-      "password": "password123"
+      "password": "password123",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000207",
@@ -179,7 +193,8 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Corn Seeds"
+      "seed_program": "Corn Seeds",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000208",
@@ -201,7 +216,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Hybrid"
+      "seed_program": "Rice Seeds – Hybrid",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000209",
@@ -223,7 +239,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000210",
@@ -244,7 +261,8 @@
       "ownership": "Registered Owner",
       "pcic_insured": false,
       "status": "Active",
-      "password": "password123"
+      "password": "password123",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000211",
@@ -266,7 +284,8 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Corn Seeds"
+      "seed_program": "Corn Seeds",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000212",
@@ -288,7 +307,8 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Hybrid"
+      "seed_program": "Rice Seeds – Hybrid",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000213",
@@ -310,7 +330,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000214",
@@ -331,7 +352,8 @@
       "ownership": "Lessee",
       "pcic_insured": false,
       "status": "Active",
-      "password": "password123"
+      "password": "password123",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000215",
@@ -353,7 +375,8 @@
       "pcic_insured": false,
       "status": "Inactive",
       "password": "password123",
-      "seed_program": "Rice Seeds – Hybrid"
+      "seed_program": "Rice Seeds – Hybrid",
+      "farmers_association": null
     },
     {
       "rsbsa_number": "09-73-00-000-000216",
@@ -375,7 +398,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Corn Seeds"
+      "seed_program": "Corn Seeds",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000217",
@@ -397,7 +421,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000218",
@@ -419,7 +444,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Hybrid"
+      "seed_program": "Rice Seeds – Hybrid",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000219",
@@ -441,7 +467,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Corn Seeds"
+      "seed_program": "Corn Seeds",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000220",
@@ -462,7 +489,8 @@
       "ownership": "Tenant",
       "pcic_insured": true,
       "status": "Active",
-      "password": "password123"
+      "password": "password123",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000221",
@@ -484,7 +512,8 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000222",
@@ -506,7 +535,8 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Hybrid"
+      "seed_program": "Rice Seeds – Hybrid",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000223",
@@ -528,7 +558,8 @@
       "pcic_insured": false,
       "status": "Inactive",
       "password": "password123",
-      "seed_program": "Corn Seeds"
+      "seed_program": "Corn Seeds",
+      "farmers_association": null
     },
     {
       "rsbsa_number": "09-73-00-000-000224",
@@ -550,7 +581,8 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "seed_program": "Rice Seeds – Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)",
+      "farmers_association": "Langapud Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000225",
@@ -571,7 +603,8 @@
       "ownership": "Lessee",
       "pcic_insured": true,
       "status": "Active",
-      "password": "password123"
+      "password": "password123",
+      "farmers_association": "Langapud Corn and Vegetable Growers Association"
     }
   ],
   "commodities": [

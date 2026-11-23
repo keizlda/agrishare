@@ -5,7 +5,6 @@
 
 export const barangays = ["Langapud"];
 
-export const commodityCategories = ["Rice", "Corn", "Vegetables", "Fertilizer", "Farm Tools", "Livestock"];
 
 export function distributionTotalQty(dist) {
   return dist.items.reduce((sum, i) => sum + i.quantity, 0);

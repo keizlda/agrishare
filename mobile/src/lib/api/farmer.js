@@ -2,9 +2,9 @@ import { supabase } from "../supabaseClient";
 import { dbStatusToLabel } from "../status";
 
 const SELECT = `
-  farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status, seed_program_id,
+  farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status, seed_program_id, org_affiliation,
   seed_program:commodities!seed_program_id ( name ),
-  addresses ( barangay ),
+  addresses ( barangay, street ),
   farm_parcels ( farm_size_hectares, crops ( crop_type ) ),
   profiles!profile_id ( avatar_url, must_change_password )
 `;
@@ -21,6 +21,9 @@ function mapFarmer(row) {
     lastName: row.surname,
     rsbsaNo: row.rsbsa_no,
     barangay: address?.barangay ?? "Langapud",
+    // Sitio/purok and farmers' association (names from the MAO's lists).
+    sitioPurok: address?.street ?? "",
+    association: row.org_affiliation ?? "",
     contactNo: row.contact_no ?? "",
     farmSize: parcel?.farm_size_hectares != null ? `${Number(parcel.farm_size_hectares).toFixed(2)} ha` : "—",
     // Total farm size in hectares (every parcel), for suggested quantities.

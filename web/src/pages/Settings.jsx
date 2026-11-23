@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, KeyRound, Save } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Eye, EyeOff, KeyRound, ListChecks, Save, SlidersHorizontal } from "lucide-react";
 import Toast from "../components/ui/Toast.jsx";
+import ManagedLists from "../components/lists/ManagedLists.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { supabase } from "../lib/supabaseClient.js";
 import { getOrgSettings, updateOrgSettings } from "../lib/api/orgSettings.js";
@@ -9,6 +11,10 @@ import { friendlyError } from "../lib/friendlyError.js";
 export default function Settings() {
   const { user } = useAuth();
   const isMAO = user?.role !== "FA President";
+  // MAO Admin: General (organization, password) and Lists (sitios/puroks,
+  // farmers' associations, crops). ?tab=lists opens the second.
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") === "lists" ? "lists" : "general";
 
   // General Information is org-wide config (MAO-only); Change Password is
   // per-user, so FA President reaches this same page for just that.
@@ -21,9 +27,25 @@ export default function Settings() {
   }
 
   return (
-    <div className="agri-settings-grid">
-      <GeneralInformation />
-      <ChangePassword />
+    <div className="agri-fill-root">
+      <div className="agri-tabs" role="tablist" aria-label="Settings">
+        <button type="button" role="tab" aria-selected={tab === "general"} className={`agri-tab${tab === "general" ? " active" : ""}`} onClick={() => setParams({}, { replace: true })}>
+          <SlidersHorizontal size={14} /> General
+        </button>
+        <button type="button" role="tab" aria-selected={tab === "lists"} className={`agri-tab${tab === "lists" ? " active" : ""}`} onClick={() => setParams({ tab: "lists" }, { replace: true })}>
+          <ListChecks size={14} /> Lists
+        </button>
+      </div>
+      {tab === "lists" ? (
+        <ManagedLists />
+      ) : (
+        <div className="agri-settings-scroll">
+          <div className="agri-settings-grid">
+            <GeneralInformation />
+            <ChangePassword />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

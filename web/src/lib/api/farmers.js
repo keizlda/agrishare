@@ -1,6 +1,7 @@
 import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 import { friendlyError } from "../friendlyError.js";
+import { PLACE } from "../place.js";
 
 // Official RSBSA Enrollment Form (Revised 01-2024) format:
 // RR-PP-MM-BBB-NNNNNN. Exported so the form's live mask, its submit-time
@@ -13,11 +14,11 @@ export function isValidRsbsaFormat(rsbsaNo) {
 
 const SELECT = `
   farmer_id, profile_id, deleted_at, rsbsa_no, surname, first_name, middle_name, sex, birth_date, contact_no,
-  household_head, household_members, org_affiliation, status, created_at, seed_program_id,
+  household_head, household_members, org_affiliation, association_id, status, created_at, seed_program_id,
   seed_program:commodities!seed_program_id ( name, allocation_per_hectare ),
   profiles!profile_id ( avatar_url ),
-  addresses ( street, barangay, municipality, province ),
-  farm_parcels ( farm_location, farm_size_hectares, ownership_type, is_pcic_insured, livestock_details, crops ( crop_type ) )
+  addresses ( street, sitio_id, barangay, municipality, province ),
+  farm_parcels ( farm_location, sitio_id, farm_size_hectares, ownership_type, is_pcic_insured, livestock_details, crops ( crop_type, crop_type_id ) )
 `;
 
 // manage-farmer-account (Edge Function): creates/updates/resets/disables a
@@ -89,23 +90,30 @@ function mapFarmer(row) {
     sex: row.sex === "male" ? "Male" : "Female",
     birthDate: row.birth_date,
     contactNo: row.contact_no ?? "",
+    // Sitio/purok, farm location, association and crop: the list entry
+    // (id) and its name. Records saved before the lists may have text with
+    // no id; the form matches it to the list by name.
     sitioPurok: address?.street ?? "",
-    barangay: address?.barangay ?? "Langapud",
-    municipality: address?.municipality ?? "Labangan",
-    province: address?.province ?? "Zamboanga del Sur",
+    sitioId: address?.sitio_id ?? null,
+    barangay: address?.barangay ?? PLACE.barangay,
+    municipality: address?.municipality ?? PLACE.municipality,
+    province: address?.province ?? PLACE.province,
     householdHead: row.household_head ? "Yes" : "No",
     householdMembers: row.household_members ?? "",
     commodity: parcel?.crops?.[0]?.crop_type ?? "",
+    cropTypeId: parcel?.crops?.[0]?.crop_type_id ?? null,
     // Seed program: the commodity (with a kg/ha rate) the farmer is enrolled
     // in, e.g. "Rice Seeds – Inbred (RCEF)". Optional.
     seedProgramId: row.seed_program_id ?? null,
     seedProgram: row.seed_program?.name ?? "",
     farmSize: parcel?.farm_size_hectares != null ? Number(parcel.farm_size_hectares) : 0,
     farmLocation: parcel?.farm_location ?? "",
+    farmSitioId: parcel?.sitio_id ?? null,
     ownershipType: parcel?.ownership_type ?? "",
     pcicInsured: pcicLabel(parcel?.is_pcic_insured),
     livestockDetails: parcel?.livestock_details ?? "",
     orgAffiliation: row.org_affiliation ?? "",
+    associationId: row.association_id ?? null,
     status: dbStatusToLabel(row.status),
     dateRegistered: row.created_at?.slice(0, 10),
   };
@@ -156,28 +164,32 @@ export async function findDeletedFarmerByRsbsa(rsbsaNo) {
 }
 
 // What save_farmer (database function) takes: the farmer, address, first
-// farm parcel and its crop, written in one transaction.
+// farm parcel and its crop, written in one transaction. Sitio/purok, farm
+// location, association and crop are list ids; the database writes their
+// names and the fixed barangay, municipality and province. An older farm
+// location or association that isn't on a list is sent back unchanged so
+// it's kept.
+const idOrNull = (v) => (v === "" || v == null ? null : /^\d+$/.test(String(v)) ? Number(v) : v);
 function toSavePayload(form) {
   return {
     rsbsa_no: form.rsbsaNo,
     first_name: form.firstName,
     middle_name: form.middleName || null,
     surname: form.lastName,
-    sex: form.sex.toLowerCase(),
+    sex: form.sex ? form.sex.toLowerCase() : null,
     birth_date: form.birthDate,
     contact_no: form.contactNo,
-    org_affiliation: form.orgAffiliation || null,
-    status: labelToDbStatus(form.status || "Active"),
-    street: form.sitioPurok || null,
-    barangay: form.barangay,
-    municipality: form.municipality,
-    province: form.province,
-    farm_location: form.farmLocation,
+    association_id: idOrNull(form.associationId),
+    org_affiliation: form.associationId ? null : form.orgLegacy || null,
+    status: form.status ? labelToDbStatus(form.status) : null,
+    sitio_id: idOrNull(form.sitioId),
+    farm_sitio_id: idOrNull(form.farmSitioId),
+    farm_location: form.farmSitioId ? null : form.farmLocationLegacy || null,
     farm_size_hectares: Number(form.farmSize) || 0,
     ownership_type: form.ownershipType || null,
     is_pcic_insured: pcicDbValue(form.pcicInsured),
-    crop_type: form.commodity,
-    seed_program_id: form.seedProgramId ? (/^\d+$/.test(String(form.seedProgramId)) ? Number(form.seedProgramId) : form.seedProgramId) : null,
+    crop_type_id: idOrNull(form.cropTypeId),
+    seed_program_id: idOrNull(form.seedProgramId),
   };
 }
 
@@ -308,7 +320,7 @@ function mapFarmerBrief(row) {
     rsbsaNo: row.rsbsa_no,
     firstName: row.first_name,
     lastName: row.surname,
-    barangay: address?.barangay ?? "Langapud",
+    barangay: address?.barangay ?? PLACE.barangay,
     sitioPurok: address?.street ?? "",
     status: dbStatusToLabel(row.status),
     avatarUrl: row.profiles?.avatar_url ?? null,

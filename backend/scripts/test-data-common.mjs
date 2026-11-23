@@ -30,6 +30,9 @@ export const AUDITED = {
   association_requests: "association_request_id",
   harvest_reports: "harvest_report_id",
   commodity_types: "commodity_type_id",
+  sitios: "id",
+  associations: "id",
+  crop_types: "id",
 };
 
 export function adminClient() {
@@ -72,6 +75,9 @@ export function emptyLedger() {
     events: [], eventItems: [], claims: [], cropValidations: [], requests: [], announcements: [],
     associationRequests: [], notifications: [], auditLogs: [], storage: [],
     commodityTypes: [], harvestReports: [],
+    // List entries the seed added (sitios/puroks, farmers' associations,
+    // crops): { id, name }.
+    sitios: [], associations: [], cropTypes: [],
     // Rates a seeded type put on a real commodity (one rate per commodity):
     // { commodity_id, name, seeded_rate, restore_to }.
     rateRestores: [],

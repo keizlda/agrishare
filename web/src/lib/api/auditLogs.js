@@ -11,6 +11,9 @@ export const ENTITY_TYPES = [
   "announcements",
   "requests",
   "crop_validations",
+  "sitios",
+  "associations",
+  "crop_types",
 ];
 
 export const ENTITY_LABELS = {
@@ -22,6 +25,9 @@ export const ENTITY_LABELS = {
   announcements: "Announcements",
   requests: "Requests",
   crop_validations: "Proof of Planting",
+  sitios: "Sitios / Puroks",
+  associations: "Farmers' Associations",
+  crop_types: "Crops",
 };
 
 export const ACTION_TYPES = ["insert", "update", "delete"];

@@ -5,16 +5,17 @@ import DateInput from "../components/ui/DateInput.jsx";
 import { usePersistedState } from "../hooks/usePersistedState.js";
 import { useCardLabels } from "../hooks/useCardLabels.js";
 import { formatDate, formatDateTime } from "../lib/dates.js";
-import { barangays, commodityCategories, reportTypes } from "../data/mockData.js";
+import { barangays, reportTypes } from "../data/mockData.js";
 import { listCommodities } from "../lib/api/commodities.js";
+import { listAllEntries } from "../lib/api/lists.js";
 
 // Distribution reports filter by the distribution's status; the Harvest
 // Report by the harvest report's.
 const STATUS_OPTIONS = ["All Status", "Ongoing", "Completed"];
 const HARVEST_STATUS_OPTIONS = ["All Status", "Submitted", "Verified", "Returned"];
-// List of Farmers: the farmer's own status, sex and crop.
+// List of Farmers: the farmer's own status, sex, crop and farmers'
+// association (crops and associations: the lists in Settings).
 const FARMER_STATUS_OPTIONS = ["All Status", "Active", "Inactive"];
-const FARMER_CROPS = commodityCategories.filter((c) => c !== "Farm Tools" && c !== "Livestock");
 const SEX_OPTIONS = ["All", "Male", "Female"];
 const statusOptionsFor = (type) => (type === "Harvest Report" ? HARVEST_STATUS_OPTIONS : type === "List of Farmers" ? FARMER_STATUS_OPTIONS : STATUS_OPTIONS);
 
@@ -35,6 +36,8 @@ export default function Reports() {
   const [commodity, setCommodity] = useState("All Commodities");
   const [barangay, setBarangay] = useState("All Barangays");
   const [sex, setSex] = useState("All");
+  const [association, setAssociation] = useState("All");
+  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [] });
   const farmerList = reportType === "List of Farmers";
   const [rangeError, setRangeError] = useState("");
   const tableRef = useRef(null);
@@ -44,12 +47,13 @@ export default function Reports() {
     listCommodities()
       .then((rows) => setCommodityOptions(rows.filter((c) => c.status === "Active").map((c) => c.name)))
       .catch(() => {});
+    listAllEntries().then(setLists).catch(() => {});
   }, []);
 
   // Opens the printable preview in a new tab. Nothing prints by itself: the
   // print dialog opens only from the preview's "Print / Save as PDF".
-  function printUrl({ type, dateFrom, dateTo, status, commodity, barangay, sex = "All" }) {
-    const params = new URLSearchParams({ type, dateFrom, dateTo, status, commodity, barangay, sex });
+  function printUrl({ type, dateFrom, dateTo, status, commodity, barangay, sex = "All", association = "All" }) {
+    const params = new URLSearchParams({ type, dateFrom, dateTo, status, commodity, barangay, sex, association });
     return `/print/reports?${params.toString()}`;
   }
 
@@ -74,14 +78,15 @@ export default function Reports() {
         commodity,
         barangay,
         sex: farmerList ? sex : "All",
+        association: farmerList ? association : "All",
       },
       ...prev,
     ]);
-    window.open(printUrl({ type: reportType, dateFrom, dateTo, status, commodity, barangay, sex: farmerList ? sex : "All" }), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: reportType, dateFrom, dateTo, status, commodity, barangay, sex: farmerList ? sex : "All", association: farmerList ? association : "All" }), "_blank", "noopener,noreferrer");
   }
 
   function handlePreview(r) {
-    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay, sex: r.sex ?? "All" }), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay, sex: r.sex ?? "All", association: r.association ?? "All" }), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -109,13 +114,24 @@ export default function Reports() {
               <label className="agri-form-label">{reportType === "Harvest Report" ? "Crop" : farmerList ? "Commodity/Crop" : "Commodity"}</label>
               <select className="form-select mb-3" value={commodity} onChange={(e) => setCommodity(e.target.value)}>
                 <option>All Commodities</option>
-                {(farmerList ? FARMER_CROPS : commodityOptions).map((c) => <option key={c}>{c}</option>)}
+                {(farmerList ? lists.crops.map((c) => c.name) : commodityOptions).map((c) => <option key={c}>{c}</option>)}
               </select>
 
               <label className="agri-form-label">Status</label>
               <select className="form-select mb-3" value={status} onChange={(e) => setStatus(e.target.value)}>
                 {statusOptionsFor(reportType).map((s) => <option key={s}>{s}</option>)}
               </select>
+
+              {farmerList && (
+                <>
+                  <label className="agri-form-label" htmlFor="report-association">Farmers&apos; Association</label>
+                  <select id="report-association" className="form-select mb-3" value={association} onChange={(e) => setAssociation(e.target.value)}>
+                    <option value="All">All Associations</option>
+                    {lists.associations.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}
+                    <option value="None">No association</option>
+                  </select>
+                </>
+              )}
             </div>
 
             <div>

@@ -232,6 +232,26 @@ async function main() {
   }
   await deleteIn("commodities", "commodity_id", comToDelete);
 
+  // Sitios/puroks, farmers' associations and crops the seed added: removed
+  // unless a real record uses them now (the database refuses deleting an
+  // entry in use, and that one is kept).
+  const listGone = { sitios: [], associations: [], crop_types: [] };
+  for (const [table, key] of [["sitios", "sitios"], ["associations", "associations"], ["crop_types", "cropTypes"]]) {
+    for (const e of ledger[key] ?? []) {
+      if (DRY) {
+        count(table, 1);
+        continue;
+      }
+      const { error } = await sb.from(table).delete().eq("id", e.id);
+      if (error && /foreign key/i.test(error.message ?? "")) log(`Keeping ${e.name}: real records use it now.`);
+      else if (error) throw new Error(`delete ${table} ${e.name}: ${error.message}`);
+      else {
+        listGone[table].push(e.id);
+        count(table, 1);
+      }
+    }
+  }
+
   for (const [bucket, set] of Object.entries(files)) {
     const paths = [...set];
     if (!paths.length) continue;
@@ -254,6 +274,7 @@ async function main() {
     farmers: farmerIds, commodities: comToDelete, distribution_events: eventIds, distribution_event_items: itemIdsOfSeededEvents,
     distribution_claims: claimIds, crop_validations: validationIds, requests: requestIds, announcements: annRows.map((a) => a.announcement_id),
     association_requests: assocIds, harvest_reports: harvestIds, commodity_types: typesToDelete,
+    sitios: listGone.sitios, associations: listGone.associations, crop_types: listGone.crop_types,
   };
   for (const [table, pk] of Object.entries(AUDITED)) {
     for (const ids of chunk([...new Set(idsFor[table])].map(String))) {

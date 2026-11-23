@@ -9,6 +9,7 @@ import EmptyState from "../components/ui/EmptyState.jsx";
 import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import DateInput from "../components/ui/DateInput.jsx";
 import FarmerProfileDrawer from "../components/farmers/FarmerProfileDrawer.jsx";
+import ListPicker from "../components/lists/ListPicker.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
@@ -16,8 +17,10 @@ import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useCardLabels } from "../hooks/useCardLabels.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
-import { commodityCategories } from "../data/mockData.js";
 import { categoryOption, listCommodities } from "../lib/api/commodities.js";
+import { listAllEntries } from "../lib/api/lists.js";
+import { entryForText, nameKey as listKey } from "../lib/listMatch.js";
+import { PLACE } from "../lib/place.js";
 import { formatRate } from "../lib/allocation.js";
 import { formatDate, todayIso } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
@@ -35,10 +38,8 @@ import {
   updateFarmer,
 } from "../lib/api/farmers.js";
 
-// Farmers page only offers actual crop commodities in its dropdowns — Farm
-// Tools/Livestock are program categories (still valid on the Commodities
-// page), not something a farmer record is planted with.
-const FARMER_COMMODITY_OPTIONS = commodityCategories.filter((c) => c !== "Farm Tools" && c !== "Livestock");
+// Commodity/crop, sitio/purok and farmers' association come from lists in
+// the database (Settings); these two are the RSBSA form's fixed choices.
 const OWNERSHIP_OPTIONS = ["Owner", "Tenant", "Lessee", "Farmworker"];
 const PCIC_OPTIONS = ["Yes", "No", "Not Applicable"];
 
@@ -66,50 +67,74 @@ function formatRsbsaNo(raw) {
   return parts.join("-");
 }
 
+// Nothing is pre-filled: every choice starts empty with a placeholder.
+// Sitio/purok, farm location, crop and association hold list ids; *Legacy
+// holds an older value that isn't on the list (shown until one is chosen).
 const EMPTY_FORM = {
   rsbsaNo: "",
   firstName: "",
   middleName: "",
   lastName: "",
-  sex: "Male",
+  sex: "",
   birthDate: "",
   contactNo: "",
-  sitioPurok: "",
-  barangay: "Langapud",
-  municipality: "Labangan",
-  province: "Zamboanga del Sur",
-  commodity: "Rice",
+  sitioId: "",
+  sitioLegacy: "",
+  cropTypeId: "",
+  cropLegacy: "",
   seedProgramId: "",
   farmSize: "",
-  farmLocation: "",
-  ownershipType: "Owner",
-  pcicInsured: "Not Applicable",
-  orgAffiliation: "",
-  status: "Active",
+  farmSitioId: "",
+  farmLocationLegacy: "",
+  ownershipType: "",
+  pcicInsured: "",
+  associationId: "",
+  orgLegacy: "",
+  status: "",
 };
 
-function farmerToForm(f) {
+// The list entry a saved value stands for: its id, or (records saved before
+// the lists) the entry with the same name ignoring case and spaces.
+function resolveEntry(entries, id, text) {
+  if (id) return { id: String(id), legacy: "" };
+  const match = entryForText(entries, text);
+  return match ? { id: String(match.id), legacy: "" } : { id: "", legacy: text ?? "" };
+}
+
+function farmerToForm(f, lists) {
+  const sitio = resolveEntry(lists.sitios, f.sitioId, f.sitioPurok);
+  const farm = resolveEntry(lists.sitios, f.farmSitioId, f.farmLocation);
+  const crop = resolveEntry(lists.crops, f.cropTypeId, f.commodity);
+  const assoc = resolveEntry(lists.associations, f.associationId, f.orgAffiliation);
   return {
     rsbsaNo: f.rsbsaNo ?? "",
     firstName: f.firstName ?? "",
     middleName: f.middleName ?? "",
     lastName: f.lastName ?? "",
-    sex: f.sex ?? "Male",
+    sex: f.sex ?? "",
     birthDate: f.birthDate ?? "",
     contactNo: f.contactNo ?? "",
-    sitioPurok: f.sitioPurok ?? "",
-    barangay: f.barangay ?? "Langapud",
-    municipality: f.municipality ?? "Labangan",
-    province: f.province ?? "Zamboanga del Sur",
-    commodity: f.commodity || "Rice",
+    sitioId: sitio.id,
+    sitioLegacy: sitio.legacy,
+    cropTypeId: crop.id,
+    cropLegacy: crop.legacy,
     seedProgramId: f.seedProgramId ? String(f.seedProgramId) : "",
     farmSize: f.farmSize ?? "",
-    farmLocation: f.farmLocation ?? "",
-    ownershipType: f.ownershipType || "Owner",
-    pcicInsured: f.pcicInsured || "Not Applicable",
-    orgAffiliation: f.orgAffiliation ?? "",
-    status: f.status || "Active",
+    farmSitioId: farm.id,
+    farmLocationLegacy: farm.legacy,
+    ownershipType: f.ownershipType || "",
+    pcicInsured: f.pcicInsured || "",
+    associationId: assoc.id,
+    orgLegacy: assoc.legacy,
+    status: f.status || "",
   };
+}
+
+// Does farmer value (id, or older text) match the chosen list entry?
+function matchesEntry(entries, chosenId, id, text) {
+  if (id) return String(id) === String(chosenId);
+  const chosen = entries.find((e) => String(e.id) === String(chosenId));
+  return !!chosen && !!text && listKey(chosen.name) === listKey(text);
 }
 
 // Self-contained print window (no route/data round-trip) so the temporary
@@ -202,7 +227,7 @@ function findSimilarFarmer(farmers, form, excludeId) {
 // and . ' - ("Ma.", "O'Brien-Dela Cruz") — no digits, symbols or emoji.
 // RSBSA registrants are adults, so ages 18–100 are accepted.
 const NAME_PATTERN = /^\p{L}[\p{L}\p{M} .'-]*$/u;
-const MAX_LENGTH = { name: 50, sitioPurok: 100, farmLocation: 150, orgAffiliation: 120 };
+const MAX_LENGTH = { name: 50 };
 const MIN_AGE = 18;
 const MAX_AGE = 100;
 const MAX_FARM_HECTARES = 1000;
@@ -232,9 +257,6 @@ function cleanFarmerForm(form) {
     middleName: squeeze(form.middleName),
     lastName: squeeze(form.lastName),
     contactNo: form.contactNo.replace(/\s+/g, ""),
-    sitioPurok: form.sitioPurok.trim(),
-    farmLocation: form.farmLocation.trim(),
-    orgAffiliation: form.orgAffiliation.trim(),
   };
 }
 
@@ -250,7 +272,7 @@ function validateFarmerForm(form) {
     const err = nameError(form[field], label, required);
     if (err) errors[field] = err;
   }
-  if (!form.sex) errors.sex = "Sex is required.";
+  if (!form.sex) errors.sex = "Choose the sex.";
   if (!form.birthDate) {
     errors.birthDate = "Enter the birth date as MM/DD/YYYY.";
   } else {
@@ -274,9 +296,11 @@ function validateFarmerForm(form) {
   } else if (size > MAX_FARM_HECTARES) {
     errors.farmSize = `Enter a realistic farm size (up to ${MAX_FARM_HECTARES.toLocaleString()} ha).`;
   }
-  for (const [field, label] of [["sitioPurok", "Sitio / Purok"], ["farmLocation", "Farm location"], ["orgAffiliation", "Organization affiliation"]]) {
-    if (form[field].trim().length > MAX_LENGTH[field]) errors[field] = `${label} can't be longer than ${MAX_LENGTH[field]} characters.`;
-  }
+  if (!form.sitioId) errors.sitioId = "Choose the sitio/purok from the list.";
+  if (!form.cropTypeId) errors.cropTypeId = "Choose the commodity/crop.";
+  if (!form.ownershipType) errors.ownershipType = "Choose the ownership / tenurial status.";
+  if (!form.pcicInsured) errors.pcicInsured = "Choose whether the farm is PCIC insured.";
+  if (!form.status) errors.status = "Choose a status.";
 
   return errors;
 }
@@ -291,11 +315,17 @@ export default function Farmers() {
   const [commodityFilter, setCommodityFilter] = useState("All");
   const [programFilter, setProgramFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [sitioFilter, setSitioFilter] = useState("All");
+  const [associationFilter, setAssociationFilter] = useState("All");
   // Commodities with a kg/ha rate, for the Seed program field.
   const [commodities, setCommodities] = useState([]);
+  // Sitios/puroks, farmers' associations and crops (Settings).
+  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [] });
   useEffect(() => {
     listCommodities().then(setCommodities).catch(() => {});
+    listAllEntries().then(setLists).catch(() => {});
   }, []);
+  const addToList = (kind, entry) => setLists((l) => ({ ...l, [kind]: [...l[kind].filter((e) => e.id !== entry.id), entry].sort((a, b) => a.name.localeCompare(b.name)) }));
   const programFilterOptions = useMemo(() => [...new Set(farmers.map((f) => f.seedProgram).filter(Boolean))].sort(), [farmers]);
 
   // Deep-link support: the Validation page's "View full profile" / "Open
@@ -327,12 +357,17 @@ export default function Farmers() {
         fullName.includes(debouncedSearch.toLowerCase()) ||
         f.rsbsaNo.includes(debouncedSearch) ||
         (searchDigits && f.rsbsaNo.replace(/\D/g, "").includes(searchDigits));
-      const matchesCommodity = commodityFilter === "All" || f.commodity === commodityFilter;
+      const matchesCommodity = commodityFilter === "All" || matchesEntry(lists.crops, commodityFilter, f.cropTypeId, f.commodity);
       const matchesProgram = programFilter === "All" || (programFilter === "None" ? !f.seedProgramId : f.seedProgram === programFilter);
       const matchesStatus = statusFilter === "All" || f.status === statusFilter;
-      return matchesSearch && matchesCommodity && matchesProgram && matchesStatus;
+      const matchesSitio = sitioFilter === "All" || matchesEntry(lists.sitios, sitioFilter, f.sitioId, f.sitioPurok);
+      const matchesAssociation =
+        associationFilter === "All" ||
+        (associationFilter === "None" ? !f.associationId && !f.orgAffiliation : matchesEntry(lists.associations, associationFilter, f.associationId, f.orgAffiliation));
+      return matchesSearch && matchesCommodity && matchesProgram && matchesStatus && matchesSitio && matchesAssociation;
     });
-  }, [farmers, debouncedSearch, commodityFilter, programFilter, statusFilter]);
+  }, [farmers, debouncedSearch, commodityFilter, programFilter, statusFilter, sitioFilter, associationFilter, lists]);
+  const filtersOn = commodityFilter !== "All" || programFilter !== "All" || statusFilter !== "All" || sitioFilter !== "All" || associationFilter !== "All";
 
 
   // Rows per page = however many fit in the full-height table area (min 5).
@@ -396,24 +431,36 @@ export default function Farmers() {
             <Search size={15} />
             <input
               className="form-control"
-              placeholder="Search farmer by name or RSBSA no."
+              placeholder="Search name or RSBSA no."
+              aria-label="Search farmers by name or RSBSA no."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "170px" }} value={commodityFilter} onChange={(e) => setCommodityFilter(e.target.value)}>
-            <option value="All">All Commodities</option>
-            {FARMER_COMMODITY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "168px" }} value={sitioFilter} onChange={(e) => setSitioFilter(e.target.value)} aria-label="Filter by sitio/purok">
+            <option value="All">All Sitios/Puroks</option>
+            {lists.sitios.map((s) => <option key={s.id} value={String(s.id)}>{s.name}{s.isActive ? "" : " (deactivated)"}</option>)}
           </select>
 
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "190px" }} value={programFilter} onChange={(e) => setProgramFilter(e.target.value)} aria-label="Filter by seed program">
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "168px" }} value={associationFilter} onChange={(e) => setAssociationFilter(e.target.value)} aria-label="Filter by farmers' association">
+            <option value="All">All Associations</option>
+            {lists.associations.map((a) => <option key={a.id} value={String(a.id)}>{a.name}{a.isActive ? "" : " (deactivated)"}</option>)}
+            <option value="None">No association</option>
+          </select>
+
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "168px" }} value={commodityFilter} onChange={(e) => setCommodityFilter(e.target.value)} aria-label="Filter by commodity/crop">
+            <option value="All">All Commodities</option>
+            {lists.crops.map((c) => <option key={c.id} value={String(c.id)}>{c.name}{c.isActive ? "" : " (deactivated)"}</option>)}
+          </select>
+
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "180px" }} value={programFilter} onChange={(e) => setProgramFilter(e.target.value)} aria-label="Filter by seed program">
             <option value="All">All Seed Programs</option>
             {programFilterOptions.map((t) => <option key={t} value={t}>{t}</option>)}
             <option value="None">No seed program</option>
           </select>
 
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "150px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "122px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
             <option value="All">All Status</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
@@ -483,7 +530,7 @@ export default function Farmers() {
             <EmptyState
               icon={Users}
               title="No farmers found"
-              hint={search || commodityFilter !== "All" || statusFilter !== "All" ? "Try a different search or clear the filters." : "Add a farmer to start building the beneficiary list."}
+              hint={search || filtersOn ? "Try a different search or clear the filters." : "Add a farmer to start building the beneficiary list."}
             />
           )}
         </div>
@@ -500,6 +547,8 @@ export default function Farmers() {
           farmer={modal.farmer}
           farmers={farmers}
           commodities={commodities}
+          lists={lists}
+          onListAdded={addToList}
           onClose={() => setModal(null)}
           onViewExisting={(rsbsaNo) => {
             setSearch(rsbsaNo);
@@ -618,19 +667,34 @@ function AccountCredentialsDialog({ farmerName, rsbsaNo, loginId, password, onCl
   );
 }
 
-function FarmerModal({ mode, farmer, farmers, commodities = [], onClose, onSaved, onViewExisting }) {
-  const [form, setForm] = useState(() => (mode === "edit" ? farmerToForm(farmer) : EMPTY_FORM));
-  const cropOptions = useMemo(() => [...new Set([...FARMER_COMMODITY_OPTIONS, form.commodity].filter(Boolean))], [form.commodity]);
+function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdded, onClose, onSaved, onViewExisting }) {
+  const [form, setForm] = useState(() => (mode === "edit" ? farmerToForm(farmer, lists) : EMPTY_FORM));
+  // Lists that arrive after the form opened: match the saved values now.
+  useEffect(() => {
+    setForm((f) => {
+      const next = { ...f };
+      for (const [idKey, legacyKey, kind] of [["sitioId", "sitioLegacy", "sitios"], ["farmSitioId", "farmLocationLegacy", "sitios"], ["cropTypeId", "cropLegacy", "crops"], ["associationId", "orgLegacy", "associations"]]) {
+        if (!next[idKey] && next[legacyKey]) {
+          const match = entryForText(lists[kind], next[legacyKey]);
+          if (match) Object.assign(next, { [idKey]: String(match.id), [legacyKey]: "" });
+        }
+      }
+      return next;
+    });
+  }, [lists]);
+  // Commodity/crop: the active crops, plus the farmer's own if deactivated.
+  const cropOptions = useMemo(() => lists.crops.filter((c) => c.isActive || String(c.id) === form.cropTypeId), [lists.crops, form.cropTypeId]);
+  const cropName = lists.crops.find((c) => String(c.id) === form.cropTypeId)?.name ?? form.cropLegacy;
   // Seed program: any active commodity with a kg/ha rate (the farmer's own
   // crop first), plus the saved one if it was since made inactive.
   const savedProgramId = mode === "edit" && farmer?.seedProgramId ? String(farmer.seedProgramId) : "";
   const programOptions = useMemo(() => {
-    const crop = String(form.commodity).toLowerCase();
+    const crop = String(cropName ?? "").toLowerCase();
     return commodities
       .filter((c) => c.rate > 0 && (c.status === "Active" || String(c.id) === savedProgramId))
       .sort((a, b) => Number(categoryOption(b.category).toLowerCase() === crop) - Number(categoryOption(a.category).toLowerCase() === crop) || a.name.localeCompare(b.name))
       .map((c) => ({ id: String(c.id), label: `${c.name} (${formatRate(c.rate)})${c.status === "Active" ? "" : " — inactive"}` }));
-  }, [commodities, form.commodity, savedProgramId]);
+  }, [commodities, cropName, savedProgramId]);
   // A saved program whose commodity was deleted or lost its rate can't be kept.
   useEffect(() => {
     if (commodities.length && form.seedProgramId && !programOptions.some((o) => o.id === form.seedProgramId)) setForm((f) => ({ ...f, seedProgramId: "" }));
@@ -651,6 +715,14 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], onClose, onSaved
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+    setErrors((e) => (e[field] ? { ...e, [field]: undefined } : e));
+  }
+  // A list field: choosing (or clearing) an entry drops the older text.
+  function pickFrom(field, legacyField) {
+    return (value) => {
+      setForm((f) => ({ ...f, [field]: value, [legacyField]: "" }));
+      setErrors((e) => (e[field] ? { ...e, [field]: undefined } : e));
+    };
   }
 
   async function handleSubmit(e) {
@@ -804,7 +876,8 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], onClose, onSaved
                 <input className="form-control" maxLength={MAX_LENGTH.name} value={form.lastName} onChange={(e) => update("lastName", e.target.value)} />
               </Field>
               <Field label="Sex" col={4} required error={errors.sex}>
-                <select className="form-select" value={form.sex} onChange={(e) => update("sex", e.target.value)}>
+                <select className={`form-select${errors.sex ? " is-invalid" : ""}`} value={form.sex} onChange={(e) => update("sex", e.target.value)} aria-label="Sex">
+                  <option value="" disabled>Select sex</option>
                   <option>Male</option><option>Female</option>
                 </select>
               </Field>
@@ -817,56 +890,94 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], onClose, onSaved
             </Section>
 
             <Section title="Address">
-              <Field label="Sitio / Purok" col={6} error={errors.sitioPurok}>
-                <input className="form-control" maxLength={MAX_LENGTH.sitioPurok} value={form.sitioPurok} onChange={(e) => update("sitioPurok", e.target.value)} />
+              <Field label="Sitio / Purok" col={6} required error={errors.sitioId} htmlFor="farmer-sitio">
+                <ListPicker
+                  id="farmer-sitio"
+                  kind="sitios"
+                  entries={lists.sitios}
+                  value={form.sitioId}
+                  legacyText={form.sitioLegacy}
+                  onChange={pickFrom("sitioId", "sitioLegacy")}
+                  onAdded={(entry) => onListAdded("sitios", entry)}
+                  canAdd
+                  invalid={!!errors.sitioId}
+                />
               </Field>
+              {/* AgriShare covers Barangay Langapud only: fixed, not inputs. */}
               <Field label="Barangay" col={6}>
-                <input className="form-control" value={form.barangay} readOnly />
+                <div className="agri-fixed-value">{PLACE.barangay}</div>
               </Field>
               <Field label="Municipality" col={6}>
-                <input className="form-control" value={form.municipality} readOnly />
+                <div className="agri-fixed-value">{PLACE.municipality}</div>
               </Field>
               <Field label="Province" col={6}>
-                <input className="form-control" value={form.province} readOnly />
+                <div className="agri-fixed-value">{PLACE.province}</div>
               </Field>
             </Section>
 
             <Section title="Farm Information">
-              <Field label="Commodity / Crop Type" col={6}>
-                <select className="form-select" value={form.commodity} onChange={(e) => update("commodity", e.target.value)}>
-                  {cropOptions.map((c) => <option key={c}>{c}</option>)}
+              <Field label="Commodity / Crop Type" col={6} required error={errors.cropTypeId}>
+                <select className={`form-select${errors.cropTypeId ? " is-invalid" : ""}`} value={form.cropTypeId} onChange={(e) => pickFrom("cropTypeId", "cropLegacy")(e.target.value)} aria-label="Commodity / crop type">
+                  <option value="" disabled>{form.cropLegacy ? `${form.cropLegacy} (not on the list)` : "Select commodity"}</option>
+                  {cropOptions.map((c) => <option key={c.id} value={String(c.id)}>{c.name}{c.isActive ? "" : " (deactivated)"}</option>)}
                 </select>
               </Field>
               <Field label="Seed Program" col={6} hint={programOptions.length ? "Optional. Distributions of this commodity add this farmer." : "No commodity has a kg-per-hectare allocation yet (set one in the distribution form)."}>
                 <select className="form-select" value={form.seedProgramId} onChange={(e) => update("seedProgramId", e.target.value)} disabled={!programOptions.length} aria-label="Seed program">
-                  <option value="">Not set</option>
+                  <option value="">Select seed program</option>
                   {programOptions.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
               </Field>
-              <Field label="Farm Size (ha)" col={6} error={errors.farmSize}>
-                <input type="number" step="0.01" min="0" className="form-control" value={form.farmSize} onChange={(e) => update("farmSize", e.target.value)} />
+              <Field label="Farm Size (ha)" col={6} required error={errors.farmSize}>
+                <input type="number" step="0.01" min="0" className={`form-control${errors.farmSize ? " is-invalid" : ""}`} value={form.farmSize} onChange={(e) => update("farmSize", e.target.value)} aria-label="Farm size (ha)" />
               </Field>
-              <Field label="Farm Location" col={12} error={errors.farmLocation}>
-                <input className="form-control" maxLength={MAX_LENGTH.farmLocation} placeholder="Sitio or parcel description" value={form.farmLocation} onChange={(e) => update("farmLocation", e.target.value)} />
+              <Field label="Farm Location (Sitio / Purok)" col={6} htmlFor="farmer-farm-location" hint="Optional. Where the farm is, if different from the address.">
+                <ListPicker
+                  id="farmer-farm-location"
+                  kind="sitios"
+                  entries={lists.sitios}
+                  value={form.farmSitioId}
+                  legacyText={form.farmLocationLegacy}
+                  onChange={pickFrom("farmSitioId", "farmLocationLegacy")}
+                  onAdded={(entry) => onListAdded("sitios", entry)}
+                  canAdd
+                  optional
+                  ariaLabel="Farm location (sitio/purok)"
+                />
               </Field>
-              <Field label="Ownership / Tenurial Status" col={6}>
-                <select className="form-select" value={form.ownershipType} onChange={(e) => update("ownershipType", e.target.value)}>
-                  {OWNERSHIP_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+              <Field label="Ownership / Tenurial Status" col={6} required error={errors.ownershipType}>
+                <select className={`form-select${errors.ownershipType ? " is-invalid" : ""}`} value={form.ownershipType} onChange={(e) => update("ownershipType", e.target.value)} aria-label="Ownership / tenurial status">
+                  <option value="" disabled>Select ownership</option>
+                  {/* A saved value from before these choices stays selectable. */}
+                  {[...OWNERSHIP_OPTIONS, ...(form.ownershipType && !OWNERSHIP_OPTIONS.includes(form.ownershipType) ? [form.ownershipType] : [])].map((o) => <option key={o}>{o}</option>)}
                 </select>
               </Field>
-              <Field label="PCIC Insured" col={6}>
-                <select className="form-select" value={form.pcicInsured} onChange={(e) => update("pcicInsured", e.target.value)}>
+              <Field label="PCIC Insured" col={6} required error={errors.pcicInsured}>
+                <select className={`form-select${errors.pcicInsured ? " is-invalid" : ""}`} value={form.pcicInsured} onChange={(e) => update("pcicInsured", e.target.value)} aria-label="PCIC insured">
+                  <option value="" disabled>Select PCIC insurance</option>
                   {PCIC_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                 </select>
               </Field>
             </Section>
 
             <Section title="Affiliation & Status" last>
-              <Field label="Organization Affiliation" col={6} error={errors.orgAffiliation}>
-                <input className="form-control" maxLength={MAX_LENGTH.orgAffiliation} placeholder="Farmers' association name" value={form.orgAffiliation} onChange={(e) => update("orgAffiliation", e.target.value)} />
+              <Field label="Farmers' Association" col={6} htmlFor="farmer-association" hint="Optional. Type to search.">
+                <ListPicker
+                  id="farmer-association"
+                  kind="associations"
+                  entries={lists.associations}
+                  value={form.associationId}
+                  legacyText={form.orgLegacy}
+                  onChange={pickFrom("associationId", "orgLegacy")}
+                  onAdded={(entry) => onListAdded("associations", entry)}
+                  canAdd
+                  optional
+                  ariaLabel="Farmers' association"
+                />
               </Field>
-              <Field label="Status" col={6}>
-                <select className="form-select" value={form.status} onChange={(e) => update("status", e.target.value)}>
+              <Field label="Status" col={6} required error={errors.status}>
+                <select className={`form-select${errors.status ? " is-invalid" : ""}`} value={form.status} onChange={(e) => update("status", e.target.value)} aria-label="Status">
+                  <option value="" disabled>Select status</option>
                   <option>Active</option><option>Inactive</option>
                 </select>
               </Field>
@@ -900,10 +1011,10 @@ function Section({ title, children, last }) {
 }
 
 // One column on phones; `col` (of 12) from 576px up.
-function Field({ label, col, required, error, hint, children }) {
+function Field({ label, col, required, error, hint, htmlFor, children }) {
   return (
     <div className={`col-12 col-sm-${col}`}>
-      <label className="agri-form-label">
+      <label className="agri-form-label" htmlFor={htmlFor}>
         {label}
         {required && <span style={{ color: "var(--agri-red)" }}> *</span>}
       </label>

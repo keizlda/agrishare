@@ -3899,3 +3899,173 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   background: var(--agri-blue-bg);
   color: var(--agri-blue-text);
 }
+
+/* ---- Managed lists (sitios/puroks, farmers' associations, crops) ---- */
+/* Fixed values on the farmer form (Barangay Langapud only): gray text. */
+.agri-fixed-value {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--agri-chip-bg);
+  color: var(--agri-text-muted);
+  font-size: 0.9rem;
+}
+.agri-combo-field {
+  position: relative;
+}
+.agri-combo-trigger.agri-combo-clearable {
+  padding-right: 58px;
+}
+.agri-combo-clear {
+  position: absolute;
+  top: 50%;
+  right: 30px;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--agri-text-muted);
+}
+.agri-combo-clear:hover,
+.agri-combo-clear:focus-visible {
+  background: var(--agri-primary-soft);
+  color: var(--agri-text);
+}
+.agri-list-addform {
+  padding: 8px 10px;
+}
+.agri-list-addrow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.agri-list-addrow .form-control {
+  flex: 1;
+  min-width: 0;
+}
+.agri-list-note {
+  margin-top: 6px;
+  font-size: 0.76rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.agri-list-note.error {
+  color: var(--agri-red);
+}
+.agri-list-note.warn {
+  color: var(--agri-orange-text);
+}
+.agri-list-note-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Settings → Lists: three list cards side by side, each scrolling inside. */
+.agri-settings-scroll {
+  min-height: 0;
+}
+.agri-lists-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+@media (min-width: 861px) {
+  .agri-lists-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.agri-list-card {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.agri-list-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.agri-list-rows {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--agri-divider);
+  max-height: 420px;
+  overflow-y: auto;
+}
+.agri-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--agri-divider);
+}
+.agri-list-row.inactive .agri-list-row-name {
+  color: var(--agri-text-muted);
+}
+.agri-list-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.agri-list-row-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.agri-list-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--agri-text-muted);
+}
+.agri-list-row-actions {
+  display: flex;
+  gap: 4px;
+}
+.agri-list-rename {
+  flex: 1 1 100%;
+}
+.agri-list-empty {
+  padding: 12px 2px;
+  font-size: 0.8rem;
+}
+.agri-list-foot {
+  margin-top: 8px;
+  font-size: 0.72rem;
+}
+@media (min-width: 1024px) {
+  .agri-app-fill .agri-settings-scroll {
+    flex: 1;
+    overflow-y: auto;
+  }
+  .agri-app-fill .agri-lists-grid {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .agri-app-fill .agri-list-rows {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+}
+.agri-list-action-spacer {
+  width: 34px;
+  flex-shrink: 0;
+}
