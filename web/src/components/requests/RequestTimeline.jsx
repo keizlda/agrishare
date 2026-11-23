@@ -6,13 +6,9 @@ import { formatDateTime } from "../../lib/dates.js";
 // MAO Admin with remarks (or still waiting).
 function timelineSteps(r) {
   const steps = [
-    {
-      key: "submitted",
-      state: "done",
-      title: "Submitted",
-      by: r.filedByFa ? `Filed by ${r.filedByName} (Farmers' Association President) for ${r.farmerName}` : `by ${r.farmerName}`,
-      when: r.requestDate,
-    },
+    r.filedByFa
+      ? { key: "submitted", state: "done", title: `Filed by ${r.filedByName} (Farmers' Association President) for ${r.farmerName}`, by: "", when: r.requestDate }
+      : { key: "submitted", state: "done", title: "Submitted", by: `by ${r.farmerName}`, when: r.requestDate },
   ];
   if (r.rejectedBy === "fa") {
     // Turned down at the old endorsement step (before Nov 2026).
@@ -46,7 +42,7 @@ export default function RequestTimeline({ request }) {
           <div className="agri-timeline-title">{s.title}</div>
           <div className="agri-timeline-meta">
             {s.by}
-            {s.state === "done" || s.state === "rejected" ? ` · ${s.when ? formatDateTime(s.when) : "date not recorded"}` : ""}
+            {s.state === "done" || s.state === "rejected" ? `${s.by ? " · " : ""}${s.when ? formatDateTime(s.when) : "date not recorded"}` : ""}
           </div>
           {s.remarks && <div className="agri-timeline-remarks">“{s.remarks}”</div>}
         </li>

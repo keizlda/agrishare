@@ -837,7 +837,7 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], onClose, onSaved
                   {cropOptions.map((c) => <option key={c}>{c}</option>)}
                 </select>
               </Field>
-              <Field label="Seed Program" col={6} hint={programOptions.length ? "Optional. Distributions of this commodity add this farmer." : "No commodity has a kg-per-hectare allocation yet (Commodities page)."}>
+              <Field label="Seed Program" col={6} hint={programOptions.length ? "Optional. Distributions of this commodity add this farmer." : "No commodity has a kg-per-hectare allocation yet (set one in the distribution form)."}>
                 <select className="form-select" value={form.seedProgramId} onChange={(e) => update("seedProgramId", e.target.value)} disabled={!programOptions.length} aria-label="Seed program">
                   <option value="">Not set</option>
                   {programOptions.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}

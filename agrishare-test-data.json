@@ -1,5 +1,5 @@
 {
-  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), association request items from the MAO's list, a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season).",
+  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
   "accounts": {
     "fa_president": {
       "name": "Pedro Lagunay",
@@ -1456,61 +1456,6 @@
       "status": "Pending",
       "remarks": "",
       "recommended": true
-    }
-  ],
-  "association_requests": [
-    {
-      "type": "Machinery",
-      "title": "Hand tractor for Purok 3 rice farmers",
-      "item": "Hand tractor",
-      "quantity": 1,
-      "estimated_beneficiaries": 18,
-      "preferred_date": "2027-01-15",
-      "submitted_at": "2026-11-10T09:00:00+08:00",
-      "status": "Pending",
-      "remarks": "",
-      "description": "One shared hand tractor for land preparation. The 18 rice farmers in Purok 3 currently rent one from the town proper.",
-      "list_item": "Hand tractor"
-    },
-    {
-      "type": "Machinery",
-      "title": "Rice thresher for the association",
-      "item": "Rice thresher",
-      "quantity": 1,
-      "estimated_beneficiaries": 25,
-      "preferred_date": "2027-02-01",
-      "submitted_at": "2026-11-03T09:00:00+08:00",
-      "status": "Under review",
-      "remarks": "Checking with the DA mechanization program.",
-      "description": "A rice thresher for the coming harvest so members don't lose grain waiting for a rented unit.",
-      "list_item": "Rice thresher"
-    },
-    {
-      "type": "Project",
-      "title": "Irrigation canal repair, Sitio Tagbak",
-      "item": "Irrigation",
-      "quantity": null,
-      "estimated_beneficiaries": 30,
-      "preferred_date": "2027-03-01",
-      "submitted_at": "2026-10-20T09:00:00+08:00",
-      "status": "Approved",
-      "remarks": "Approved under the LGU 2027 irrigation budget.",
-      "description": "The canal serving Sitio Tagbak collapsed in two places during the October rains; 30 farms depend on it.",
-      "list_item": "Irrigation rehabilitation"
-    },
-    {
-      "type": "Other",
-      "title": "Training on organic fertilizer making",
-      "item": null,
-      "quantity": null,
-      "estimated_beneficiaries": 25,
-      "preferred_date": "2027-01-20",
-      "submitted_at": "2026-10-28T09:00:00+08:00",
-      "status": "Rejected",
-      "remarks": "Please coordinate with ATI for the training instead.",
-      "description": "A one-day hands-on training so members can make their own organic fertilizer.",
-      "list_item": "Other (specify)",
-      "item_other": "Training on organic fertilizer making"
     }
   ],
   "announcements": [

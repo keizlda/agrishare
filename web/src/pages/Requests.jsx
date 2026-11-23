@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, Inbox, Plus, Search, Send, ShieldAlert, Users } from "lucide-react";
+import { CheckCircle2, Inbox, Plus, Search, Send, ShieldAlert } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import RequestTimeline from "../components/requests/RequestTimeline.jsx";
-import AssociationRequestsView from "../components/requests/AssociationRequestsView.jsx";
+
 import FarmerRequestModal from "../components/requests/FarmerRequestModal.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
@@ -23,42 +23,14 @@ import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 import { reviewLabel } from "../lib/requestStatus.js";
 
-// Two kinds of requests, one tab each: farmers' commodity requests, and the
-// Farmers' Association President's requests to the MAO for machinery,
-// projects or other support. ?section=association opens the second (links
-// from notifications).
-const SECTIONS = [
-  { key: "farmer", label: "Farmer Requests", icon: Inbox },
-  { key: "association", label: "Association Requests", icon: Users },
-];
-const sectionFrom = (params) => (params.get("section") === "association" ? "association" : "farmer");
-
+// Farmer requests only (association requests were removed from the apps;
+// their table stays in the database, unused).
 export default function Requests() {
   const { user } = useAuth();
   const isMAO = user?.role !== "FA President";
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [section, setSection] = useState(() => sectionFrom(searchParams));
-
-  // A notification link (?section=…) clicked while already on this page.
-  useEffect(() => {
-    setSection(sectionFrom(searchParams));
-  }, [searchParams]);
-
-  function chooseSection(key) {
-    setSection(key);
-    setSearchParams(key === "association" ? { section: key } : {}, { replace: true });
-  }
-
   return (
     <div className="agri-fill-root">
-      <div className="agri-tabs" role="tablist" aria-label="Request type">
-        {SECTIONS.map(({ key, label, icon: Icon }) => (
-          <button key={key} type="button" role="tab" aria-selected={section === key} className={`agri-tab${section === key ? " active" : ""}`} onClick={() => chooseSection(key)}>
-            <Icon size={14} /> {label}
-          </button>
-        ))}
-      </div>
-      {section === "association" ? <AssociationRequestsView isMAO={isMAO} /> : <FarmerRequestsView isMAO={isMAO} />}
+      <FarmerRequestsView isMAO={isMAO} />
     </div>
   );
 }
@@ -105,6 +77,9 @@ function FarmerRequestsView({ isMAO }) {
   const { data: requests, setData: setRequests, loading, error: loadError } = useSupabaseList(listRequests);
   const [searchParams] = useSearchParams();
   const [filter, setFilter] = useState(() => initialFilter(searchParams));
+  // "Filed by Farmers' Association President": requests recorded for a
+  // farmer, together (?filed=fa).
+  const [filedOnly, setFiledOnly] = useState(() => searchParams.get("filed") === "fa");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [remarks, setRemarks] = useState("");
@@ -116,7 +91,8 @@ function FarmerRequestsView({ isMAO }) {
   const [toast, setToast] = useState(null);
   const [filing, setFiling] = useState(false);
 
-  const searched = useMemo(() => requests.filter((r) => matchesSearch(r, search)), [requests, search]);
+  const searched = useMemo(() => requests.filter((r) => matchesSearch(r, search) && (!filedOnly || r.filedByFa)), [requests, search, filedOnly]);
+  const filedCount = useMemo(() => requests.filter((r) => matchesSearch(r, search) && r.filedByFa).length, [requests, search]);
   const filtered = useMemo(() => (filter === "all" ? searched : searched.filter((r) => statusKey(r) === filter)), [searched, filter]);
   const counts = useMemo(() => {
     const c = { all: searched.length };
@@ -204,13 +180,26 @@ function FarmerRequestsView({ isMAO }) {
               <input className="form-control" placeholder="Search farmer, RSBSA no. or commodity" aria-label="Search requests" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
           </div>
-          <div className="agri-filter-chips" role="tablist" aria-label="Filter by status">
-            {STATUS_FILTERS.map((f) => (
-              <button key={f.key} type="button" role="tab" aria-selected={filter === f.key} className={`agri-filter-chip${filter === f.key ? " active" : ""}`} onClick={() => setFilter(f.key)}>
-                {f.label}
-                <span className="agri-filter-chip-count">{counts[f.key] ?? 0}</span>
-              </button>
-            ))}
+          <div className="agri-filter-chips">
+            {/* The status chips are tabs; "Filed by…" is a toggle next to them. */}
+            <div className="agri-filter-chips-tabs" role="tablist" aria-label="Filter by status">
+              {STATUS_FILTERS.map((f) => (
+                <button key={f.key} type="button" role="tab" aria-selected={filter === f.key} className={`agri-filter-chip${filter === f.key ? " active" : ""}`} onClick={() => setFilter(f.key)}>
+                  {f.label}
+                  <span className="agri-filter-chip-count">{counts[f.key] ?? 0}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              aria-pressed={filedOnly}
+              className={`agri-filter-chip agri-filter-chip-filed${filedOnly ? " active" : ""}`}
+              onClick={() => setFiledOnly((v) => !v)}
+              title="Requests the Farmers' Association President recorded for a farmer"
+            >
+              Filed by Farmers&apos; Association President
+              <span className="agri-filter-chip-count">{filedCount}</span>
+            </button>
           </div>
 
           <div className="agri-table-wrap" ref={tableRef}>
@@ -233,10 +222,7 @@ function FarmerRequestsView({ isMAO }) {
                     <td>{r.commodity}</td>
                     <td className="text-end">{formatQuantity(r.quantity, r.unit)}</td>
                     <td>{formatDate(r.requestDate)}</td>
-                    <td>
-                      <Pill status={reviewLabel(r)} />
-                      {r.recommended && r.status === "Pending" && <span className="agri-filed-tag" style={{ display: "block", width: "fit-content" }}>Recommended</span>}
-                    </td>
+                    <td><Pill status={reviewLabel(r)} /></td>
                   </tr>
                 ))}
                 {loading && (
@@ -248,7 +234,7 @@ function FarmerRequestsView({ isMAO }) {
               <EmptyState
                 icon={Inbox}
                 title="No requests found"
-                hint={search ? "Try a different name, RSBSA number or commodity." : filter === "all" ? "Farmers' requests appear here as soon as they're submitted." : "No requests with this status."}
+                hint={search ? "Try a different name, RSBSA number or commodity." : filedOnly ? "No requests filed by the Farmers' Association President match." : filter === "all" ? "Farmers' requests appear here as soon as they're submitted." : "No requests with this status."}
               />
             )}
           </div>
@@ -349,6 +335,7 @@ function FarmerRequestsView({ isMAO }) {
             setFiling(false);
             setSearch("");
             setFilter("all");
+            setFiledOnly(false);
             setSelectedId(saved.id);
             setToast({ tone: "success", message: `Request filed for ${saved.farmerName} and sent to the MAO.` });
           }}

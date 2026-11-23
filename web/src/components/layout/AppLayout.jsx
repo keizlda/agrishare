@@ -20,7 +20,7 @@ const MAO_ONLY_ROUTES = ["/reports", "/activity-log"];
 // CSS is scoped to >=1024px). Everything else keeps normal page scrolling.
 // The Dashboard has its own height-aware fill rules (.agri-app-dash), since
 // it falls back to scrolling on short screens rather than always filling.
-const FILL_ROUTES = ["/farmers", "/validation", "/commodities", "/distributions", "/requests", "/announcements", "/activity-log"];
+const FILL_ROUTES = ["/farmers", "/validation", "/distributions", "/requests", "/announcements", "/activity-log"];
 
 export default function AppLayout() {
   const { isAuthenticated, initializing, user, bootError, retryRestore, notice, clearNotice } = useAuth();

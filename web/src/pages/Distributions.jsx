@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, Pencil, Plus, Printer, Trash2, Truck, Users, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, Pencil, Plus, Printer, Trash2, Truck, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import TableFooter from "../components/ui/TableFooter.jsx";
@@ -8,6 +9,7 @@ import EmptyState from "../components/ui/EmptyState.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import DateInput from "../components/ui/DateInput.jsx";
 import FarmerTagInput from "../components/distributions/FarmerTagInput.jsx";
+import CommodityPicker from "../components/commodities/CommodityPicker.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
@@ -51,9 +53,11 @@ function redistributeQuantities(rows, totalQuantity, unit) {
 }
 
 // Two statuses: Ongoing -> Completed (items released and beneficiaries
-// signed). Completing a distribution records every tagged farmer as
-// Acknowledged on that date — see lib/distributionStatus.js.
-const STATUS_HELP = "Mark as Completed after the items are released and beneficiaries have signed.";
+// signed). A new distribution always starts Ongoing; the MAO Admin marks it
+// Completed from the status badge in the details (or in Edit). Completing a
+// distribution records every tagged farmer as Acknowledged on that date —
+// see lib/distributionStatus.js.
+const STATUS_HELP = "Completed once the items are released and beneficiaries have signed. Setting it back to Ongoing clears the completion date.";
 
 const EMPTY_FORM = {
   commodityId: "",
@@ -251,7 +255,16 @@ export default function Distributions() {
             <div className="agri-panel-header" style={{ alignItems: "flex-start" }}>
               <div style={{ fontWeight: 700 }}>Distribution Details</div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-                <Pill status={selected.status} />
+                <StatusBadge
+                  key={selected.id}
+                  distribution={selected}
+                  canChange={isMAO}
+                  onSaved={(updated) => {
+                    setDistributions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+                    setToast({ tone: "success", message: "Distribution marked as completed. The farmers were notified." });
+                  }}
+                  onError={(message) => setToast({ tone: "error", message })}
+                />
                 {selected.status === "Completed" && (
                   <div className="agri-muted" style={{ fontSize: "0.72rem", whiteSpace: "nowrap" }}>Completed on {completedOn(selected)}</div>
                 )}
@@ -321,21 +334,9 @@ export default function Distributions() {
 
             </div>
 
-            {/* Top to bottom: Mark as completed (Ongoing only), Edit | Delete,
-                Print. The Farmers' Association President sees only Print. */}
+            {/* Edit | Delete side by side, then Print. The Farmers'
+                Association President sees only Print. */}
             <div className="agri-detail-actions">
-              {isMAO && selected.status === "Ongoing" && (
-                <MarkCompletedButton
-                  key={selected.id}
-                  distribution={selected}
-                  onSaved={(updated) => {
-                    setDistributions((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
-                    setToast({ tone: "success", message: "Distribution marked as completed." });
-                  }}
-                  onError={(message) => setToast({ tone: "error", message })}
-                />
-              )}
-
               {isMAO && (
                 <div className="agri-detail-actions-row">
                   <button
@@ -367,6 +368,7 @@ export default function Distributions() {
           mode={modal.mode}
           distribution={modal.distribution}
           commodities={commodities}
+          onCommoditiesChange={setCommodities}
           onClose={() => setModal(null)}
           onSaved={modal.mode === "edit" ? handleUpdated : handleCreated}
         />
@@ -377,13 +379,54 @@ export default function Distributions() {
   );
 }
 
-// "Mark as completed" for an Ongoing distribution (MAO only), after a
-// confirmation. Completed distributions show "Completed on [date]" instead.
-function MarkCompletedButton({ distribution, onSaved, onError }) {
+// The status badge in the details. For the MAO Admin an Ongoing badge opens
+// a small menu ("Ongoing ▾" → Mark as Completed, after a confirmation); the
+// Farmers' Association President sees a plain badge. The database keeps the
+// rules (a tagged farmer is required, the completion date is saved, each
+// farmer is notified once and recorded as Acknowledged).
+function StatusBadge({ distribution, canChange, onSaved, onError }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
+  const interactive = canChange && distribution.status === "Ongoing";
 
-  function handleClick() {
+  useEscapeToClose(open, () => setOpen(false));
+  useEffect(() => {
+    if (!open) return undefined;
+    function onDoc(e) {
+      if (menuRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return;
+      setOpen(false);
+    }
+    function onScroll() {
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [open]);
+
+  if (!interactive) return <Pill status={distribution.status} />;
+
+  function toggle() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 4, left: Math.max(8, r.right - 190) });
+    setOpen(true);
+  }
+
+  function choose() {
+    setOpen(false);
     if ((distribution.taggedBeneficiaryCount ?? 0) === 0) {
       onError("Tag at least one beneficiary before marking this distribution as completed.");
       return;
@@ -397,7 +440,7 @@ function MarkCompletedButton({ distribution, onSaved, onError }) {
     try {
       onSaved(await updateDistributionStatus(distribution.id, "Completed"));
     } catch (err) {
-      onError(friendlyError(err, "Failed to update status."));
+      onError(friendlyError(err, "Couldn't mark this distribution as completed. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -407,18 +450,31 @@ function MarkCompletedButton({ distribution, onSaved, onError }) {
     <>
       <button
         type="button"
-        className="btn btn-agri-primary agri-detail-btn w-100 d-flex align-items-center justify-content-center gap-2"
+        ref={btnRef}
+        className="agri-pill orange agri-status-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Status: ${distribution.status}. Change status`}
+        onClick={toggle}
         disabled={saving}
-        onClick={handleClick}
       >
-        <CheckCircle2 size={16} /> {saving ? "Saving…" : "Mark as completed"}
+        {saving ? "Saving…" : distribution.status}
+        <ChevronDown size={12} aria-hidden="true" />
       </button>
-
+      {open && pos &&
+        createPortal(
+          <div ref={menuRef} className="agri-row-menu" role="menu" style={{ top: pos.top, left: pos.left, width: 190 }}>
+            <button type="button" role="menuitem" className="agri-row-menu-item" onClick={choose}>
+              <CheckCircle2 size={14} /> Mark as Completed
+            </button>
+          </div>,
+          document.body,
+        )}
       {confirming && (
         <ConfirmDialog
-          title="Mark as completed?"
-          message={`${distribution.program} (${formatDate(distribution.date)}): the items have been released and the beneficiaries have signed. Each tagged farmer is recorded as Acknowledged today and notified that they received their items.`}
-          confirmLabel="Mark as completed"
+          title="Mark this distribution as completed?"
+          message="Tagged farmers will be recorded as having received their items and will be notified."
+          confirmLabel="Mark as Completed"
           danger={false}
           onConfirm={handleConfirm}
           onCancel={() => setConfirming(false)}
@@ -516,10 +572,11 @@ const rateOf = (commodity) => (commodity && isKgUnit(commodity.unit) && commodit
 // How a row's quantity stands. A saved row whose quantity is unchanged keeps
 // the farm size and rate it was saved with (a later change to the
 // commodity's rate never alters it, unless the admin recomputes); anything
-// else uses the commodity's current rate.
-function quantityState(row, commodity) {
+// else uses `rateNow` — the commodity's current rate, or a rate chosen for
+// this distribution only.
+function quantityState(row, rateNow) {
   const unchanged = !!row.saved && !row.recompute && round2(row.quantity) === row.saved.quantity;
-  const rate = unchanged ? row.saved.rate : rateOf(commodity);
+  const rate = unchanged ? row.saved.rate : rateNow;
   const size = unchanged ? row.farmSize : row.currentFarmSize;
   const computed = rate ? computeAllocation(rate, size) : null;
   if (computed === null) return { state: unchanged ? "saved" : "manual", computed: null, rate: null, size };
@@ -529,7 +586,7 @@ function quantityState(row, commodity) {
   return { state: unchanged ? "saved" : "adjusted", computed, rate, size };
 }
 
-function DistributionModal({ mode, distribution, commodities, onClose, onSaved }) {
+function DistributionModal({ mode, distribution, commodities, onCommoditiesChange, onClose, onSaved }) {
   const editing = mode === "edit";
   const primaryItem = distribution?.items?.[0];
 
@@ -563,6 +620,11 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   // The commodity's rate changed since this (Ongoing) distribution was
   // saved: offer to recompute once.
   const [rateNotice, setRateNotice] = useState(null);
+  // A rate chosen for this distribution only ("Edit rate" → No); the
+  // commodity keeps its own.
+  const [rateOverride, setRateOverride] = useState(null);
+  // Edit: setting a Completed distribution back to Ongoing asks first.
+  const [confirmReopen, setConfirmReopen] = useState(false);
   const duplicateRound = useRef(0);
   const checkedProgram = useRef(form.program.trim());
 
@@ -575,11 +637,11 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   const findCommodity = (id) => commodityOptions.find((c) => String(c.id) === String(id)) ?? null;
   const commodity = findCommodity(form.commodityId);
   const unit = commodity?.unit ?? primaryItem?.unit ?? "kg";
-  const commodityRate = rateOf(commodity);
+  const commodityRate = rateOverride ?? rateOf(commodity);
   const byRate = commodityRate !== null;
   const showAllocation = isKgUnit(unit);
   const rows = form.taggedBeneficiaries;
-  const states = new Map(rows.map((r) => [r.farmerId, quantityState(r, commodity)]));
+  const states = new Map(rows.map((r) => [r.farmerId, quantityState(r, commodityRate)]));
 
   // Saved farmers load with their saved quantity, rate and adjustment.
   useEffect(() => {
@@ -633,6 +695,42 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  // A new rate for this distribution (the commodity's, after "Edit rate" →
+  // Yes, or one for this distribution only): every row that isn't an
+  // adjusted quantity is computed again with it.
+  function applyRate(newRate) {
+    setRateNotice(null);
+    setForm((f) => ({
+      ...f,
+      taggedBeneficiaries: f.taggedBeneficiaries.map((r) => {
+        if (quantityState(r, commodityRate).state === "adjusted") return r;
+        const q = computeAllocation(newRate, r.currentFarmSize);
+        return q === null ? r : { ...r, recompute: !!r.saved || r.recompute, quantity: q };
+      }),
+    }));
+  }
+
+  // Commodity picker: a commodity added, edited (rename / rate) or deleted.
+  function commodityAdded(c) {
+    onCommoditiesChange((prev) => [c, ...prev]);
+    changeCommodity(String(c.id), c);
+  }
+  function commodityUpdated(c) {
+    onCommoditiesChange((prev) => prev.map((x) => (x.id === c.id ? c : x)));
+    if (String(c.id) === String(form.commodityId)) {
+      const next = rateOf(c);
+      setRateOverride(null);
+      if (next !== null && next !== commodityRate) applyRate(next);
+    }
+  }
+  function commodityDeleted(id) {
+    onCommoditiesChange((prev) => prev.filter((x) => x.id !== id));
+    if (String(id) === String(form.commodityId) && !(editing && String(primaryItem?.commodityId) === String(id))) {
+      setForm((f) => ({ ...f, commodityId: "" }));
+      setRateOverride(null);
+    }
   }
 
   const hasUnresolvedDuplicate = rows.some((r) => r.duplicate);
@@ -702,18 +800,19 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   // commodity's rate (an adjusted row keeps the admin's quantity and
   // reason). Moving to a commodity without a rate keeps the quantities and
   // makes them the total.
-  function changeCommodity(id) {
-    const next = findCommodity(id);
+  function changeCommodity(id, nextCommodity = findCommodity(id)) {
+    const next = nextCommodity;
     const nextRate = rateOf(next);
     setEligibleResult(null);
     setRateNotice(null);
+    setRateOverride(null);
     setForm((f) => {
       if (nextRate) {
         return {
           ...f,
           commodityId: id,
           taggedBeneficiaries: f.taggedBeneficiaries.map((r) => {
-            const adjusted = quantityState(r, commodity).state === "adjusted";
+            const adjusted = quantityState(r, commodityRate).state === "adjusted";
             return { ...r, saved: null, quantity: adjusted ? r.quantity : computeAllocation(nextRate, r.currentFarmSize) ?? r.quantity };
           }),
         };
@@ -799,7 +898,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
 
   function validate() {
     if (beneficiaryLoadError) return `${beneficiaryLoadError} Close this form and open it again before saving.`;
-    if (!form.commodityId) return "Add a commodity in Commodities before recording a distribution.";
+    if (!form.commodityId) return "Choose a commodity (or add one with “+ Add new commodity”).";
     if (!form.program.trim()) return "Program name is required.";
     if (!form.venue.trim()) return "Venue is required.";
     if (editing) {
@@ -853,6 +952,15 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     setFormError(problem);
     setShowReasonErrors(true);
     if (problem) return;
+    if (editing && distribution.status === "Completed" && form.status === "Ongoing") {
+      setConfirmReopen(true);
+      return;
+    }
+    await doSave();
+  }
+
+  async function doSave() {
+    setConfirmReopen(false);
     const program = form.program.trim();
     savingRef.current = true;
     setSaving(true);
@@ -863,6 +971,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
         farmerId: r.farmerId,
         quantity: round2(r.quantity),
         recompute: r.recompute || commodityChanged,
+        ...(rateOverride != null ? { rate: rateOverride } : {}),
         overrideReason: r.duplicate ? overrideReason.trim() : r.overrideReason || "",
         adjustmentReason: states.get(r.farmerId)?.state === "adjusted" ? r.adjustmentReason.trim() : "",
       }));
@@ -890,7 +999,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
             quantity,
             allocationKg,
             fundingSource: form.fundingSource,
-            status: form.status,
+            status: "Ongoing",
             taggedBeneficiaries,
           });
       onSaved(saved);
@@ -939,21 +1048,36 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
             </div>
           )}
           <div className="row g-3 mb-3">
-            <div className="col-12 col-sm-6">
+            <div className={editing ? "col-12 col-sm-7" : "col-12"}>
               <label className="agri-form-label" htmlFor="distribution-commodity">Commodity</label>
-              <select id="distribution-commodity" className="form-select" value={form.commodityId} onChange={(e) => changeCommodity(e.target.value)} disabled={saving}>
-                {commodityOptions.length === 0 && <option value="">No active commodities</option>}
-                {commodityOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              {byRate && <div className="agri-field-hint">Allocation {formatRate(commodityRate)}: each farmer gets farm size × {formatRate(commodityRate)}.</div>}
+              <CommodityPicker
+                id="distribution-commodity"
+                commodities={commodityOptions}
+                allCommodities={commodities}
+                value={form.commodityId}
+                onChange={(id) => changeCommodity(id)}
+                rate={commodityRate}
+                overridden={rateOverride != null}
+                canManage
+                disabled={saving}
+                onAdded={commodityAdded}
+                onUpdated={commodityUpdated}
+                onDeleted={commodityDeleted}
+                onRateForThis={(r) => {
+                  setRateOverride(r);
+                  applyRate(r);
+                }}
+              />
             </div>
-            <div className="col-12 col-sm-6">
-              <label className="agri-form-label" htmlFor="distribution-status">Status</label>
-              <select id="distribution-status" className="form-select" value={form.status} onChange={(e) => update("status", e.target.value)}>
-                {DISTRIBUTION_STATUSES.map((s) => <option key={s}>{s}</option>)}
-              </select>
-              <div className="agri-field-hint">{STATUS_HELP}</div>
-            </div>
+            {editing && (
+              <div className="col-12 col-sm-5">
+                <label className="agri-form-label" htmlFor="distribution-status">Status</label>
+                <select id="distribution-status" className="form-select" value={form.status} onChange={(e) => update("status", e.target.value)}>
+                  {DISTRIBUTION_STATUSES.map((s) => <option key={s}>{s}</option>)}
+                </select>
+                <div className="agri-field-hint">{STATUS_HELP}</div>
+              </div>
+            )}
           </div>
           <div className="row g-3 mb-3">
             <div className="col-12 col-sm-6">
@@ -989,7 +1113,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                     {byRate
                       ? "Tag farmers below and each one's quantity is computed from their farm size."
                       : commodity
-                        ? `Split equally among the tagged farmers.${isKgUnit(unit) ? " Set this commodity's allocation per hectare in Commodities to compute it from farm size." : ""}`
+                        ? `Split equally among the tagged farmers.${isKgUnit(unit) ? " Set the commodity's allocation per hectare (“Set rate” above) to compute it from farm size." : ""}`
                         : ""}
                   </div>
                 </>
@@ -1130,6 +1254,17 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
               <label className="agri-form-label">Reason for allowing repeat distribution <span style={{ color: "var(--agri-red)" }}>*</span></label>
               <textarea required className="form-control" rows={2} value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="Explain why these farmers are being tagged again this year" />
             </div>
+          )}
+
+          {confirmReopen && (
+            <ConfirmDialog
+              title="Set this distribution back to Ongoing?"
+              message="Use this if it was marked Completed by mistake. The completion date is cleared; farmers who were already notified aren't notified again."
+              confirmLabel="Set to Ongoing"
+              danger={false}
+              onConfirm={doSave}
+              onCancel={() => setConfirmReopen(false)}
+            />
           )}
 
           {pendingFarmer && (

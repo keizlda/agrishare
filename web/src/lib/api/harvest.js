@@ -142,7 +142,7 @@ export async function removeHarvestReport(id) {
 
 // The crops a harvest can be reported for: active commodities measured in kg
 // that have a kg-per-hectare allocation (the seed programs, e.g. "Rice
-// Seeds – Inbred (RCEF)"), managed on the Commodities page. If none has a
+// Seeds – Inbred (RCEF)"), managed in the distribution form. If none has a
 // rate yet, every active kg commodity.
 export function harvestCrops(commodities) {
   const active = commodities.filter((c) => c.status === "Active" && c.unit === "kg");

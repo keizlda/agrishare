@@ -14,17 +14,39 @@ Quantities are in kilograms only; no bags or bag sizes are shown anywhere.
 
 ## Design changes (for the panel)
 
-Updated November 23, 2026 (see "Update: one rate per commodity" below).
+Updated November 23, 2026 (see the updates below).
 
+- **Commodities are managed inside the distribution form.** There is no
+  separate Commodities page any more (old links open Distributions). In the
+  New / Edit Distribution window the Commodity field is a searchable
+  dropdown that shows each commodity with its rate ("Rice Seeds – Hybrid ·
+  15 kg/ha"). Its last option, "+ Add new commodity", opens a small form in
+  the same window (name, category, optional allocation in kg per hectare);
+  saving adds the commodity and selects it. The selected commodity's rate is
+  shown under the field with "Edit rate": the MAO Admin chooses whether the
+  new rate also applies to future distributions (saved to the commodity) or
+  to this distribution only. Saved distributions never change. "Manage
+  commodities" opens a list where the MAO Admin can rename a commodity,
+  change its rate or delete it (with a confirmation; a deleted commodity
+  stays in past records but is no longer offered). Only the MAO Admin can
+  add, edit or delete commodities.
 - **Each commodity has one allocation rate in kg per hectare, set by the MAO
-  Admin.** Nothing about commodities or rates is hardcoded. On the
-  Commodities page the MAO Admin enters "Allocation (kg per hectare)" when
-  adding or editing a commodity (optional: left blank for items not given by
-  hectare, whose quantities are then split equally or entered manually). The
-  table shows a RATE column and the details show "Allocation: 40 kg/ha" with
-  "Last updated [date] by [name]". Rate changes are in the Activity Log
-  ("Rice Seeds – Hybrid: allocation 15.00 kg/ha → 18.00 kg/ha"). The
+  Admin.** Nothing about commodities or rates is hardcoded. The rate is
+  optional (left blank for items not given by hectare, whose quantities are
+  then split equally or entered manually). Rate changes are in the Activity
+  Log ("Rice Seeds – Hybrid: allocation 15.00 kg/ha → 18.00 kg/ha"). The
   Farmers' Association President can view rates.
+- **New distributions start as Ongoing; the MAO Admin marks them
+  Completed.** The New Distribution window has no Status field. In
+  Distribution Details the MAO Admin clicks the "Ongoing ▾" badge and
+  chooses "Mark as Completed" (with a confirmation). The badge turns green,
+  "Completed on [date]" appears under it, and the tagged farmers are
+  recorded as having received their items and are notified once. The Edit
+  window keeps the Status field, so a distribution marked Completed by
+  mistake can be set back to Ongoing (with a confirmation; the completion
+  date is cleared). For the Farmers' Association President the badge is
+  read-only. The buttons under the details are Edit | Delete, then Print
+  Distribution Report.
 - **Varieties are separate commodities.** "Rice Seeds – Inbred (RCEF)" (40
   kg/ha) and "Rice Seeds – Hybrid" (15 kg/ha) are two commodities, each with
   its own rate; there are no commodity "types" any more. Category is chosen
@@ -57,10 +79,28 @@ Updated November 23, 2026 (see "Update: one rate per commodity" below).
   is required to reject). The Farmers' Association President sees every
   request at the same time and may add a remark or mark it "Recommended by
   Farmers' Association President" — optional, never a blocker.
-- **The Farmers' Association President files requests on a farmer's
-  behalf** ("Add Farmer Request") and sends **association requests**
-  (machinery, project or other) with the item chosen from a list the MAO
-  Admin manages.
+- **Requests filed by the Farmers' Association President are labeled.** The
+  Farmers' Association President can file a request on a farmer's behalf
+  ("Add Farmer Request"). Such a request has a "Filed by Farmers'
+  Association President" tag in the requests list (with a filter to show
+  them together); its timeline starts with "Filed by [name] (Farmers'
+  Association President) for [farmer]"; the farmer sees it in the mobile
+  request history and details; and printed reports and the Activity Log
+  show who filed it.
+- **Association requests were removed.** The Requests page lists farmer
+  requests only (no tabs). The association request forms, list, details,
+  notifications, dashboard chips and Accomplishment Report section are gone;
+  the database table is kept, unused. The status column shows only Pending
+  / Approved / Rejected; the Farmers' Association President's recommendation
+  appears in the request's timeline.
+- **List of Farmers report.** A farmer masterlist under Reports, filtered by
+  barangay, status, commodity/crop, sex and an optional date-registered
+  range. Columns: RSBSA No., full name (Last, First M.), sex, birth date,
+  age, contact no., sitio/purok, barangay, commodity/crop, farm size, seed
+  program and status, sorted by last name, with totals at the end (farmers,
+  male / female, active / inactive, farm area). It prints landscape with the
+  shared header, the table header on every page and one signature block.
+  Deleted farmers are not listed.
 - **Harvest reporting in kilograms.** Farmers report harvests from the
   mobile app (season, crop and type, area harvested, kg, harvest date,
   optional geotagged photo). The yield per hectare is computed. The
@@ -72,6 +112,86 @@ Updated November 23, 2026 (see "Update: one rate per commodity" below).
 - **Multi-tab sign-in fix.** If another tab logs out, logs in, or switches to
   a different account, this tab follows instead of acting as the wrong
   account.
+
+## Update: distributions, requests, commodities, List of Farmers (November 23, 2026)
+
+Migration `20261124000200_distributions_requests_commodities.sql` (replaces
+three database functions; no data changed); web deployed; mobile update
+published over the air (update group
+`ca6c37de-eaf2-42a6-83ef-6a919ce46673`). No new APK is needed.
+
+- **Distributions:** no Status field when adding; the database saves every
+  new distribution as Ongoing whatever is sent. The status badge in
+  Distribution Details is a small menu for the MAO Admin ("Ongoing ▾" →
+  "Mark as Completed", confirmation "Mark this distribution as completed?
+  Tagged farmers will be recorded as having received their items and will
+  be notified."); afterwards the badge is green, "Completed on [date]" shows
+  under it, a confirmation message appears and the table row updates. The
+  existing rules still apply: at least one tagged farmer, the completion date
+  is saved, farmers are notified once (also after Completed → Ongoing →
+  Completed), the acknowledgement is recorded. The separate "Mark as
+  completed" button was removed.
+- **Commodities:** the Commodities page, its menu item and route were
+  removed (`/commodities` opens Distributions). The distribution form's
+  searchable dropdown, inline "+ Add new commodity" form, "Edit rate" (Yes:
+  saved to the commodity and logged; No: this distribution only) and
+  "Manage commodities" window replace it. A rate for one distribution only
+  is saved on that distribution's rows (above 0, up to 1,000 kg/ha). The
+  farmer Seed Program dropdown, requests (mobile and on-behalf), harvest
+  reports, report filters and the dashboard's Top Commodities are unchanged.
+- **Requests:** one list without tabs; no "Recommended" badge in the status
+  column (the recommendation stays in the timeline and the details); a
+  "Filed by Farmers' Association President" filter; the timeline's first
+  step for a filed request reads "Filed by [name] (Farmers' Association
+  President) for [farmer]" with the date. New Activity Log entries say
+  "Request filed by Pedro Lagunay (Farmers' Association President) for
+  Marites Cabahug: 48 kg of …" or "Request submitted by …" (older entries
+  keep their wording). The Accomplishment Report's "Farmer Requests" table
+  counts requests submitted by farmers and filed by the Farmers' Association
+  President (Pending / Approved / Rejected) and names who filed them.
+- **Mobile:** a request in the farmer's history opens its details
+  (commodity, quantity, status, date requested, who filed it — "Your
+  Farmers' Association President, for you" — reason, decision date and the
+  MAO's remarks). The list keeps the "Filed by Farmers' Association
+  President" tag.
+- **Association requests:** removed from the web app (tab, forms, list,
+  details, dashboard chips, report section). Older association-request
+  notifications are hidden from the bell and its count (not deleted). The
+  table and its rows stay in the database, unused.
+- **Seed data:** association requests are no longer seeded; the ones seeded
+  earlier stay in the ledger so `cleanup-test-data.mjs` can remove them.
+
+### Commodities to review (nothing changed)
+
+Possible duplicates and odd entries on the live database, with how many
+records use each (distributions / beneficiary rows / requests / harvest
+reports / farmers enrolled):
+
+| Commodity (id) | Rate | Used by | Note |
+| --- | --- | --- | --- |
+| Rice Seeds (NSIC Rc222) (1) | 40 kg/ha | 5 / 28 / 6 / 0 / 0 | Older general rice seed entry |
+| Rice Seeds – Inbred (RCEF) (49) | 40 kg/ha | 2 / 12 / 1 / 6 / 8 | |
+| Rice (48) | 40 kg/ha | 1 / 20 / 0 / 0 / 0 | Category typed "rice" (lowercase); used by one distribution |
+| Rice Seeds – Hybrid (50) | 15 kg/ha | 1 / 5 / 2 / 2 / 6 | |
+| RICE SEEDS-HYBRID (59) | 1.5 kg/ha | unused | Added Nov 23; looks like a duplicate of Rice Seeds – Hybrid with a mistyped rate |
+| Corn Seeds (2) | 20 kg/ha | 2 / 7 / 5 / 2 / 6 | |
+| Yellow Corn (47) | — | unused | Unit saved as "12 kg" |
+| Fertilizer (3) | — | 0 / 0 / 3 / 0 / 0 | Generic; overlaps Organic Fertilizer and Urea Fertilizer (46-0-0) |
+| Organic Fertilizer (4) | — | 2 / 9 / 1 / 0 / 0 | |
+| Urea Fertilizer (46-0-0) (35) | — | 1 / 7 / 1 / 0 / 0 | |
+| Bio Plant Activator (36) | — | unused | Unit "L"; an older deleted entry with the same name exists (5) |
+
+### Checks run (this update)
+
+| Check | Result |
+| --- | --- |
+| Database on a local copy (PGlite, all migrations) | 29/29 |
+| Web on a mock back end: status badge and confirmations, Edit back to Ongoing, commodity dropdown / add / edit rate (Yes and No) / Manage commodities, requests without tabs, filed-by filter and timeline, bell, List of Farmers and Accomplishment Report prints, the Farmers' Association President's read-only views, fit at 1366×768 and 1920×1080 | 65/65 |
+| Earlier web suites (Validation inbox, no season, two tabs, dashboard, farm size × rate, requests, fit) | 43, 13, 8, 10, 9, 29 — all pass; the Commodities-page and association-request suites were retired with those screens |
+| Mobile request history and details (Expo web preview, 360 and 412 px) | 17/17 |
+| Live database, as each role, rolled back | 54/54, nothing left behind |
+| Live site as the test Farmers' Association President (1366×768, 1920×1080) | 18/18 |
+| Lint, web build, mobile bundle | Pass (3 lint warnings, unchanged from before) |
 
 ## Update: Validation tab and no season (November 24, 2026)
 
@@ -223,6 +343,10 @@ published over the air (update group `f83a32dd-3dad-464a-a113-61b5e2170697`).
 
 ## Phase 3: association requests
 
+Removed from the apps on November 23, 2026 (see the latest update); kept
+here as a record. The `association_requests` table and its rows remain in
+the database, unused.
+
 - Requests page tabs: "Farmer Requests" and "Association Requests".
 - The Farmers' Association President submits: type (Machinery / Project /
   Other), item from the list ("Other (specify)" asks for the item), quantity
@@ -323,15 +447,13 @@ number) and `password123`.
 | Action | MAO Admin | FA President | Farmer |
 | --- | --- | --- | --- |
 | View commodity rates | Yes | Yes (read-only) | Rates used in their request form |
-| Add / edit commodities and rates | Yes | No (refused) | No (refused) |
+| Add / edit / delete commodities and rates (in the distribution form) | Yes | No (refused) | No (refused) |
+| Mark a distribution Completed, or back to Ongoing | Yes | No (read-only badge; refused) | No |
 | Set a farmer's Seed program | Yes | No | No |
 | Barangay allocation, quantities by hectare | Yes | View | Own quantity |
 | Submit a commodity request | — | For a farmer ("Filed by Farmers' Association President") | Own |
 | Recommend / remark on a request | No | Yes, Pending only (optional) | No |
 | Approve / Reject a request | Yes (reason to reject) | No (refused) | No |
-| Association request: create / edit / cancel | No | Own, Pending only | No (can't see) |
-| Association request: Under review / Approve / Reject | Yes (remarks to reject) | No | No |
-| Manage the item list | Yes | View | No |
 | Report a harvest | For a farmer | For a farmer | Own |
 | Correct / resubmit a harvest report | Before verification | Own filings, before verification | Own, before verification |
 | Verify / Return a harvest report | Yes (remarks to return) | No (refused) | No |

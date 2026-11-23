@@ -299,6 +299,8 @@ const toBeneficiaryPayload = (list) =>
     duplicate_override_reason: b.overrideReason || null,
     adjustment_reason: b.adjustmentReason || null,
     ...(b.recompute ? { recompute: true } : {}),
+    // A rate for this distribution only (the commodity keeps its own).
+    ...(b.rate != null ? { rate: b.rate } : {}),
   }));
 
 // Ids from a <select> arrive as text; numeric ones are sent as numbers.

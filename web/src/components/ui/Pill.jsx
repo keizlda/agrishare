@@ -15,8 +15,6 @@ export const STATUS_COLOR = {
   Received: "green",
   Complete: "green",
   "For Review": "purple",
-  // Association requests: Pending -> Under review -> Approved / Rejected.
-  "Under review": "blue",
   // Harvest reports: Submitted -> Verified, or Returned to the farmer.
   Submitted: "orange",
   Verified: "green",

@@ -11,7 +11,7 @@ import { farmSummary } from "./farmers.js";
 // database decides who may change what and stamps who/when itself.
 
 // The suggested quantity is farm size × the commodity's kg/ha rate (one rate
-// per commodity, set by the MAO Admin on the Commodities page).
+// per commodity, set by the MAO Admin in the distribution form).
 const rateFor = (row) => (row.commodities?.unit === "kg" && Number(row.commodities?.allocation_per_hectare) > 0 ? Number(row.commodities.allocation_per_hectare) : null);
 
 const SELECT = `

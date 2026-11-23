@@ -499,3 +499,11 @@
     page-break-after: auto;
   }
 }
+
+/* Shared: no wrapping (RSBSA numbers), and a small note under a table. */
+.pr-nowrap {
+  white-space: nowrap;
+}
+.pr-note {
+  color: #444;
+}

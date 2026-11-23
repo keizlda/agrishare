@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Pill from "../components/Pill";
@@ -8,7 +8,7 @@ import { colors, radius, shadows, sizes } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { listCommodities } from "../lib/api/commodities";
 import { createRequest, listMyRequests } from "../lib/api/requests";
-import { formatDate } from "../lib/dates";
+import { formatDate, formatDateTime } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
 import { isWholeUnit } from "../lib/units";
 
@@ -46,6 +46,7 @@ export default function RequestsScreen({ navigation, route }) {
   // Blocks a second Send while the first is still going.
   const submittingRef = useRef(false);
   const [loadError, setLoadError] = useState("");
+  const [open, setOpen] = useState(null); // request shown in the details sheet
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -208,7 +209,12 @@ export default function RequestsScreen({ navigation, route }) {
           </>
         }
         renderItem={({ item: r }) => (
-          <View style={styles.card}>
+          <Pressable
+            onPress={() => setOpen(r)}
+            accessibilityRole="button"
+            accessibilityLabel={`${r.commodity}, ${r.quantity} ${r.unit}, ${r.status}${r.filedByFa ? ", filed by Farmers' Association President" : ""}. Open details`}
+            style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+          >
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{r.commodity}</Text>
               <Pill status={r.status} />
@@ -222,10 +228,63 @@ export default function RequestsScreen({ navigation, route }) {
             )}
             <Text style={styles.cardReason} numberOfLines={2}>{r.reason}</Text>
             {r.status === "Rejected" && !!r.maoRemarks && <Text style={styles.cardRemarks}>MAO: {r.maoRemarks}</Text>}
-          </View>
+          </Pressable>
         )}
         ListEmptyComponent={<Text style={styles.empty}>You haven't sent any commodity requests yet.</Text>}
       />
+      <RequestDetails request={open} onClose={() => setOpen(null)} />
+    </View>
+  );
+}
+
+// A request's details: what was asked for, who filed it (the farmer, or the
+// Farmers' Association President for them), and the MAO's decision.
+function RequestDetails({ request: r, onClose }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={!!r} animationType="slide" onRequestClose={onClose}>
+      {r && (
+        <View style={styles.screen}>
+          <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+            <TouchableOpacity onPress={onClose} style={styles.backBtn} accessibilityLabel="Close">
+              <Ionicons name="close" size={18} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Request Details</Text>
+          </View>
+          <ScrollView contentContainerStyle={styles.content}>
+            <View style={styles.formCard}>
+              <View style={styles.cardHeader}>
+                <Text style={[styles.cardTitle, { fontSize: 15 }]}>{r.commodity}</Text>
+                <Pill status={r.status} />
+              </View>
+              {r.filedByFa && (
+                <View style={[styles.filedTag, { marginTop: 4 }]}>
+                  <Ionicons name="people" size={11} color={colors.blueText} />
+                  <Text style={styles.filedTagText}>Filed by Farmers' Association President</Text>
+                </View>
+              )}
+              <DetailRow label="Quantity" value={`${r.quantity.toLocaleString()} ${r.unit}`} />
+              <DetailRow label="Requested" value={formatDateTime(r.requestDate)} />
+              <DetailRow label="Filed by" value={r.filedByFa ? "Your Farmers' Association President, for you" : "You"} />
+              <DetailRow label="Reason" value={r.reason || "—"} />
+              {r.decidedAt && <DetailRow label={r.status === "Approved" ? "Approved" : r.status === "Rejected" ? "Rejected" : "Decided"} value={formatDateTime(r.decidedAt)} />}
+              {!!r.maoRemarks && <DetailRow label="MAO remarks" value={r.maoRemarks} last />}
+            </View>
+            <Text style={styles.hint}>
+              {r.status === "Pending" ? "The MAO will approve or reject it. You'll get a notification." : "This request has been decided by the MAO."}
+            </Text>
+          </ScrollView>
+        </View>
+      )}
+    </Modal>
+  );
+}
+
+function DetailRow({ label, value, last }) {
+  return (
+    <View style={[styles.detailRow, last && { borderBottomWidth: 0 }]}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
 }
@@ -327,5 +386,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   filedTagText: { fontSize: 10, fontWeight: "700", color: colors.blueText },
+  detailRow: { flexDirection: "row", gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
+  detailLabel: { width: "34%", fontSize: 11.5, color: colors.textMuted },
+  detailValue: { flex: 1, fontSize: 12.5, color: colors.text, fontWeight: "600", textAlign: "right" },
   empty: { textAlign: "center", color: colors.textMuted, fontSize: 12.5, marginTop: 20 },
 });

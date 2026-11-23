@@ -26,16 +26,18 @@
 // distribution's quantities follow farm size × allocation (one adjusted, with
 // its reason); the FA President files requests on farmers' behalf (Maui,
 // Claude, Luna and a seeded farmer — new request rows that only reference
-// them); and the FA President sends association requests in every status.
+// them). (It also sent association requests until those were removed from
+// the apps on Nov 23, 2026: none are seeded now; older seeded ones stay in
+// the ledger so cleanup-test-data.mjs can remove them.)
 //
 // MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per
 // commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF)
 // 40, Rice Seeds – Hybrid 15, made by the 20261123 migration from the old
 // types; reused, never changed) — each seeded farmer's Seed program,
 // requests that go straight to the MAO (Pending, some Recommended by the
-// Farmers' Association President, Approved, Rejected), association request
-// items from the MAO's list, distributions by farm size × the commodity's
-// rate (one with a 2,000 kg barangay allocation), harvest reports in kg
+// Farmers' Association President, Approved, Rejected), distributions by
+// farm size × the commodity's rate (one with a 2,000 kg barangay
+// allocation), harvest reports in kg
 // (Submitted, Verified, Returned; Maui, Claude and Luna only as new rows),
 // and the default-password reminder turned off for the seeded (evaluator)
 // farmers.
@@ -604,43 +606,6 @@ async function main() {
     if (r.recommended) await recommend(req.request_id, r.fa_remarks ?? FA_FORWARD_REMARK, cap(plusDays(created, 0, "09:45")));
     if (status === "pending") continue;
     await decide(req.request_id, status, r.remarks, cap(plusDays(created, 1, "14:00")));
-  }
-
-  // ---------- Association requests (FA President → MAO) ----------
-  // Inserted Pending (notifies the MAO), then moved to their status by the
-  // MAO Admin (notifies the FA President). The item comes from the MAO's
-  // item list ("Other (specify)" with the specific item). Matched on the
-  // requester + submitted time (older runs: + title).
-  const ASSOC_TYPE = { Machinery: "machinery", Project: "project", Other: "other" };
-  const ASSOC_STATUS = { Pending: "pending", "Under review": "under_review", Approved: "approved", Rejected: "rejected" };
-  const itemList = await must(sb.from("association_request_items").select("item_id, name, is_other").is("deleted_at", null), "association request items");
-  for (const a of data.association_requests ?? []) {
-    const type = ASSOC_TYPE[a.type];
-    const status = ASSOC_STATUS[a.status];
-    if (!type || !status) throw new Error(`Association request "${a.title}": unknown type or status`);
-    const listItem = itemList.find((i) => i.name.toLowerCase() === (a.list_item ?? "").toLowerCase());
-    if (!listItem) throw new Error(`Association request "${a.title}": "${a.list_item}" is not on the item list.`);
-    if (DRY || !faId) { if (DRY) log(`Association request: would insert "${a.title}" (${a.type}, ${listItem.is_other ? a.item_other : listItem.name}, ${a.status})`); continue; }
-    const submitted = cap(a.submitted_at);
-    const existing = (await maybeOne(sb.from("association_requests").select("association_request_id").eq("requested_by", faId).eq("created_at", submitted), `association request ${a.title}`))
-      ?? (await maybeOne(sb.from("association_requests").select("association_request_id").eq("requested_by", faId).eq("title", a.title), `association request ${a.title}`));
-    if (existing) continue;
-    const row = await must(sb.from("association_requests").insert({
-      request_type: type, title: a.title, description: a.description, item_id: listItem.item_id, item_other: listItem.is_other ? a.item_other : null,
-      quantity: type === "machinery" ? a.quantity ?? 1 : null,
-      estimated_beneficiaries: a.estimated_beneficiaries, preferred_date: a.preferred_date ?? null,
-      requested_by: faId, created_at: submitted, updated_at: submitted,
-    }).select("association_request_id").single(), `insert association request ${a.title}`);
-    remember(ledger.associationRequests, { association_request_id: row.association_request_id, title: a.title }, "association_request_id");
-    bump("association_requests");
-    saveLedger(ledger);
-    await captureNotifs(submitted, ["New association request"]);
-    if (status === "pending") continue;
-    const reviewedAt = cap(plusDays(submitted, 3, "10:00"));
-    await must(sb.from("association_requests").update({
-      status, admin_remarks: a.remarks || null, reviewed_by: maoId, reviewed_at: reviewedAt,
-    }).eq("association_request_id", row.association_request_id), `review association request ${a.title}`);
-    await captureNotifs(reviewedAt, ["Association request under review", "Association request approved", "Association request rejected"]);
   }
 
   // ---------- Harvest reports (kg) ----------

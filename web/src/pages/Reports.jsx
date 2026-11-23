@@ -5,14 +5,18 @@ import DateInput from "../components/ui/DateInput.jsx";
 import { usePersistedState } from "../hooks/usePersistedState.js";
 import { useCardLabels } from "../hooks/useCardLabels.js";
 import { formatDate, formatDateTime } from "../lib/dates.js";
-import { barangays, reportTypes } from "../data/mockData.js";
+import { barangays, commodityCategories, reportTypes } from "../data/mockData.js";
 import { listCommodities } from "../lib/api/commodities.js";
 
 // Distribution reports filter by the distribution's status; the Harvest
 // Report by the harvest report's.
 const STATUS_OPTIONS = ["All Status", "Ongoing", "Completed"];
 const HARVEST_STATUS_OPTIONS = ["All Status", "Submitted", "Verified", "Returned"];
-const statusOptionsFor = (type) => (type === "Harvest Report" ? HARVEST_STATUS_OPTIONS : STATUS_OPTIONS);
+// List of Farmers: the farmer's own status, sex and crop.
+const FARMER_STATUS_OPTIONS = ["All Status", "Active", "Inactive"];
+const FARMER_CROPS = commodityCategories.filter((c) => c !== "Farm Tools" && c !== "Livestock");
+const SEX_OPTIONS = ["All", "Male", "Female"];
+const statusOptionsFor = (type) => (type === "Harvest Report" ? HARVEST_STATUS_OPTIONS : type === "List of Farmers" ? FARMER_STATUS_OPTIONS : STATUS_OPTIONS);
 
 // Generated-report history is a session convenience log (what got downloaded,
 // when) rather than domain data from the paper's ERD, so it stays local —
@@ -30,6 +34,8 @@ export default function Reports() {
   const [status, setStatus] = useState("All Status");
   const [commodity, setCommodity] = useState("All Commodities");
   const [barangay, setBarangay] = useState("All Barangays");
+  const [sex, setSex] = useState("All");
+  const farmerList = reportType === "List of Farmers";
   const [rangeError, setRangeError] = useState("");
   const tableRef = useRef(null);
   useCardLabels(tableRef);
@@ -42,8 +48,8 @@ export default function Reports() {
 
   // Opens the printable preview in a new tab. Nothing prints by itself: the
   // print dialog opens only from the preview's "Print / Save as PDF".
-  function printUrl({ type, dateFrom, dateTo, status, commodity, barangay }) {
-    const params = new URLSearchParams({ type, dateFrom, dateTo, status, commodity, barangay });
+  function printUrl({ type, dateFrom, dateTo, status, commodity, barangay, sex = "All" }) {
+    const params = new URLSearchParams({ type, dateFrom, dateTo, status, commodity, barangay, sex });
     return `/print/reports?${params.toString()}`;
   }
 
@@ -67,14 +73,15 @@ export default function Reports() {
         status,
         commodity,
         barangay,
+        sex: farmerList ? sex : "All",
       },
       ...prev,
     ]);
-    window.open(printUrl({ type: reportType, dateFrom, dateTo, status, commodity, barangay }), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: reportType, dateFrom, dateTo, status, commodity, barangay, sex: farmerList ? sex : "All" }), "_blank", "noopener,noreferrer");
   }
 
   function handlePreview(r) {
-    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay }), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay, sex: r.sex ?? "All" }), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -89,17 +96,20 @@ export default function Reports() {
                 className="form-select mb-3"
                 value={reportType}
                 onChange={(e) => {
-                  setReportType(e.target.value);
-                  if (!statusOptionsFor(e.target.value).includes(status)) setStatus("All Status");
+                  const next = e.target.value;
+                  setReportType(next);
+                  if (!statusOptionsFor(next).includes(status)) setStatus("All Status");
+                  // The farmer list's crops and the commodities are different lists.
+                  if ((next === "List of Farmers") !== farmerList) setCommodity("All Commodities");
                 }}
               >
                 {reportTypes.map((t) => <option key={t}>{t}</option>)}
               </select>
 
-              <label className="agri-form-label">{reportType === "Harvest Report" ? "Crop" : "Commodity"}</label>
+              <label className="agri-form-label">{reportType === "Harvest Report" ? "Crop" : farmerList ? "Commodity/Crop" : "Commodity"}</label>
               <select className="form-select mb-3" value={commodity} onChange={(e) => setCommodity(e.target.value)}>
                 <option>All Commodities</option>
-                {commodityOptions.map((c) => <option key={c}>{c}</option>)}
+                {(farmerList ? FARMER_CROPS : commodityOptions).map((c) => <option key={c}>{c}</option>)}
               </select>
 
               <label className="agri-form-label">Status</label>
@@ -109,8 +119,8 @@ export default function Reports() {
             </div>
 
             <div>
-              <label className="agri-form-label">{reportType === "Harvest Report" ? "Harvest Date Range" : "Date Range"}</label>
-              <div className="agri-muted" style={{ fontSize: "0.72rem", marginBottom: 4 }}>{reportType === "Harvest Report" ? "Harvests with a harvest date in this range; totals follow it. Leave blank to include every date." : "Leave blank to include every date."}</div>
+              <label className="agri-form-label">{reportType === "Harvest Report" ? "Harvest Date Range" : farmerList ? "Date Registered (optional)" : "Date Range"}</label>
+              <div className="agri-muted" style={{ fontSize: "0.72rem", marginBottom: 4 }}>{reportType === "Harvest Report" ? "Harvests with a harvest date in this range; totals follow it. Leave blank to include every date." : farmerList ? "Farmers registered in this range. Leave blank to include everyone." : "Leave blank to include every date."}</div>
               <div className={`agri-date-range ${rangeError ? "mb-1" : "mb-3"}`}>
                 <DateInput value={dateFrom} onChange={(v) => { setDateFrom(v); setRangeError(""); }} invalid={!!rangeError} aria-label="From date" />
                 <DateInput value={dateTo} onChange={(v) => { setDateTo(v); setRangeError(""); }} invalid={!!rangeError} aria-label="To date" />
@@ -122,6 +132,15 @@ export default function Reports() {
                 <option>All Barangays</option>
                 {barangays.map((b) => <option key={b}>{b}</option>)}
               </select>
+
+              {farmerList && (
+                <>
+                  <label className="agri-form-label" htmlFor="report-sex">Sex</label>
+                  <select id="report-sex" className="form-select mb-3" value={sex} onChange={(e) => setSex(e.target.value)}>
+                    {SEX_OPTIONS.map((s) => <option key={s} value={s}>{s === "All" ? "All" : s}</option>)}
+                  </select>
+                </>
+              )}
             </div>
           </div>
 

@@ -4,6 +4,9 @@ import { supabase } from "../supabaseClient.js";
 // none of these need an explicit user filter — another user's rows simply
 // never come back and can't be updated or deleted.
 const COLUMNS = "id, type, title, message, link, is_read, read_at, created_at";
+// Association requests were removed from the apps (Nov 2026): their older
+// notifications aren't shown or counted.
+const SHOWN = "link.is.null,link.not.like.*section=association*";
 
 function mapNotification(row) {
   return {
@@ -21,7 +24,7 @@ function mapNotification(row) {
 // Newest first, offset-paginated. Fetches one extra row to know if there's
 // another page without a separate count query.
 export async function listNotifications({ limit = 20, offset = 0, unreadOnly = false } = {}) {
-  let query = supabase.from("user_notifications").select(COLUMNS).order("created_at", { ascending: false }).range(offset, offset + limit);
+  let query = supabase.from("user_notifications").select(COLUMNS).or(SHOWN).order("created_at", { ascending: false }).range(offset, offset + limit);
   if (unreadOnly) query = query.eq("is_read", false);
   const { data, error } = await query;
   if (error) throw error;
@@ -29,7 +32,7 @@ export async function listNotifications({ limit = 20, offset = 0, unreadOnly = f
 }
 
 export async function getUnreadCount() {
-  const { count, error } = await supabase.from("user_notifications").select("id", { count: "exact", head: true }).eq("is_read", false);
+  const { count, error } = await supabase.from("user_notifications").select("id", { count: "exact", head: true }).eq("is_read", false).or(SHOWN);
   if (error) throw error;
   return count ?? 0;
 }

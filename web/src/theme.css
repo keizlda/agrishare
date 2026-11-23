@@ -3723,3 +3723,179 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
     flex: 1 1 0;
   }
 }
+
+/* ==========================================================================
+   Distribution form: searchable commodity picker (with "+ Add new
+   commodity", "Edit rate" and "Manage commodities"), the clickable status
+   badge, and the Manage commodities window.
+   ========================================================================== */
+.agri-combo-wrap {
+  position: relative;
+}
+.agri-combo-trigger {
+  display: block;
+  width: 100%;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.agri-combo-rate {
+  color: var(--agri-text-muted);
+}
+.agri-combo-panel {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  background: var(--agri-card);
+  border: 1px solid var(--agri-border);
+  border-radius: 10px;
+  box-shadow: var(--agri-shadow), 0 8px 20px rgba(20, 40, 25, 0.12);
+  overflow: hidden;
+}
+.agri-combo-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--agri-divider);
+  color: var(--agri-text-muted);
+}
+.agri-combo-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.agri-combo-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+.agri-combo-option.active {
+  background: var(--agri-primary-soft);
+}
+.agri-combo-option[aria-selected="true"] {
+  font-weight: 600;
+  color: var(--agri-primary-dark);
+}
+.agri-combo-add {
+  justify-content: flex-start;
+  border-top: 1px solid var(--agri-divider);
+  margin-top: 4px;
+  font-weight: 600;
+  color: var(--agri-primary-dark);
+}
+.agri-combo-empty {
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  color: var(--agri-text-muted);
+}
+.agri-combo-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: var(--agri-text-muted);
+}
+.agri-combo-meta .agri-link-btn {
+  font-size: 0.74rem;
+}
+.agri-combo-override {
+  color: var(--agri-orange-text);
+  font-weight: 600;
+}
+.agri-combo-manage {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 0;
+}
+.agri-combo-rate-edit {
+  margin-top: 6px;
+}
+.agri-combo-rate-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agri-combo-rate-row .agri-unit-input {
+  flex: 0 1 160px;
+}
+.agri-combo-ask {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--agri-primary-soft);
+  font-size: 0.82rem;
+}
+.agri-combo-ask-actions,
+.agri-combo-addform-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.agri-combo-addform-actions {
+  justify-content: flex-end;
+}
+.agri-combo-addform {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--agri-border);
+  border-radius: 10px;
+  background: var(--agri-primary-soft);
+}
+.agri-combo-addform-title {
+  font-weight: 700;
+  font-size: 0.82rem;
+  margin-bottom: 6px;
+}
+.agri-status-btn {
+  border: none;
+  cursor: pointer;
+  gap: 4px;
+}
+.agri-status-btn:hover,
+.agri-status-btn:focus-visible {
+  filter: brightness(0.96);
+  outline: 2px solid color-mix(in srgb, var(--agri-orange) 45%, transparent);
+  outline-offset: 1px;
+}
+.agri-modal-backdrop-top {
+  z-index: 58;
+}
+.agri-manage-commodities {
+  max-height: min(56vh, 460px);
+}
+.agri-manage-commodities .agri-table td {
+  vertical-align: middle;
+}
+.agri-manage-actions {
+  white-space: nowrap;
+}
+.agri-manage-actions .btn {
+  margin-left: 4px;
+}
+/* Requests: "Filed by Farmers' Association President" filter, after the status chips. */
+.agri-filter-chips-tabs {
+  display: contents;
+}
+.agri-filter-chip-filed {
+  margin-left: 6px;
+}
+.agri-filter-chip-filed.active {
+  border-color: var(--agri-blue-text);
+  background: var(--agri-blue-bg);
+  color: var(--agri-blue-text);
+}

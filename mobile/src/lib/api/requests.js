@@ -2,7 +2,7 @@ import { supabase } from "../supabaseClient";
 import { dbStatusToLabel } from "../status";
 
 const SELECT = `
-  request_id, quantity_requested, reason, status, created_at, filed_by, mao_remarks, fa_recommended,
+  request_id, quantity_requested, reason, status, created_at, filed_by, mao_remarks, fa_recommended, admin_decision_at,
   commodities ( name, unit )
 `;
 
@@ -27,6 +27,7 @@ function mapRequest(row) {
     recommended: !!row.fa_recommended,
     // Filed for this farmer by their Farmers' Association President.
     filedByFa: !!row.filed_by,
+    decidedAt: row.admin_decision_at ?? null,
   };
 }
 
