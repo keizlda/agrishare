@@ -10,22 +10,16 @@ import { farmSummary } from "./farmers.js";
 // President" while it's Pending; that never blocks the MAO Admin. The
 // database decides who may change what and stamps who/when itself.
 
-// The kg/ha rate a request is suggested by: its own type, else the farmer's
-// Program / type when it belongs to this commodity, else the commodity's
-// default type.
-function rateFor(row) {
-  const types = (row.commodities?.commodity_types ?? []).filter((t) => !t.deleted_at);
-  const pick = row.commodity_types ?? types.find((t) => t.commodity_type_id === row.farmers?.commodity_type_id) ?? types.find((t) => t.is_default) ?? types[0];
-  return pick ? { name: pick.name, rate: Number(pick.rate_kg_per_ha) } : null;
-}
+// The suggested quantity is farm size × the commodity's kg/ha rate (one rate
+// per commodity, set by the MAO Admin on the Commodities page).
+const rateFor = (row) => (row.commodities?.unit === "kg" && Number(row.commodities?.allocation_per_hectare) > 0 ? Number(row.commodities.allocation_per_hectare) : null);
 
 const SELECT = `
   request_id, commodity_id, quantity_requested, reason, status, fa_remarks, mao_remarks, created_at,
   reviewed_by_fa, reviewed_by_mao, fa_decision_at, admin_decision_at, filed_by, fa_recommended, fa_recommended_at,
   filer:profiles!filed_by ( full_name ),
-  commodity_type_id, commodity_types ( name, rate_kg_per_ha ),
-  farmers ( farmer_id, first_name, surname, rsbsa_no, commodity_type_id, addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ) ),
-  commodities ( name, unit, commodity_types ( commodity_type_id, name, rate_kg_per_ha, is_default, deleted_at ) ),
+  farmers ( farmer_id, first_name, surname, rsbsa_no, addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ) ),
+  commodities ( name, unit, allocation_per_hectare ),
   fa:profiles!reviewed_by_fa ( full_name ),
   mao:profiles!reviewed_by_mao ( full_name )
 `;
@@ -49,13 +43,10 @@ function mapRequest(row) {
     commodity: row.commodities?.name ?? "",
     quantity: Number(row.quantity_requested),
     unit: row.commodities?.unit ?? "kg",
-    // The request's type, and the quantity the farmer's farm size calls for
-    // (farm size × the type's kg/ha rate) when the commodity has types.
-    typeId: row.commodity_type_id ?? null,
-    typeName: row.commodity_types?.name ?? "",
-    rateTypeName: rate?.name ?? "",
-    allocationPerHectare: rate?.rate ?? null,
-    suggestedQuantity: rate && farm.farmSize > 0 ? computeAllocation(rate.rate, farm.farmSize) : null,
+    // The quantity the farmer's farm size calls for (farm size × the
+    // commodity's kg/ha rate), when the commodity has a rate.
+    allocationPerHectare: rate,
+    suggestedQuantity: rate && farm.farmSize > 0 ? computeAllocation(rate, farm.farmSize) : null,
     reason: row.reason ?? "",
     requestDate: row.created_at,
     status: dbStatusToLabel(row.status),
@@ -114,10 +105,10 @@ export function faRecommendRequest(requestId, { recommended, remarks }) {
 // The Farmers' Association President files a request for a farmer; the
 // database records them as the filer, and the MAO Admin and the farmer are
 // notified.
-export async function fileRequestForFarmer({ farmerId, commodityId, typeId, quantity, reason }) {
+export async function fileRequestForFarmer({ farmerId, commodityId, quantity, reason }) {
   const { data, error } = await supabase
     .from("requests")
-    .insert({ farmer_id: farmerId, commodity_id: commodityId, commodity_type_id: typeId ?? null, quantity_requested: Number(quantity), reason: reason.trim() })
+    .insert({ farmer_id: farmerId, commodity_id: commodityId, quantity_requested: Number(quantity), reason: reason.trim() })
     .select(SELECT)
     .single();
   if (error) throw error;

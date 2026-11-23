@@ -14,23 +14,39 @@ Quantities are in kilograms only; no bags or bag sizes are shown anywhere.
 
 ## Design changes (for the panel)
 
-- **Commodity types and kg/ha rates are managed by the MAO Admin.** Nothing
-  about commodities, types or rates is hardcoded. On the Commodities page the
-  MAO Admin adds, edits, sets the default for, and removes types, each with
-  its own rate in kg per hectare. Starting values: Rice Seeds · Inbred
-  (RCEF) 40 kg/ha (default) and Hybrid 15 kg/ha. The separate "Hybrid Rice
-  Seeds" commodity became the Hybrid type. Corn Seeds · Standard 20 kg/ha was
-  added as test data. Rate changes are in the Activity Log ("Hybrid: rate
-  15.00 → 18.00 kg/ha"). The Farmers' Association President can view rates.
+Updated November 23, 2026 (see "Update: one rate per commodity" below).
+
+- **Each commodity has one allocation rate in kg per hectare, set by the MAO
+  Admin.** Nothing about commodities or rates is hardcoded. On the
+  Commodities page the MAO Admin enters "Allocation (kg per hectare)" when
+  adding or editing a commodity (optional: left blank for items not given by
+  hectare, whose quantities are then split equally or entered manually). The
+  table shows a RATE column and the details show "Allocation: 40 kg/ha" with
+  "Last updated [date] by [name]". Rate changes are in the Activity Log
+  ("Rice Seeds – Hybrid: allocation 15.00 kg/ha → 18.00 kg/ha"). The
+  Farmers' Association President can view rates.
+- **Varieties are separate commodities.** "Rice Seeds – Inbred (RCEF)" (40
+  kg/ha) and "Rice Seeds – Hybrid" (15 kg/ha) are two commodities, each with
+  its own rate; there are no commodity "types" any more. Category is chosen
+  from a list (Rice, Corn, Vegetables, Fertilizer, Farm Tools, Livestock,
+  Other). All quantities are in kilograms.
 - **Allocation by hectare with a barangay allocation.** A distribution has a
   "Total allocation for the barangay (kg)". Each farmer's quantity is farm
-  size × their type's rate (for example 2.00 ha × 15 kg/ha = 30 kg). A
-  colored bar shows how much is used (green, amber above 90%, red when over)
-  and saving is blocked when the farmers' total is over the allocation.
-  Changed quantities need a reason and are marked "Adjusted".
-- **Program / type in the farmer profile.** Each farmer can have a program /
-  type for their primary crop. It is used for allocations, suggested request
-  quantities and harvest reports, and can be filtered on the Farmers page.
+  size × the commodity's rate (for example 2.00 ha × 15 kg/ha = 30 kg),
+  shown with the calculation. A colored bar shows how much is used (green,
+  amber above 90%, red when over) and saving is blocked when the farmers'
+  total is over the allocation. Changed quantities need a reason and are
+  marked "Adjusted". Each row keeps the rate it was saved with.
+- **Seed program in the farmer profile.** Each farmer can be enrolled in a
+  seed program (a commodity with a rate, e.g. Rice Seeds – Inbred (RCEF)).
+  "Add all eligible farmers" adds the Active farmers enrolled in the
+  distribution's commodity, and a tagged farmer enrolled in a different one
+  shows "Enrolled in …". It can be filtered on the Farmers page.
+- **Harvest reports are reviewed on the Validation page with proof of
+  planting.** One email-style inbox lists both kinds of submission; the MAO
+  Admin verifies or returns harvest reports there. On the mobile app the
+  Harvest Reports screen looks like Proof of Planting (big "Report Harvest"
+  card, status tracker for the latest report, history).
 - **Farmer requests go straight to the MAO.** The endorsement step is gone.
   A request is Pending until the MAO Admin approves or rejects it (a reason
   is required to reject). The Farmers' Association President sees every
@@ -52,7 +68,73 @@ Quantities are in kilograms only; no bags or bag sizes are shown anywhere.
   a different account, this tab follows instead of acting as the wrong
   account.
 
+## Update: one rate per commodity (November 23, 2026)
+
+Replaces the commodity types of Phase 1. Migration
+`20261123000000_one_rate_per_commodity.sql`; web deployed, mobile update
+published over the air (update group `f83a32dd-3dad-464a-a113-61b5e2170697`).
+
+- **Commodities:** "Unit" replaced by "Allocation (kg per hectare)" with
+  "kg/ha" inside the field and the helper "Leave blank for items not given by
+  hectare (quantities are then split equally or entered manually)."; category
+  dropdown; table columns NAME, CATEGORY, RATE, STATUS, DATE ADDED; details
+  "Allocation: 40 kg/ha" (or "Not set") with "Last updated [date] by
+  [name]". New commodities are always kg; older non-kg items keep their unit
+  for display and can't take a rate. Validation: rate above 0, up to 1,000,
+  at most 2 decimals.
+- **Farmers:** "Seed Program" (optional) in the form, the profile drawer and
+  the filter.
+- **Distributions:** quantity = farm size × the commodity's rate with the
+  calculation; barangay allocation bar; Adjusted with a reason; "Add all
+  eligible farmers" uses Seed programs (or the crop, when nobody is
+  enrolled) and stops at the allocation; "Enrolled in …" chip; after a rate
+  change, editing an Ongoing distribution asks "Rice Seeds – Inbred (RCEF)'s
+  allocation changed from 40 to 45 kg/ha since these quantities were saved.
+  Recompute quantities?" (Recompute / Keep current).
+- **Requests:** suggested quantity = farm size × the chosen commodity's rate
+  (web "Add Farmer Request" and the mobile request form; both start on the
+  farmer's Seed program).
+- **Harvest reports, reports, printed lists, mobile history:** commodity
+  name only (no Type column).
+- **Mobile Harvest Reports screen** rebuilt to match Proof of Planting:
+  shared header (AGRISHARE logo and bell), "Report Harvest" card, "Latest
+  report" tracker (Submitted → Under review → Verified, or Returned with the
+  MAO's remarks and "Resubmit"), History, full details on tap, empty state
+  "You haven't reported a harvest yet.". It opens from Home's "Report
+  Harvest" card and keeps the Home / Validation / Profile tab bar.
+
+### Live data changed by this migration
+
+- New commodities "Rice Seeds – Inbred (RCEF)" (40 kg/ha) and "Rice Seeds –
+  Hybrid" (15 kg/ha), from the two rice types. "Rice Seeds (NSIC Rc222)"
+  itself is unchanged (40 kg/ha) with its history.
+- "Corn Seeds" got 20 kg/ha (from the test-data Standard type; cleanup takes
+  it off again) and "Rice" got 40 kg/ha (from its only type); the
+  "You know" distribution on Rice is unchanged.
+- Farmers' types became Seed programs (20 seeded farmers).
+- Typed requests and harvest reports moved to the variety commodity
+  (quantities, statuses and dates kept; no notifications sent).
+- Test distribution "RCEF Seed Distribution - Wet Season Replanting" (mixed
+  varieties) was split: Inbred rows stay (404 of 2,000 kg); the 4 Hybrid rows
+  (72 kg) are in "RCEF Seed Distribution - Wet Season Replanting (Rice Seeds –
+  Hybrid)". "Allocation by Farm Size" moved to Rice Seeds – Inbred (RCEF).
+  Saved quantities and rates were kept.
+- The `commodity_types` table is kept but no longer used.
+
+### Checks run (this update)
+
+| Check | Result |
+| --- | --- |
+| Database on a local copy: conversion, rates, distributions, seed programs, requests, harvests | 15/15 (earlier phases 66/66) |
+| Web on a mock back end: commodities, farmers, distributions, requests, harvest, print, fit | 41/41 (+ inbox 43/43, list rows 18/18, Phases 3/4/6 23/23, 8/8, 10/10) |
+| Mobile on the Expo web preview (360 and 412 px) | 24/24 |
+| Live database, as each role, rolled back (stand-in MAO Admin) | 43/43, nothing left behind |
+| Live site and mobile preview (FA President; farmer 000201), 1366×768, 1920×1080, 360, 412 | 22/22 |
+| Lint, web build, Android bundle | Pass (3 lint warnings, unchanged) |
+
 ## Phase 1: allocation by hectare
+
+*(Superseded on November 23 by one rate per commodity — see above.)*
 
 - **Commodities page:** "Types / Rate" column; a "Types and rates" list in the
   details with "Last updated [date] by [name]"; inline add / edit / set
@@ -176,11 +258,11 @@ were not changed.
 
 | Role | Login | Password | Good for |
 | --- | --- | --- | --- |
-| MAO Admin | the MAO's own account | (the client's; not listed here) | Types and rates, allocations, decisions, Verify / Return |
+| MAO Admin | the MAO's own account | (the client's; not listed here) | Commodity rates, allocations, decisions, Verify / Return |
 | Farmers' Association President | fapresident@agrishare.test | password123 | Recommend, Add Farmer Request, association requests, Add Harvest Report |
-| Farmer (mobile) | 000201 (Rodel Bagas, Hybrid, 1.5 ha) | password123 | Harvest report Submitted; request with suggested kg |
-| Farmer (mobile) | 000209 (Dionisio Omay, Inbred, 3 ha) | password123 | Harvest report Returned → Resubmit |
-| Farmer (mobile) | 000202 (Marites Cabahug, Inbred, 1.2 ha) | password123 | Harvest report Verified |
+| Farmer (mobile) | 000201 (Rodel Bagas, Seed program Rice Seeds – Hybrid, 1.5 ha) | password123 | Harvest report Submitted; request suggested 1.5 × 15 = 22.5 kg |
+| Farmer (mobile) | 000209 (Dionisio Omay, Rice Seeds – Inbred (RCEF), 3 ha) | password123 | Harvest report Returned → Resubmit |
+| Farmer (mobile) | 000202 (Marites Cabahug, Rice Seeds – Inbred (RCEF), 1.2 ha) | password123 | Harvest report Verified |
 
 All seeded farmers log in with their login ID (last 6 digits of the RSBSA
 number) and `password123`.
@@ -189,9 +271,9 @@ number) and `password123`.
 
 | Action | MAO Admin | FA President | Farmer |
 | --- | --- | --- | --- |
-| View commodity types and rates | Yes | Yes (read-only) | Rates used in their request form |
-| Add / edit / remove types and rates | Yes | No (refused) | No |
-| Set a farmer's Program / type | Yes | No | No |
+| View commodity rates | Yes | Yes (read-only) | Rates used in their request form |
+| Add / edit commodities and rates | Yes | No (refused) | No (refused) |
+| Set a farmer's Seed program | Yes | No | No |
 | Barangay allocation, quantities by hectare | Yes | View | Own quantity |
 | Submit a commodity request | — | For a farmer ("Filed by Farmers' Association President") | Own |
 | Recommend / remark on a request | No | Yes, Pending only (optional) | No |

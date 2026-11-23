@@ -125,7 +125,6 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
             <col className="pr-bcol-name" />
             <col className="pr-bcol-sex" />
             <col className="pr-bcol-commodity" />
-            <col className="pr-bcol-type" />
             <col className="pr-bcol-farm" />
             <col className="pr-bcol-qty" />
             <col className="pr-bcol-unit" />
@@ -139,7 +138,6 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
               <th>Name of Beneficiary</th>
               <th className="pr-bnarrow">Sex</th>
               <th>Commodity</th>
-              <th>Type</th>
               <th className="pr-num">Farm Size (ha)</th>
               <th className="pr-num">Qty Received</th>
               <th className="pr-bnarrow">Unit</th>
@@ -155,7 +153,6 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
                 <td>{b.name}</td>
                 <td className="pr-bnarrow">{b.sex}</td>
                 <td>{b.commodity}</td>
-                <td>{b.typeName}</td>
                 <td className="pr-num">{hectares(b.farmSize)}</td>
                 <td className="pr-num">{b.quantity.toLocaleString()}</td>
                 <td className="pr-bnarrow">{b.unit}</td>
@@ -165,7 +162,7 @@ function BeneficiaryList({ distribution: d, beneficiaries, eventDateLong }) {
               </tr>
             ))}
             <tr className="pr-items-total">
-              <td colSpan={5}>Total: {farmerCount} {farmerCount === 1 ? "farmer" : "farmers"}</td>
+              <td colSpan={4}>Total: {farmerCount} {farmerCount === 1 ? "farmer" : "farmers"}</td>
               <td className="pr-num">{hectares(totalHectares)}</td>
               <td className="pr-num">{totalQty.toLocaleString()}</td>
               <td className="pr-bnarrow">{sameUnit ? beneficiaries[0].unit : ""}</td>

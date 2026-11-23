@@ -30,7 +30,6 @@ export default function HarvestReportScreen({ navigation, route }) {
   const [season, setSeason] = useState(start.season);
   const [seasonYear, setSeasonYear] = useState(String(start.seasonYear));
   const [commodityId, setCommodityId] = useState(editing?.commodityId ?? null);
-  const [typeId, setTypeId] = useState(editing?.typeId ?? null);
   const [areaHa, setAreaHa] = useState(editing ? String(editing.areaHa) : farmSize > 0 ? farmSize.toFixed(2) : "");
   const [yieldKg, setYieldKg] = useState(editing ? String(editing.yieldKg) : "");
   const [harvestDate, setHarvestDate] = useState(isoToTyped(editing?.harvestDate ?? today));
@@ -49,15 +48,14 @@ export default function HarvestReportScreen({ navigation, route }) {
       if (cancelled) return;
       if (items.status === "fulfilled") {
         const list = harvestCrops(items.value);
+        // A report being corrected keeps its crop even if it's no longer offered.
+        if (editing && !list.some((c) => c.id === editing.commodityId)) list.push({ id: editing.commodityId, name: editing.crop });
         setCrops(list);
         if (!editing) {
-          // Start from the farmer's own Program / type.
-          const own = list.find((c) => c.types.some((t) => t.id === farmer?.typeId));
+          // Start from the farmer's Seed program.
+          const own = list.find((c) => c.id === farmer?.seedProgramId);
           const first = own ?? (list.length === 1 ? list[0] : null);
-          if (first) {
-            setCommodityId(first.id);
-            setTypeId(own ? farmer.typeId : first.types[0]?.id ?? null);
-          }
+          if (first) setCommodityId(first.id);
         }
       } else {
         setCrops([]);
@@ -72,7 +70,6 @@ export default function HarvestReportScreen({ navigation, route }) {
   }, []);
 
   const crop = crops?.find((c) => c.id === commodityId) ?? null;
-  const types = crop?.types ?? [];
   const dateIso = typedToIso(harvestDate);
   const perHa = twoDecimals(areaHa) && twoDecimals(yieldKg) && Number(areaHa) > 0 && Number(yieldKg) > 0 ? Number(yieldKg) / Number(areaHa) : null;
   // Distributions of this crop the farmer received (optional link).
@@ -80,10 +77,8 @@ export default function HarvestReportScreen({ navigation, route }) {
 
   function chooseCrop(c) {
     setCommodityId(c.id);
-    const own = c.types.find((t) => t.id === farmer?.typeId);
-    setTypeId((own ?? c.types[0])?.id ?? null);
     setClaimId(null);
-    setErrors((e) => ({ ...e, crop: undefined, type: undefined }));
+    setErrors((e) => ({ ...e, crop: undefined }));
   }
 
   function validate() {
@@ -91,7 +86,6 @@ export default function HarvestReportScreen({ navigation, route }) {
     const thisYear = Number(today.slice(0, 4));
     if (!/^\d{4}$/.test(seasonYear.trim()) || Number(seasonYear) < 2000 || Number(seasonYear) > thisYear + 1) e.year = `Enter a year from 2000 to ${thisYear + 1}.`;
     if (!crop) e.crop = "Choose the crop you harvested.";
-    else if (types.length && !typeId) e.type = "Choose the program / type.";
     if (!areaHa.trim()) e.area = "Enter the area you harvested.";
     else if (!twoDecimals(areaHa) || Number(areaHa) <= 0) e.area = "Enter the area in hectares, more than 0 (for example 1.5).";
     else if (farmSize > 0 && Number(areaHa) > farmSize) e.area = `The area harvested can't be more than your farm size (${farmSize.toFixed(2)} ha).`;
@@ -113,7 +107,7 @@ export default function HarvestReportScreen({ navigation, route }) {
     }
     submittingRef.current = true;
     setSubmitting(true);
-    const form = { season, seasonYear, commodityId, typeId: types.length ? typeId : null, areaHa, yieldKg, harvestDate: dateIso, claimId, remarks, photo, gps: photo ?? gps };
+    const form = { season, seasonYear, commodityId, areaHa, yieldKg, harvestDate: dateIso, claimId, remarks, photo, gps: photo ?? gps };
     try {
       if (editing) {
         await updateHarvestReport(editing.id, form);
@@ -191,20 +185,6 @@ export default function HarvestReportScreen({ navigation, route }) {
               )}
             </View>
             {fieldError("crop")}
-
-            {types.length > 0 && (
-              <>
-                <Text style={styles.label}>Program / Type *</Text>
-                <View style={styles.chipRow}>
-                  {types.map((t) => (
-                    <TouchableOpacity key={t.id} onPress={() => { setTypeId(t.id); setErrors((e) => ({ ...e, type: undefined })); }} style={[styles.chip, typeId === t.id && styles.chipActive]}>
-                      <Text style={[styles.chipText, typeId === t.id && styles.chipTextActive]} numberOfLines={1}>{t.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                {fieldError("type")}
-              </>
-            )}
 
             <View style={styles.row}>
               <View style={{ flex: 1 }}>

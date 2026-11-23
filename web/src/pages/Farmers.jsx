@@ -17,7 +17,8 @@ import { useCardLabels } from "../hooks/useCardLabels.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { commodityCategories } from "../data/mockData.js";
-import { listCommodities } from "../lib/api/commodities.js";
+import { categoryOption, listCommodities } from "../lib/api/commodities.js";
+import { formatRate } from "../lib/allocation.js";
 import { formatDate, todayIso } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowActionsCellProps, rowLinkProps } from "../lib/rowLink.js";
@@ -78,7 +79,7 @@ const EMPTY_FORM = {
   municipality: "Labangan",
   province: "Zamboanga del Sur",
   commodity: "Rice",
-  typeId: "",
+  seedProgramId: "",
   farmSize: "",
   farmLocation: "",
   ownershipType: "Owner",
@@ -101,7 +102,7 @@ function farmerToForm(f) {
     municipality: f.municipality ?? "Labangan",
     province: f.province ?? "Zamboanga del Sur",
     commodity: f.commodity || "Rice",
-    typeId: f.typeId ? String(f.typeId) : "",
+    seedProgramId: f.seedProgramId ? String(f.seedProgramId) : "",
     farmSize: f.farmSize ?? "",
     farmLocation: f.farmLocation ?? "",
     ownershipType: f.ownershipType || "Owner",
@@ -288,14 +289,14 @@ export default function Farmers() {
   const [search, setSearch] = useState(location.state?.presetSearch ?? "");
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [commodityFilter, setCommodityFilter] = useState("All");
-  const [typeFilter, setTypeFilter] = useState("All");
+  const [programFilter, setProgramFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
-  // Commodities with their types, for the Program / type field and filter.
+  // Commodities with a kg/ha rate, for the Seed program field.
   const [commodities, setCommodities] = useState([]);
   useEffect(() => {
     listCommodities().then(setCommodities).catch(() => {});
   }, []);
-  const typeFilterOptions = useMemo(() => [...new Map(farmers.filter((f) => f.typeId).map((f) => [f.typeName, f.typeName])).values()].sort(), [farmers]);
+  const programFilterOptions = useMemo(() => [...new Set(farmers.map((f) => f.seedProgram).filter(Boolean))].sort(), [farmers]);
 
   // Deep-link support: the Validation page's "View full profile" / "Open
   // farmer record" links navigate here with a preset search term.
@@ -327,11 +328,11 @@ export default function Farmers() {
         f.rsbsaNo.includes(debouncedSearch) ||
         (searchDigits && f.rsbsaNo.replace(/\D/g, "").includes(searchDigits));
       const matchesCommodity = commodityFilter === "All" || f.commodity === commodityFilter;
-      const matchesType = typeFilter === "All" || (typeFilter === "None" ? !f.typeId : f.typeName === typeFilter);
+      const matchesProgram = programFilter === "All" || (programFilter === "None" ? !f.seedProgramId : f.seedProgram === programFilter);
       const matchesStatus = statusFilter === "All" || f.status === statusFilter;
-      return matchesSearch && matchesCommodity && matchesType && matchesStatus;
+      return matchesSearch && matchesCommodity && matchesProgram && matchesStatus;
     });
-  }, [farmers, debouncedSearch, commodityFilter, typeFilter, statusFilter]);
+  }, [farmers, debouncedSearch, commodityFilter, programFilter, statusFilter]);
 
 
   // Rows per page = however many fit in the full-height table area (min 5).
@@ -406,10 +407,10 @@ export default function Farmers() {
             {FARMER_COMMODITY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
 
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "160px" }} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Filter by program / type">
-            <option value="All">All Programs / Types</option>
-            {typeFilterOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-            <option value="None">No type set</option>
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "190px" }} value={programFilter} onChange={(e) => setProgramFilter(e.target.value)} aria-label="Filter by seed program">
+            <option value="All">All Seed Programs</option>
+            {programFilterOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+            <option value="None">No seed program</option>
           </select>
 
           <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "150px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -449,7 +450,7 @@ export default function Farmers() {
                   <td>{formatDate(f.birthDate)}</td>
                   <td>{f.contactNo}</td>
                   <td>{f.barangay}</td>
-                  <td>{f.commodity}{f.typeName && <span className="agri-muted"> · {f.typeName}</span>}</td>
+                  <td>{f.commodity}</td>
                   <td>{f.farmSize} ha</td>
                   <td>{f.farmLocation}</td>
                   <td><Pill status={f.status} /></td>
@@ -619,21 +620,21 @@ function AccountCredentialsDialog({ farmerName, rsbsaNo, loginId, password, onCl
 
 function FarmerModal({ mode, farmer, farmers, commodities = [], onClose, onSaved, onViewExisting }) {
   const [form, setForm] = useState(() => (mode === "edit" ? farmerToForm(farmer) : EMPTY_FORM));
-  // Crops: the usual ones plus any category that has types (nothing about
-  // types is hardcoded). Program / type: the active types of the commodity
-  // (or commodities) for the farmer's crop, with their rates.
-  const cropOptions = useMemo(
-    () => [...new Set([...FARMER_COMMODITY_OPTIONS, ...commodities.filter((c) => c.types.length).map((c) => c.category), form.commodity].filter(Boolean))],
-    [commodities, form.commodity],
-  );
-  const typeOptions = useMemo(() => {
-    const matching = commodities.filter((c) => c.category.toLowerCase() === String(form.commodity).toLowerCase() && c.types.length);
-    return matching.flatMap((c) => c.types.map((t) => ({ id: String(t.id), label: `${matching.length > 1 ? `${c.name} · ` : ""}${t.name} (${t.rate.toLocaleString()} kg/ha)` })));
-  }, [commodities, form.commodity]);
-  // A saved type that was since removed (or belongs to another crop) can't be kept.
+  const cropOptions = useMemo(() => [...new Set([...FARMER_COMMODITY_OPTIONS, form.commodity].filter(Boolean))], [form.commodity]);
+  // Seed program: any active commodity with a kg/ha rate (the farmer's own
+  // crop first), plus the saved one if it was since made inactive.
+  const savedProgramId = mode === "edit" && farmer?.seedProgramId ? String(farmer.seedProgramId) : "";
+  const programOptions = useMemo(() => {
+    const crop = String(form.commodity).toLowerCase();
+    return commodities
+      .filter((c) => c.rate > 0 && (c.status === "Active" || String(c.id) === savedProgramId))
+      .sort((a, b) => Number(categoryOption(b.category).toLowerCase() === crop) - Number(categoryOption(a.category).toLowerCase() === crop) || a.name.localeCompare(b.name))
+      .map((c) => ({ id: String(c.id), label: `${c.name} (${formatRate(c.rate)})${c.status === "Active" ? "" : " — inactive"}` }));
+  }, [commodities, form.commodity, savedProgramId]);
+  // A saved program whose commodity was deleted or lost its rate can't be kept.
   useEffect(() => {
-    if (commodities.length && form.typeId && !typeOptions.some((o) => o.id === form.typeId)) setForm((f) => ({ ...f, typeId: "" }));
-  }, [commodities.length, typeOptions, form.typeId]);
+    if (commodities.length && form.seedProgramId && !programOptions.some((o) => o.id === form.seedProgramId)) setForm((f) => ({ ...f, seedProgramId: "" }));
+  }, [commodities.length, programOptions, form.seedProgramId]);
   const [errors, setErrors] = useState({});
   const [duplicate, setDuplicate] = useState(null);
   // A possible duplicate the admin was warned about; a second Save with the
@@ -832,14 +833,14 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], onClose, onSaved
 
             <Section title="Farm Information">
               <Field label="Commodity / Crop Type" col={6}>
-                <select className="form-select" value={form.commodity} onChange={(e) => { update("commodity", e.target.value); update("typeId", ""); }}>
+                <select className="form-select" value={form.commodity} onChange={(e) => update("commodity", e.target.value)}>
                   {cropOptions.map((c) => <option key={c}>{c}</option>)}
                 </select>
               </Field>
-              <Field label="Program / Type" col={6} hint={typeOptions.length ? "Optional. Sets this farmer's kg-per-hectare rate in distributions." : "No types for this crop yet (Commodities page)."}>
-                <select className="form-select" value={form.typeId} onChange={(e) => update("typeId", e.target.value)} disabled={!typeOptions.length} aria-label="Program / type">
+              <Field label="Seed Program" col={6} hint={programOptions.length ? "Optional. Distributions of this commodity add this farmer." : "No commodity has a kg-per-hectare allocation yet (Commodities page)."}>
+                <select className="form-select" value={form.seedProgramId} onChange={(e) => update("seedProgramId", e.target.value)} disabled={!programOptions.length} aria-label="Seed program">
                   <option value="">Not set</option>
-                  {typeOptions.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  {programOptions.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
               </Field>
               <Field label="Farm Size (ha)" col={6} error={errors.farmSize}>

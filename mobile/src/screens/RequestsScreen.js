@@ -38,10 +38,9 @@ export default function RequestsScreen({ navigation, route }) {
   const [showForm, setShowForm] = useState(!!preset);
   const [commodity, setCommodity] = useState(preset ?? "");
   const [quantity, setQuantity] = useState("");
-  // The quantity follows the suggestion (farm size × the type's kg/ha rate)
-  // until the farmer types over it.
+  // The quantity follows the suggestion (farm size × the commodity's kg/ha
+  // rate) until the farmer types over it.
   const [quantityEdited, setQuantityEdited] = useState(false);
-  const [typeId, setTypeId] = useState(null);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // Blocks a second Send while the first is still going.
@@ -54,24 +53,18 @@ export default function RequestsScreen({ navigation, route }) {
     if (mine.status === "fulfilled") setRequests(mine.value);
     if (items.status === "fulfilled") {
       setCommodities(items.value);
-      setCommodity((c) => c || items.value[0]?.name || "");
+      // Starts on the farmer's Seed program when they have one.
+      const own = items.value.find((c) => c.id === farmer?.seedProgramId);
+      setCommodity((c) => c || own?.name || items.value[0]?.name || "");
     }
     const failed = [mine, items].find((r) => r.status === "rejected");
     setLoadError(failed ? friendlyError(failed.reason, "Your requests couldn't be loaded. Please try again.") : "");
-  }, []);
+  }, [farmer?.seedProgramId]);
 
   const selected = commodities.find((c) => c.name === commodity) ?? null;
-  const types = selected?.types ?? [];
-  const type = types.find((x) => x.id === typeId) ?? null;
-  const suggested = type && farmer?.farmSizeHa > 0 ? Math.round(farmer.farmSizeHa * 100 * Math.round(type.rate * 100) / 100) / 100 : null;
-
-  // The type: the farmer's own Program / type when it belongs to this
-  // commodity, otherwise the commodity's default.
-  useEffect(() => {
-    const own = types.find((x) => x.id === farmer?.typeId);
-    setTypeId((own ?? types[0])?.id ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected?.id, farmer?.typeId]);
+  // One rate per commodity: suggested = farm size × the commodity's kg/ha rate.
+  const rate = selected?.rate ?? null;
+  const suggested = rate && farmer?.farmSizeHa > 0 ? Math.round(farmer.farmSizeHa * 100 * Math.round(rate * 100) / 100) / 100 : null;
 
   useEffect(() => {
     if (!quantityEdited) setQuantity(suggested !== null ? String(suggested) : "");
@@ -105,7 +98,6 @@ export default function RequestsScreen({ navigation, route }) {
       const newRequest = await createRequest({
         farmerId: farmer.farmerId,
         commodityId: selectedCommodity.id,
-        typeId: type?.id ?? null,
         quantity: Number(quantity),
         reason: reason.trim(),
       });
@@ -175,21 +167,6 @@ export default function RequestsScreen({ navigation, route }) {
                   ))}
                 </View>
 
-                {types.length > 0 && (
-                  <>
-                    <Text style={styles.fieldLabel}>Type</Text>
-                    <View style={styles.chipRow}>
-                      {types.map((x) => (
-                        <TouchableOpacity key={x.id} onPress={() => {
-                          setTypeId(x.id);
-                          setQuantityEdited(false);
-                        }} style={[styles.chip, typeId === x.id && styles.chipActive]}>
-                          <Text style={[styles.chipText, typeId === x.id && styles.chipTextActive]} numberOfLines={1}>{x.name}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </>
-                )}
 
                 <Text style={styles.fieldLabel}>Quantity ({selected?.unit ?? "kg"})</Text>
                 <TextInput
@@ -205,7 +182,7 @@ export default function RequestsScreen({ navigation, route }) {
                 />
                 {suggested !== null && (
                   <Text style={styles.hint}>
-                    Suggested for your {farmer.farmSizeHa.toFixed(2)} ha × {type.rate.toLocaleString()} kg/ha: {suggested.toLocaleString()} kg
+                    Suggested for your {farmer.farmSizeHa.toFixed(2)} ha × {rate.toLocaleString()} kg/ha: {suggested.toLocaleString()} kg
                   </Text>
                 )}
 
@@ -236,7 +213,7 @@ export default function RequestsScreen({ navigation, route }) {
               <Text style={styles.cardTitle}>{r.commodity}</Text>
               <Pill status={r.status} />
             </View>
-            <Text style={styles.cardSub}>{r.typeName ? `${r.typeName} · ` : ""}{r.quantity.toLocaleString()} {r.unit} · Requested {formatDate(r.requestDate)}</Text>
+            <Text style={styles.cardSub}>{r.quantity.toLocaleString()} {r.unit} · Requested {formatDate(r.requestDate)}</Text>
             {r.filedByFa && (
               <View style={styles.filedTag}>
                 <Ionicons name="people" size={11} color={colors.blueText} />

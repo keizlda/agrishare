@@ -17,11 +17,10 @@ const SEASON_LABEL = { wet: "Wet", dry: "Dry" };
 const STATUS_LABEL = { submitted: "Submitted", verified: "Verified", returned: "Returned" };
 
 const SELECT = `
-  harvest_report_id, season, season_year, commodity_id, commodity_type_id, area_harvested_ha, yield_kg, yield_per_ha,
+  harvest_report_id, season, season_year, commodity_id, area_harvested_ha, yield_kg, yield_per_ha,
   harvest_date, photo_path, latitude, longitude, distribution_claim_id, remarks, status, review_remarks, reviewed_at,
   submitted_by, resubmitted_at, created_at,
-  commodities ( name ),
-  commodity_types ( name )
+  commodities ( name )
 `;
 
 const num = (v) => (v == null ? null : Number(v));
@@ -33,14 +32,15 @@ function mapHarvest(row) {
     seasonYear: row.season_year,
     seasonLabel: `${SEASON_LABEL[row.season] ?? row.season} ${row.season_year}`,
     commodityId: row.commodity_id,
-    typeId: row.commodity_type_id,
-    crop: [row.commodities?.name, row.commodity_types?.name].filter(Boolean).join(" · "),
+    crop: row.commodities?.name ?? "",
     areaHa: num(row.area_harvested_ha),
     yieldKg: num(row.yield_kg),
     yieldPerHa: num(row.yield_per_ha),
     harvestDate: row.harvest_date,
     photoPath: row.photo_path,
     hasGps: row.latitude != null,
+    latitude: num(row.latitude),
+    longitude: num(row.longitude),
     claimId: row.distribution_claim_id,
     remarks: row.remarks ?? "",
     statusKey: row.status,
@@ -64,6 +64,14 @@ export async function listMyHarvestReports() {
   return data.map(mapHarvest);
 }
 
+// A short-lived link to a report's photo (the farmer can read their own).
+export async function getHarvestPhotoUrl(path, expiresInSeconds = 3600) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, expiresInSeconds);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 // The geotagged photo (already stamped by the capture screen), in the
 // farmer's own folder. Same native/web upload split as proof of planting.
 export async function uploadHarvestPhoto(farmerId, uri) {
@@ -84,7 +92,6 @@ const toRow = (form) => ({
   season: form.season,
   season_year: Number(form.seasonYear),
   commodity_id: form.commodityId,
-  commodity_type_id: form.typeId ?? null,
   area_harvested_ha: Number(form.areaHa),
   yield_kg: Number(form.yieldKg),
   harvest_date: form.harvestDate,
@@ -131,11 +138,11 @@ export function guessSeason(iso) {
   return { season: "dry", seasonYear: y };
 }
 
-// Crops a harvest can be reported for: active kg commodities with programs /
-// types (managed by the MAO on the web); if none has types, every active kg
-// commodity.
+// Crops a harvest can be reported for: active kg commodities with a
+// kg-per-hectare allocation (the seed programs, managed by the MAO on the
+// web); if none has a rate, every active kg commodity.
 export function harvestCrops(commodities) {
   const active = commodities.filter((c) => c.status === "Active" && c.unit === "kg");
-  const withTypes = active.filter((c) => c.types.length > 0);
-  return withTypes.length ? withTypes : active;
+  const withRate = active.filter((c) => c.rate > 0);
+  return withRate.length ? withRate : active;
 }

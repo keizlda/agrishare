@@ -76,9 +76,9 @@ export async function getDistribution(eventId) {
 // ---------------------------------------------------------------------------
 const BENEFICIARY_SELECT = `
   claim_id, farmer_id, commodity_id, quantity_received, duplicate_override_reason, farm_size_hectares, quantity_adjusted, adjustment_reason,
-  commodity_type_id, rate_kg_per_ha, commodity_types ( name ),
+  rate_kg_per_ha,
   commodities ( unit ),
-  farmers ( rsbsa_no, first_name, surname, status, deleted_at, commodity_type_id, addresses ( barangay, street ),
+  farmers ( rsbsa_no, first_name, surname, status, deleted_at, seed_program_id, seed_program:commodities!seed_program_id ( name ), addresses ( barangay, street ),
     farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ) )
 `;
 
@@ -108,12 +108,11 @@ function mapBeneficiary(row) {
     farmerDeleted: !!row.farmers?.deleted_at,
     quantity: Number(row.quantity_received),
     unit: row.commodities?.unit ?? "kg",
-    // The type and kg/ha rate this row was saved with (later rate changes
-    // never alter it), and the farmer's own Program / type.
-    typeId: row.commodity_type_id ?? null,
-    typeName: row.commodity_types?.name ?? "",
+    // The kg/ha rate this row was saved with (a later change to the
+    // commodity's rate never alters it), and the farmer's Seed program.
     rate: numberOrNull(row.rate_kg_per_ha),
-    profileTypeId: row.farmers?.commodity_type_id ?? null,
+    seedProgramId: row.farmers?.seed_program_id ?? null,
+    seedProgram: row.farmers?.seed_program?.name ?? "",
     adjusted: !!row.quantity_adjusted,
     adjustmentReason: row.adjustment_reason ?? "",
     overrideReason: row.duplicate_override_reason,
@@ -157,7 +156,7 @@ export async function listFarmerDistributionHistory(farmerId) {
 // surname. Deleted farmers are deliberately included, since this is a record
 // of who received what.
 const PRINT_BENEFICIARY_SELECT = `
-  claim_id, farmer_id, quantity_received, farm_size_hectares, commodity_types ( name ),
+  claim_id, farmer_id, quantity_received, farm_size_hectares,
   farmers ( rsbsa_no, first_name, middle_name, surname, extension_name, sex, farm_parcels ( farm_size_hectares ) ),
   commodities ( name, unit )
 `;
@@ -183,7 +182,6 @@ export async function listPrintBeneficiaries(eventId) {
       sex: row.farmers?.sex === "male" ? "M" : row.farmers?.sex === "female" ? "F" : "",
       commodity: row.commodities?.name ?? "",
       unit: row.commodities?.unit ?? "kg",
-      typeName: row.commodity_types?.name ?? "",
       farmSize: row.farm_size_hectares != null ? Number(row.farm_size_hectares) : farmSummary(row.farmers?.farm_parcels).farmSize,
       quantity: Number(row.quantity_received),
     }))
@@ -197,7 +195,7 @@ export async function listPrintBeneficiaries(eventId) {
 // no rows here (same "not tagged" gap shown on the Distributions page).
 // ---------------------------------------------------------------------------
 const BENEFICIARY_REPORT_SELECT = `
-  claim_id, farmer_id, event_id, quantity_received, farm_size_hectares, commodity_types ( name ),
+  claim_id, farmer_id, event_id, quantity_received, farm_size_hectares,
   farmers ( rsbsa_no, first_name, surname, addresses ( barangay ), farm_parcels ( farm_size_hectares ) ),
   commodities ( name, unit ),
   distribution_events ( event_id, event_date, program_name, status, completed_at, is_deleted )
@@ -218,7 +216,6 @@ function mapBeneficiaryReportRow(row) {
     barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
     commodity: row.commodities?.name ?? "",
     unit: row.commodities?.unit ?? "kg",
-    typeName: row.commodity_types?.name ?? "",
     farmSize: row.farm_size_hectares != null ? Number(row.farm_size_hectares) : farmSummary(row.farmers?.farm_parcels).farmSize,
     quantity: Number(row.quantity_received),
     eventDate: event?.event_date,
@@ -249,9 +246,10 @@ export async function checkDuplicateDistribution({ farmerId, commodityId, progra
   return { eventId: row.event_id, program: row.program_name, date: row.event_date, quantity: Number(row.quantity_received) };
 }
 
-// "Add all eligible farmers": Active farmers whose crop matches the
-// commodity's category, each with their farm data and — when a program is
-// given — the same-commodity/program/year distribution they already got.
+// "Add all eligible farmers": Active farmers whose Seed program is this
+// commodity (or, when nobody is enrolled in it, whose crop matches its
+// category), each with their farm data and — when a program is given — the
+// same-commodity/program/year distribution they already got.
 // MAO Admin only (the database returns nothing to anyone else).
 export async function listEligibleFarmers({ commodityId, programName, year, excludeEventId }) {
   const { data, error } = await supabase.rpc("distribution_eligible_farmers", {
@@ -271,7 +269,7 @@ export async function listEligibleFarmers({ commodityId, programName, year, excl
     cropType: r.crop_type ?? "",
     farmSize: Number(r.farm_size_hectares) || 0,
     avatarUrl: r.avatar_url ?? null,
-    typeId: r.commodity_type_id ?? null,
+    seedProgramId: r.seed_program_id ?? null,
     status: "Active",
     duplicate: r.duplicate_program
       ? { program: r.duplicate_program, date: r.duplicate_date, quantity: Number(r.duplicate_quantity) }
@@ -292,14 +290,19 @@ export async function markAllBeneficiariesReceived(eventId) {
 // and beneficiaries_count follows the list; an empty list removes every
 // tagged farmer. A quantity that differs from farm size × allocation per
 // hectare needs its adjustmentReason (the database refuses it otherwise).
+// recompute: the admin chose to use the commodity's current rate for a row
+// saved with an older one (otherwise an unchanged row keeps its saved rate).
 const toBeneficiaryPayload = (list) =>
   list.map((b) => ({
     farmer_id: b.farmerId,
     quantity_received: b.quantity,
     duplicate_override_reason: b.overrideReason || null,
     adjustment_reason: b.adjustmentReason || null,
-    commodity_type_id: b.typeId ?? null,
+    ...(b.recompute ? { recompute: true } : {}),
   }));
+
+// Ids from a <select> arrive as text; numeric ones are sent as numbers.
+const idOf = (v) => (v === "" || v == null ? null : /^\d+$/.test(String(v)) ? Number(v) : v);
 
 async function readDistribution(eventId) {
   const { data, error } = await supabase.from("distribution_events").select(SELECT).eq("event_id", eventId).single();
@@ -321,7 +324,7 @@ export async function createDistribution({ program, venue, beneficiaries, commod
       allocation_kg: allocationKg,
     },
     p_item_id: null,
-    p_commodity_id: Number(commodityId),
+    p_commodity_id: idOf(commodityId),
     p_quantity: Number(quantity) || 0,
     p_beneficiaries: toBeneficiaryPayload(taggedBeneficiaries),
   });
@@ -351,7 +354,7 @@ export async function updateDistribution(eventId, { date, program, venue, barang
       ...(status ? { status: labelToDbStatus(status) } : {}),
     },
     p_item_id: itemId ?? null,
-    p_commodity_id: Number(commodityId),
+    p_commodity_id: idOf(commodityId),
     p_quantity: Number(quantity) || 0,
     p_beneficiaries: toBeneficiaryPayload(taggedBeneficiaries),
   });

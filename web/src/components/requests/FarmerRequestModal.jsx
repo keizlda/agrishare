@@ -6,7 +6,7 @@ import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { searchFarmers } from "../../lib/api/farmers.js";
 import { listCommodities } from "../../lib/api/commodities.js";
 import { fileRequestForFarmer, findOpenRequests } from "../../lib/api/requests.js";
-import { activeTypes, computeAllocation, defaultType, formatHectares } from "../../lib/allocation.js";
+import { computeAllocation, formatHectares, formatRate } from "../../lib/allocation.js";
 import { formatDate } from "../../lib/dates.js";
 import { formatQuantity, isSplitQuantity } from "../../lib/quantity.js";
 import { friendlyError } from "../../lib/friendlyError.js";
@@ -40,7 +40,6 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
   const [farmer, setFarmer] = useState(null);
   const [commodities, setCommodities] = useState([]);
   const [commodityId, setCommodityId] = useState("");
-  const [typeId, setTypeId] = useState("");
   const [quantity, setQuantity] = useState("");
   // The quantity follows the suggestion until it's typed over.
   const [quantityEdited, setQuantityEdited] = useState(false);
@@ -80,17 +79,16 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
   }, [query, farmer]);
 
   const commodity = commodities.find((c) => String(c.id) === String(commodityId)) ?? null;
-  const types = activeTypes(commodity);
-  const type = types.find((x) => String(x.id) === String(typeId)) ?? null;
-  const suggested = farmer && type && farmer.farmSize > 0 ? computeAllocation(type.rate, farmer.farmSize) : null;
+  // One rate per commodity: suggested = farm size × the commodity's kg/ha rate.
+  const rate = commodity && commodity.unit === "kg" && commodity.rate > 0 ? commodity.rate : null;
+  const suggested = farmer && rate && farmer.farmSize > 0 ? computeAllocation(rate, farmer.farmSize) : null;
 
-  // The type defaults to the farmer's own Program / type when it belongs to
-  // this commodity, else the commodity's default type.
+  // Picking a farmer chooses their Seed program when no commodity is chosen yet.
   useEffect(() => {
-    const own = types.find((x) => String(x.id) === String(farmer?.typeId ?? ""));
-    setTypeId(String((own ?? defaultType(commodity))?.id ?? ""));
+    if (!farmer?.seedProgramId || commodityId) return;
+    if (commodities.some((c) => String(c.id) === String(farmer.seedProgramId))) setCommodityId(String(farmer.seedProgramId));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commodity?.id, farmer?.id]);
+  }, [farmer?.id, commodities]);
 
   // Prefill the suggested allocation (farm size × rate) unless typed over.
   useEffect(() => {
@@ -129,7 +127,7 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
     savingRef.current = true;
     setSaving(true);
     try {
-      const saved = await fileRequestForFarmer({ farmerId: farmer.id, commodityId: commodity.id, typeId: type?.id ?? null, quantity: quantity.trim(), reason });
+      const saved = await fileRequestForFarmer({ farmerId: farmer.id, commodityId: commodity.id, quantity: quantity.trim(), reason });
       onSaved(saved);
     } catch (err) {
       setFormError(friendlyError(err, "Couldn't file this request. Please try again."));
@@ -218,15 +216,10 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
           <label className="agri-form-label" htmlFor="file-commodity" style={{ marginTop: 14 }}>Commodity <span style={{ color: "var(--agri-red)" }}>*</span></label>
           <select id="file-commodity" className="form-select" value={commodityId} onChange={(e) => setCommodityId(e.target.value)} disabled={saving}>
             <option value="">Choose a commodity</option>
-            {commodities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {commodities.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rate > 0 && c.unit === "kg" ? ` (${formatRate(c.rate)})` : ""}</option>)}
           </select>
-          {types.length > 0 && (
-            <>
-              <label className="agri-form-label" htmlFor="file-type" style={{ marginTop: 14 }}>Type</label>
-              <select id="file-type" className="form-select" value={typeId} onChange={(e) => setTypeId(e.target.value)} disabled={saving}>
-                {types.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.rate.toLocaleString()} kg/ha)</option>)}
-              </select>
-            </>
+          {farmer?.seedProgram && commodity && String(commodity.id) !== String(farmer.seedProgramId) && (
+            <div className="agri-field-hint">{farmer.firstName}&apos;s seed program is {farmer.seedProgram}.</div>
           )}
           {openRequests.length > 0 && (
             <div className="agri-warning-box" role="status">
@@ -254,13 +247,15 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
           <div className="agri-field-hint">
             {suggested !== null ? (
               <>
-                Suggested for {formatHectares(farmer.farmSize)} × {type.rate.toLocaleString()} kg/ha: {formatQuantity(suggested, unit)}
+                Suggested for {formatHectares(farmer.farmSize)} × {formatRate(rate)}: {formatQuantity(suggested, unit)}
                 {quantityEdited && Number(quantity) !== suggested && (
                   <button type="button" className="agri-link-btn" onClick={() => setQuantityEdited(false)}>Use {formatQuantity(suggested, unit)}</button>
                 )}
               </>
-            ) : commodity && !types.length ? (
-              "This commodity has no types or kg-per-hectare rates, so there's no suggested quantity."
+            ) : commodity && !rate ? (
+              "This commodity has no kg-per-hectare allocation, so there's no suggested quantity."
+            ) : farmer && commodity && !(farmer.farmSize > 0) ? (
+              "This farmer has no farm size on record, so there's no suggested quantity."
             ) : (
               ""
             )}

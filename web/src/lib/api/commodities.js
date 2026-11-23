@@ -1,31 +1,27 @@
 import { supabase } from "../supabaseClient.js";
 import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 
-// A commodity with its types and kg/ha rates (commodity_types). Removed
-// types stay readable (past distributions and requests keep showing them)
-// but are marked `removed` and left out of every choice.
+// One rate per commodity (Nov 23, 2026): commodities.allocation_per_hectare,
+// in kg per hectare, optional. Varieties are separate commodities, e.g.
+// "Rice Seeds – Inbred (RCEF)" 40 and "Rice Seeds – Hybrid" 15. The database
+// checks the rate, stamps who changed it and logs the change; only the MAO
+// Admin can write (RLS "commodities: MAO writes").
 const SELECT = `
   commodity_id, name, category, unit, status, created_at, deleted_at,
-  commodity_types ( commodity_type_id, name, rate_kg_per_ha, is_default, deleted_at, updated_at, updater:profiles!updated_by ( full_name ) )
+  allocation_per_hectare, rate_updated_at, rate_updater:profiles!rate_updated_by ( full_name )
 `;
 
-function mapType(t) {
-  return {
-    id: t.commodity_type_id,
-    name: t.name,
-    rate: Number(t.rate_kg_per_ha),
-    isDefault: !!t.is_default,
-    removed: !!t.deleted_at,
-    updatedAt: t.updated_at,
-    updatedBy: t.updater?.full_name ?? null,
-  };
+// Category choices (older free-text values still show and are kept).
+export const COMMODITY_CATEGORIES = ["Rice", "Corn", "Vegetables", "Fertilizer", "Farm Tools", "Livestock", "Other"];
+
+// The listed category matching a stored one ("rice" → "Rice"), or the
+// stored text when it isn't one of them.
+export function categoryOption(category) {
+  const c = (category ?? "").trim();
+  return COMMODITY_CATEGORIES.find((x) => x.toLowerCase() === c.toLowerCase()) ?? c;
 }
 
 function mapCommodity(row) {
-  const all = (row.commodity_types ?? []).map(mapType);
-  const types = all.filter((t) => !t.removed).sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.id - b.id);
-  // "Last updated [date] by [name]": the most recent change to any type.
-  const latest = [...all].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))[0] ?? null;
   return {
     id: row.commodity_id,
     name: row.name,
@@ -34,10 +30,9 @@ function mapCommodity(row) {
     status: dbStatusToLabel(row.status),
     dateAdded: row.created_at,
     deletedAt: row.deleted_at,
-    types,
-    allTypes: all,
-    typesUpdatedAt: latest?.updatedAt ?? null,
-    typesUpdatedBy: latest?.updatedBy ?? null,
+    rate: row.allocation_per_hectare != null ? Number(row.allocation_per_hectare) : null,
+    rateUpdatedAt: row.rate_updated_at ?? null,
+    rateUpdatedBy: row.rate_updater?.full_name ?? null,
   };
 }
 
@@ -57,25 +52,23 @@ export async function listCommodities({ includeDeleted = false } = {}) {
   return data.map(mapCommodity);
 }
 
-async function readCommodity(id) {
-  const { data, error } = await supabase.from("commodities").select(SELECT).eq("commodity_id", id).single();
-  if (error) throw error;
-  return mapCommodity(data);
-}
+const rateValue = (rate) => (rate === "" || rate == null ? null : Number(rate));
 
-// Adds or edits a commodity together with its types and rates, in one
-// database transaction (save_commodity: MAO Admin only). `types` rows:
-// { id?, name, rate, isDefault, removed? }; pass null to leave types alone.
-export async function saveCommodity(commodityId, { name, category, unit, status }, types) {
-  const { data, error } = await supabase.rpc("save_commodity", {
-    p_commodity_id: commodityId ?? null,
-    p_commodity: { name, category, unit: unit ?? "kg", status: status ? labelToDbStatus(status) : null },
-    p_types: types
-      ? types.map((t) => ({ id: t.id ?? null, name: t.name, rate: t.rate === "" ? null : Number(t.rate), is_default: !!t.isDefault, removed: !!t.removed }))
-      : null,
-  });
-  if (error) throw error;
-  return readCommodity(data);
+// Adds a commodity (always measured in kg) or edits one. `rate` is kg per
+// hectare, or "" / null for "not given by hectare".
+export async function saveCommodity(commodityId, { name, category, rate, status }) {
+  const row = { name: name.trim(), category, allocation_per_hectare: rateValue(rate) };
+  if (status) row.status = labelToDbStatus(status);
+  const query = commodityId
+    ? supabase.from("commodities").update(row).eq("commodity_id", commodityId)
+    : supabase.from("commodities").insert({ ...row, unit: "kg", status: row.status ?? "active" });
+  const { data, error } = await query.select(SELECT).maybeSingle();
+  if (error) {
+    if (error.code === "23505") throw new Error("A commodity with this name already exists.");
+    throw error;
+  }
+  if (!data) throw new Error("Only the MAO Admin can add or edit commodities.");
+  return mapCommodity(data);
 }
 
 export async function setCommodityStatus(commodityId, statusLabel) {

@@ -1,5 +1,5 @@
 {
-  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22, 2026): commodity types with kg/ha rates, each seeded farmer's Program / type, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), association request items from the MAO's list, a distribution with a 2,000 kg barangay allocation by hectare, and harvest reports in kg.",
+  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), association request items from the MAO's list, a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg.",
   "accounts": {
     "fa_president": {
       "name": "Pedro Lagunay",
@@ -48,7 +48,7 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "program_type": "Hybrid"
+      "seed_program": "Rice Seeds – Hybrid"
     },
     {
       "rsbsa_number": "09-73-00-000-000202",
@@ -70,7 +70,7 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "program_type": "Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)"
     },
     {
       "rsbsa_number": "09-73-00-000-000203",
@@ -92,7 +92,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Standard"
+      "seed_program": "Corn Seeds"
     },
     {
       "rsbsa_number": "09-73-00-000-000204",
@@ -114,7 +114,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)"
     },
     {
       "rsbsa_number": "09-73-00-000-000205",
@@ -136,7 +136,7 @@
       "pcic_insured": false,
       "status": "Inactive",
       "password": "password123",
-      "program_type": "Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)"
     },
     {
       "rsbsa_number": "09-73-00-000-000206",
@@ -179,7 +179,7 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "program_type": "Standard"
+      "seed_program": "Corn Seeds"
     },
     {
       "rsbsa_number": "09-73-00-000-000208",
@@ -201,7 +201,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Hybrid"
+      "seed_program": "Rice Seeds – Hybrid"
     },
     {
       "rsbsa_number": "09-73-00-000-000209",
@@ -223,7 +223,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)"
     },
     {
       "rsbsa_number": "09-73-00-000-000210",
@@ -266,7 +266,7 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "program_type": "Standard"
+      "seed_program": "Corn Seeds"
     },
     {
       "rsbsa_number": "09-73-00-000-000212",
@@ -288,7 +288,7 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "program_type": "Hybrid"
+      "seed_program": "Rice Seeds – Hybrid"
     },
     {
       "rsbsa_number": "09-73-00-000-000213",
@@ -310,7 +310,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)"
     },
     {
       "rsbsa_number": "09-73-00-000-000214",
@@ -353,7 +353,7 @@
       "pcic_insured": false,
       "status": "Inactive",
       "password": "password123",
-      "program_type": "Hybrid"
+      "seed_program": "Rice Seeds – Hybrid"
     },
     {
       "rsbsa_number": "09-73-00-000-000216",
@@ -375,7 +375,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Standard"
+      "seed_program": "Corn Seeds"
     },
     {
       "rsbsa_number": "09-73-00-000-000217",
@@ -397,7 +397,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)"
     },
     {
       "rsbsa_number": "09-73-00-000-000218",
@@ -419,7 +419,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Hybrid"
+      "seed_program": "Rice Seeds – Hybrid"
     },
     {
       "rsbsa_number": "09-73-00-000-000219",
@@ -441,7 +441,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Standard"
+      "seed_program": "Corn Seeds"
     },
     {
       "rsbsa_number": "09-73-00-000-000220",
@@ -484,7 +484,7 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "program_type": "Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)"
     },
     {
       "rsbsa_number": "09-73-00-000-000222",
@@ -506,7 +506,7 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "program_type": "Hybrid"
+      "seed_program": "Rice Seeds – Hybrid"
     },
     {
       "rsbsa_number": "09-73-00-000-000223",
@@ -528,7 +528,7 @@
       "pcic_insured": false,
       "status": "Inactive",
       "password": "password123",
-      "program_type": "Standard"
+      "seed_program": "Corn Seeds"
     },
     {
       "rsbsa_number": "09-73-00-000-000224",
@@ -550,7 +550,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "program_type": "Inbred (RCEF)"
+      "seed_program": "Rice Seeds – Inbred (RCEF)"
     },
     {
       "rsbsa_number": "09-73-00-000-000225",
@@ -580,31 +580,28 @@
       "category": "Rice",
       "unit": "kg",
       "status": "Active",
-      "allocation_per_hectare": 40,
-      "types": [
-        {
-          "name": "Inbred (RCEF)",
-          "rate_kg_per_ha": 40,
-          "default": true
-        },
-        {
-          "name": "Hybrid",
-          "rate_kg_per_ha": 15
-        }
-      ]
+      "allocation_per_hectare": 40
+    },
+    {
+      "name": "Rice Seeds – Inbred (RCEF)",
+      "category": "Rice",
+      "unit": "kg",
+      "status": "Active",
+      "allocation_per_hectare": 40
+    },
+    {
+      "name": "Rice Seeds – Hybrid",
+      "category": "Rice",
+      "unit": "kg",
+      "status": "Active",
+      "allocation_per_hectare": 15
     },
     {
       "name": "Corn Seeds",
       "category": "Corn",
       "unit": "kg",
       "status": "Active",
-      "types": [
-        {
-          "name": "Standard",
-          "rate_kg_per_ha": 20,
-          "default": true
-        }
-      ]
+      "allocation_per_hectare": 20
     },
     {
       "name": "Vegetable Seeds",
@@ -1024,7 +1021,7 @@
       "date": "2026-11-20",
       "program_name": "RCEF Seed Distribution - Allocation by Farm Size",
       "crop_type": "Rice",
-      "commodity": "Rice Seeds (NSIC Rc222)",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
       "venue": "Langapud Barangay Hall",
       "barangay": "Langapud",
       "funding_source": "DA-RCEF",
@@ -1069,65 +1066,79 @@
       "date": "2026-11-27",
       "program_name": "RCEF Seed Distribution - Wet Season Replanting",
       "crop_type": "Rice",
-      "commodity": "Rice Seeds (NSIC Rc222)",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
       "venue": "Langapud Barangay Hall",
       "barangay": "Langapud",
       "funding_source": "DA-RCEF",
       "status": "Ongoing",
-      "allocation": "by_type",
+      "allocation": "farm_size",
       "allocation_kg": 2000,
-      "total_quantity": "sum of the farmers' quantities (farm size x their type's kg/ha)",
+      "total_quantity": "sum of the farmers' quantities (farm size x 40 kg/ha)",
       "beneficiaries": [
-        {
-          "rsbsa_number": "09-73-00-000-000201",
-          "name": "Rodel Bagas",
-          "quantity_received": "farm size x type rate"
-        },
         {
           "rsbsa_number": "09-73-00-000-000202",
           "name": "Marites Cabahug",
-          "quantity_received": "farm size x type rate"
+          "quantity_received": "farm size x allocation"
         },
         {
           "rsbsa_number": "09-73-00-000-000204",
           "name": "Josefina Pacatang",
-          "quantity_received": "farm size x type rate"
-        },
-        {
-          "rsbsa_number": "09-73-00-000-000208",
-          "name": "Leonora Taghoy",
-          "quantity_received": "farm size x type rate"
+          "quantity_received": "farm size x allocation"
         },
         {
           "rsbsa_number": "09-73-00-000-000209",
           "name": "Dionisio Omay",
-          "quantity_received": "farm size x type rate"
-        },
-        {
-          "rsbsa_number": "09-73-00-000-000212",
-          "name": "Nenita Ladra",
-          "quantity_received": "farm size x type rate"
+          "quantity_received": "farm size x allocation"
         },
         {
           "rsbsa_number": "09-73-00-000-000213",
           "name": "Ricardo Gumanoy",
-          "quantity_received": "farm size x type rate"
+          "quantity_received": "farm size x allocation"
         },
         {
           "rsbsa_number": "09-73-00-000-000217",
           "name": "Alfredo Inting",
-          "quantity_received": "farm size x type rate"
-        },
-        {
-          "rsbsa_number": "09-73-00-000-000218",
-          "name": "Teresita Melendres",
-          "quantity_received": "farm size x type rate"
+          "quantity_received": "farm size x allocation"
         },
         {
           "rsbsa_number": "09-73-00-000-000221",
           "name": "Wilfredo Generalao",
           "quantity_received": 80,
           "adjustment_reason": "Only 2.0 ha will be replanted this season."
+        }
+      ]
+    },
+    {
+      "date": "2026-11-27",
+      "program_name": "RCEF Seed Distribution - Wet Season Replanting (Rice Seeds – Hybrid)",
+      "crop_type": "Rice",
+      "commodity": "Rice Seeds – Hybrid",
+      "venue": "Langapud Barangay Hall",
+      "barangay": "Langapud",
+      "funding_source": "DA-RCEF",
+      "status": "Ongoing",
+      "allocation": "farm_size",
+      "total_quantity": "sum of the farmers' quantities (farm size x 15 kg/ha)",
+      "beneficiaries": [
+        {
+          "rsbsa_number": "09-73-00-000-000201",
+          "name": "Rodel Bagas",
+          "quantity_received": "farm size x allocation"
+        },
+        {
+          "rsbsa_number": "09-73-00-000-000208",
+          "name": "Leonora Taghoy",
+          "quantity_received": "farm size x allocation"
+        },
+        {
+          "rsbsa_number": "09-73-00-000-000212",
+          "name": "Nenita Ladra",
+          "quantity_received": "farm size x allocation"
+        },
+        {
+          "rsbsa_number": "09-73-00-000-000218",
+          "name": "Teresita Melendres",
+          "quantity_received": "farm size x allocation"
         }
       ]
     }
@@ -1334,8 +1345,7 @@
       "quantity": 20,
       "request_date": "2026-10-03",
       "status": "Pending",
-      "remarks": "",
-      "type": "Inbred (RCEF)"
+      "remarks": ""
     },
     {
       "rsbsa_number": "09-73-00-000-000612",
@@ -1354,8 +1364,7 @@
       "quantity": 18,
       "request_date": "2026-10-07",
       "status": "Approved",
-      "remarks": "",
-      "type": "Standard"
+      "remarks": ""
     },
     {
       "rsbsa_number": "09-73-00-000-000201",
@@ -1388,8 +1397,7 @@
     {
       "rsbsa_number": "09-73-00-000-000212",
       "farmer": "Nenita Ladra",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Hybrid",
+      "commodity": "Rice Seeds – Hybrid",
       "quantity": "suggested",
       "request_date": "2026-11-21",
       "status": "Pending",
@@ -1398,8 +1406,7 @@
     {
       "rsbsa_number": "09-73-00-000-000213",
       "farmer": "Ricardo Gumanoy",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Inbred (RCEF)",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
       "quantity": "suggested",
       "request_date": "2026-11-18",
       "status": "Approved",
@@ -1411,13 +1418,12 @@
     {
       "rsbsa_number": "09-73-00-000-000537",
       "farmer": "Maui Pelaez",
-      "commodity": "Rice Seeds (NSIC Rc222)",
+      "commodity": "Rice Seeds – Hybrid",
       "quantity": 150,
       "reason": "Filed at the barangay hall: no phone signal in Maui's sitio.",
       "request_date": "2026-11-12",
       "status": "Pending",
       "remarks": "",
-      "type": "Hybrid",
       "recommended": true
     },
     {
@@ -1428,8 +1434,7 @@
       "reason": "Filed during the FA meeting for the wet season replanting.",
       "request_date": "2026-11-13",
       "status": "Approved",
-      "remarks": "Release with the next RCEF batch.",
-      "type": "Inbred (RCEF)"
+      "remarks": "Release with the next RCEF batch."
     },
     {
       "rsbsa_number": "09-73-00-000-000389",
@@ -1439,8 +1444,7 @@
       "reason": "Filed at the barangay hall for the next planting.",
       "request_date": "2026-11-14",
       "status": "Rejected",
-      "remarks": "Already received seeds in October; request again next season.",
-      "type": "Inbred (RCEF)"
+      "remarks": "Already received seeds in October; request again next season."
     },
     {
       "rsbsa_number": "09-73-00-000-000204",
@@ -1451,7 +1455,6 @@
       "request_date": "2026-11-16",
       "status": "Pending",
       "remarks": "",
-      "type": "Inbred (RCEF)",
       "recommended": true
     }
   ],
@@ -1568,8 +1571,7 @@
     {
       "rsbsa_number": "09-73-00-000-000201",
       "farmer": "Rodel Bagas",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Hybrid",
+      "commodity": "Rice Seeds – Hybrid",
       "season": "Wet",
       "season_year": 2026,
       "area_ha": 1.5,
@@ -1584,8 +1586,7 @@
     {
       "rsbsa_number": "09-73-00-000-000202",
       "farmer": "Marites Cabahug",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Inbred (RCEF)",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
       "season": "Dry",
       "season_year": 2026,
       "area_ha": 1.2,
@@ -1597,8 +1598,7 @@
     {
       "rsbsa_number": "09-73-00-000-000209",
       "farmer": "Dionisio Omay",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Inbred (RCEF)",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
       "season": "Wet",
       "season_year": 2026,
       "area_ha": 3,
@@ -1614,7 +1614,6 @@
       "rsbsa_number": "09-73-00-000-000203",
       "farmer": "Arnel Dacalos",
       "commodity": "Corn Seeds",
-      "type": "Standard",
       "season": "Wet",
       "season_year": 2026,
       "area_ha": 2,
@@ -1626,8 +1625,7 @@
     {
       "rsbsa_number": "09-73-00-000-000213",
       "farmer": "Ricardo Gumanoy",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Inbred (RCEF)",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
       "season": "Dry",
       "season_year": 2026,
       "area_ha": 1.8,
@@ -1639,8 +1637,7 @@
     {
       "rsbsa_number": "09-73-00-000-000217",
       "farmer": "Alfredo Inting",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Inbred (RCEF)",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
       "season": "Wet",
       "season_year": 2026,
       "area_ha": 1.3,
@@ -1653,8 +1650,7 @@
     {
       "rsbsa_number": "09-73-00-000-000537",
       "farmer": "Maui Pelaez",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Hybrid",
+      "commodity": "Rice Seeds – Hybrid",
       "season": "Wet",
       "season_year": 2026,
       "area_ha": 2,
@@ -1667,8 +1663,7 @@
     {
       "rsbsa_number": "09-73-00-000-000612",
       "farmer": "Claude Oclarit",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Inbred (RCEF)",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
       "season": "Dry",
       "season_year": 2026,
       "area_ha": 3.5,
@@ -1681,8 +1676,7 @@
     {
       "rsbsa_number": "09-73-00-000-000389",
       "farmer": "Luna Cuizon",
-      "commodity": "Rice Seeds (NSIC Rc222)",
-      "type": "Inbred (RCEF)",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
       "season": "Wet",
       "season_year": 2026,
       "area_ha": 10,

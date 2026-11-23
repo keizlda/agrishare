@@ -2,8 +2,8 @@ import { supabase } from "../supabaseClient";
 import { dbStatusToLabel } from "../status";
 
 const SELECT = `
-  farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status, commodity_type_id,
-  commodity_types ( name ),
+  farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status, seed_program_id,
+  seed_program:commodities!seed_program_id ( name ),
   addresses ( barangay ),
   farm_parcels ( farm_size_hectares, crops ( crop_type ) ),
   profiles!profile_id ( avatar_url, must_change_password )
@@ -25,9 +25,10 @@ function mapFarmer(row) {
     farmSize: parcel?.farm_size_hectares != null ? `${Number(parcel.farm_size_hectares).toFixed(2)} ha` : "—",
     // Total farm size in hectares (every parcel), for suggested quantities.
     farmSizeHa: Math.round((row.farm_parcels ?? []).reduce((a, p) => a + (Number(p.farm_size_hectares) || 0), 0) * 100) / 100,
-    // Program / type for the primary commodity (e.g. Inbred (RCEF)).
-    typeId: row.commodity_type_id ?? null,
-    typeName: row.commodity_types?.name ?? "",
+    // Seed program: the commodity the farmer is enrolled in, e.g.
+    // "Rice Seeds – Inbred (RCEF)". Optional.
+    seedProgramId: row.seed_program_id ?? null,
+    seedProgramName: row.seed_program?.name ?? "",
     primaryCommodity: parcel?.crops?.[0]?.crop_type ?? "—",
     // A farmer's own status is only Active/Inactive — validation belongs to
     // each proof-of-planting submission (see api/cropValidation).

@@ -28,7 +28,7 @@ import {
 import { listCommodities } from "../lib/api/commodities.js";
 import { formatDate, todayIso } from "../lib/dates.js";
 import { formatItemsTotal, formatQuantity, isSplitQuantity, isWholeUnit, splitEqually } from "../lib/quantity.js";
-import { activeTypes, computeAllocation, defaultType, describeCalculation, formatHectares, formatKg, hasTypes } from "../lib/allocation.js";
+import { computeAllocation, describeCalculation, formatHectares, formatKg, formatRate } from "../lib/allocation.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { DISTRIBUTION_STATUSES, completedOn } from "../lib/distributionStatus.js";
 import { rowLinkProps } from "../lib/rowLink.js";
@@ -282,7 +282,7 @@ export default function Distributions() {
             ) : (
               <div className="agri-beneficiary-table-wrap">
                 <table className="agri-table">
-                  <thead><tr><th>Farmer</th><th>Type</th><th className="text-end">Farm Size (ha)</th><th className="text-end">Qty</th></tr></thead>
+                  <thead><tr><th>Farmer</th><th className="text-end">Farm Size (ha)</th><th className="text-end">Rate</th><th className="text-end">Qty</th></tr></thead>
                   <tbody>
                     {beneficiaryRows.map((row) => (
                       <tr key={row.claimId}>
@@ -293,8 +293,8 @@ export default function Distributions() {
                           <span className="agri-beneficiary-sub">RSBSA {row.rsbsaNo}</span>
                           {row.adjusted && row.adjustmentReason && <div className="agri-adjusted-note">Reason: {row.adjustmentReason}</div>}
                         </td>
-                        <td>{row.typeName || <span className="agri-muted">—</span>}</td>
                         <td className="text-end">{row.farmSize > 0 ? row.farmSize.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}</td>
+                        <td className="text-end">{formatRate(row.rate)}</td>
                         <td className="agri-beneficiary-qty-cell text-end">{formatQuantity(row.quantity, row.unit)}</td>
                       </tr>
                     ))}
@@ -470,13 +470,11 @@ function DeleteDistributionButton({ distribution, onDeleted, onError }) {
 }
 
 // ---------------------------------------------------------------------------
-// Allocation by hectare. When the commodity has types (each with a kg/ha
-// rate), each tagged farmer gets a type — their profile's Program / type if
-// it belongs to this commodity, otherwise the commodity's default — and a
-// quantity of farm size × that type's rate. The admin may change a quantity:
-// the row is then "Adjusted" and needs a short reason (the database checks
-// this too). An optional barangay allocation (kg) caps the total. Without
-// types, the old equal split is kept.
+// Allocation by hectare. When the commodity has a kg/ha rate, each tagged
+// farmer gets farm size × that rate. The admin may change a quantity: the
+// row is then "Adjusted" and needs a short reason (the database checks this
+// too). An optional barangay allocation (kg) caps the total. Without a
+// rate, the old equal split is kept.
 // ---------------------------------------------------------------------------
 const MAX_REASON_LENGTH = 200;
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -499,9 +497,10 @@ function farmerRow(farmer, extra = {}) {
     avatarUrl: farmer.avatarUrl,
     status: farmer.status ?? "Active",
     farmerDeleted: !!farmer.farmerDeleted,
-    profileTypeId: farmer.profileTypeId ?? farmer.typeId ?? null,
-    typeId: "",
+    seedProgramId: farmer.seedProgramId ?? null,
+    seedProgram: farmer.seedProgram ?? "",
     quantity: 0,
+    recompute: false,
     edited: false,
     adjustmentReason: "",
     saved: null,
@@ -511,28 +510,23 @@ function farmerRow(farmer, extra = {}) {
   };
 }
 
-// The type a farmer gets for this commodity: their own if it belongs to it,
-// otherwise the default.
-function typeIdFor(farmer, commodity) {
-  const types = activeTypes(commodity);
-  const own = types.find((t) => String(t.id) === String(farmer.profileTypeId ?? farmer.typeId ?? ""));
-  return String((own ?? defaultType(commodity))?.id ?? "");
-}
+// The commodity's kg/ha rate, when quantities are computed from farm size.
+const rateOf = (commodity) => (commodity && isKgUnit(commodity.unit) && commodity.rate > 0 ? commodity.rate : null);
 
-// How a row's quantity stands. A saved row whose quantity and type are
-// unchanged keeps the farm size and rate it was saved with (rates changed
-// later never alter it); anything else uses the current rate.
+// How a row's quantity stands. A saved row whose quantity is unchanged keeps
+// the farm size and rate it was saved with (a later change to the
+// commodity's rate never alters it, unless the admin recomputes); anything
+// else uses the commodity's current rate.
 function quantityState(row, commodity) {
-  const unchanged = !!row.saved && round2(row.quantity) === row.saved.quantity && String(row.typeId) === String(row.saved.typeId ?? "");
-  const type = (commodity?.allTypes ?? commodity?.types ?? []).find((t) => String(t.id) === String(row.typeId));
-  const rate = unchanged ? row.saved.rate : type && !type.removed ? type.rate : null;
+  const unchanged = !!row.saved && !row.recompute && round2(row.quantity) === row.saved.quantity;
+  const rate = unchanged ? row.saved.rate : rateOf(commodity);
   const size = unchanged ? row.farmSize : row.currentFarmSize;
   const computed = rate ? computeAllocation(rate, size) : null;
-  if (computed === null) return { state: unchanged ? "saved" : "manual", computed: null, rate: null, size, type };
+  if (computed === null) return { state: unchanged ? "saved" : "manual", computed: null, rate: null, size };
   const qty = round2(row.quantity);
-  if (unchanged && row.saved.adjusted) return { state: "adjusted", computed, rate, size, type };
-  if (qty === computed) return { state: "auto", computed, rate, size, type };
-  return { state: unchanged ? "saved" : "adjusted", computed, rate, size, type };
+  if (unchanged && row.saved.adjusted) return { state: "adjusted", computed, rate, size };
+  if (qty === computed) return { state: "auto", computed, rate, size };
+  return { state: unchanged ? "saved" : "adjusted", computed, rate, size };
 }
 
 function DistributionModal({ mode, distribution, commodities, onClose, onSaved }) {
@@ -566,8 +560,8 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   const addingEligibleRef = useRef(false);
   const [eligibleResult, setEligibleResult] = useState(null);
   const [showReasonErrors, setShowReasonErrors] = useState(false);
-  // Rates changed since this (Ongoing) distribution was saved: offer to
-  // recompute once.
+  // The commodity's rate changed since this (Ongoing) distribution was
+  // saved: offer to recompute once.
   const [rateNotice, setRateNotice] = useState(null);
   const duplicateRound = useRef(0);
   const checkedProgram = useRef(form.program.trim());
@@ -576,17 +570,18 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
 
   const commodityOptions = useMemo(() => {
     if (!editing || !primaryItem || commodities.some((c) => String(c.id) === String(primaryItem.commodityId))) return commodities;
-    return [...commodities, { id: primaryItem.commodityId, name: primaryItem.name, unit: primaryItem.unit, types: [], allTypes: [] }];
+    return [...commodities, { id: primaryItem.commodityId, name: primaryItem.name, unit: primaryItem.unit, rate: null }];
   }, [commodities, editing, primaryItem]);
   const findCommodity = (id) => commodityOptions.find((c) => String(c.id) === String(id)) ?? null;
   const commodity = findCommodity(form.commodityId);
   const unit = commodity?.unit ?? primaryItem?.unit ?? "kg";
-  const byType = hasTypes(commodity);
+  const commodityRate = rateOf(commodity);
+  const byRate = commodityRate !== null;
   const showAllocation = isKgUnit(unit);
   const rows = form.taggedBeneficiaries;
   const states = new Map(rows.map((r) => [r.farmerId, quantityState(r, commodity)]));
 
-  // Saved farmers load with their saved quantity, type, rate and adjustment.
+  // Saved farmers load with their saved quantity, rate and adjustment.
   useEffect(() => {
     if (!editing) return;
     let cancelled = false;
@@ -598,22 +593,19 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
           farmerRow(r, {
             quantity: r.quantity,
             edited: true,
-            typeId: r.typeId ? String(r.typeId) : "",
-            saved: { quantity: round2(r.quantity), typeId: r.typeId ? String(r.typeId) : "", rate: r.rate, adjusted: r.adjusted },
+            saved: { quantity: round2(r.quantity), rate: r.rate, adjusted: r.adjusted },
             adjustmentReason: r.adjustmentReason ?? "",
             overrideReason: r.overrideReason ?? "",
           }),
         );
         setForm((f) => ({ ...f, taggedBeneficiaries: loaded }));
-        // "Hybrid's rate changed from 15 to 18 kg/ha. Recompute quantities?"
+        // "Rice Seeds – Hybrid's allocation changed from 15 to 18 kg/ha
+        // since these quantities were saved. Recompute quantities?"
         if (distribution.status !== "Completed") {
           const c = findCommodity(primaryItem?.commodityId);
-          const changed = new Map();
-          for (const r of loaded) {
-            const type = c?.types.find((t) => String(t.id) === r.typeId);
-            if (type && r.saved.rate && type.rate !== r.saved.rate && !r.saved.adjusted) changed.set(type.id, { name: type.name, from: r.saved.rate, to: type.rate });
-          }
-          if (changed.size) setRateNotice([...changed.values()]);
+          const now = rateOf(c);
+          const from = [...new Set(loaded.filter((r) => r.saved.rate && !r.saved.adjusted && r.saved.rate !== now).map((r) => r.saved.rate))];
+          if (now && from.length) setRateNotice({ name: c.name, from, to: now });
         }
       })
       .catch((err) => {
@@ -632,9 +624,8 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     setForm((f) => ({
       ...f,
       taggedBeneficiaries: f.taggedBeneficiaries.map((r) => {
-        const type = commodity?.types.find((t) => String(t.id) === r.typeId);
-        if (!type || !r.saved || r.saved.adjusted || type.rate === r.saved.rate) return r;
-        return { ...r, quantity: computeAllocation(type.rate, r.currentFarmSize) };
+        if (!commodityRate || !r.saved || r.saved.adjusted || r.saved.rate === commodityRate) return r;
+        return { ...r, recompute: true, quantity: computeAllocation(commodityRate, r.currentFarmSize) };
       }),
     }));
     setRateNotice(null);
@@ -668,17 +659,15 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     checkDuplicates(rows, { ...next, round });
   }
 
-  // New rows: typed and computed, or (no types) a share of the total.
+  // New rows: farm size × the commodity's rate, or (no rate) a share of the total.
   function newRowFor(farmer) {
-    if (!byType) return farmerRow(farmer, { duplicate: farmer.duplicate ?? null });
-    const typeId = typeIdFor(farmer, commodity);
-    const type = commodity.types.find((t) => String(t.id) === typeId);
-    return farmerRow(farmer, { typeId, quantity: computeAllocation(type?.rate, farmer.farmSize) ?? 0, duplicate: farmer.duplicate ?? null });
+    if (!byRate) return farmerRow(farmer, { duplicate: farmer.duplicate ?? null });
+    return farmerRow(farmer, { quantity: computeAllocation(commodityRate, farmer.farmSize) ?? 0, duplicate: farmer.duplicate ?? null });
   }
   function withNewRows(f, farmers) {
     const known = new Set(f.taggedBeneficiaries.map((r) => r.farmerId));
     const next = [...f.taggedBeneficiaries, ...farmers.filter((x) => !known.has(x.id)).map(newRowFor)];
-    return { ...f, taggedBeneficiaries: byType ? next : redistributeQuantities(next, f.quantity, unit) };
+    return { ...f, taggedBeneficiaries: byRate ? next : redistributeQuantities(next, f.quantity, unit) };
   }
 
   function addFarmerRow(farmer) {
@@ -697,7 +686,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   function handleRemoveFarmer(farmerId) {
     setForm((f) => {
       const next = f.taggedBeneficiaries.filter((r) => r.farmerId !== farmerId);
-      return { ...f, taggedBeneficiaries: byType ? next : redistributeQuantities(next, f.quantity, unit) };
+      return { ...f, taggedBeneficiaries: byRate ? next : redistributeQuantities(next, f.quantity, unit) };
     });
   }
 
@@ -705,34 +694,27 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     setForm((f) => ({ ...f, taggedBeneficiaries: f.taggedBeneficiaries.map((r) => (r.farmerId === farmerId ? { ...r, ...patch } : r)) }));
   }
 
-  // A different type recomputes the quantity straight away.
-  function changeRowType(row, typeId) {
-    const type = commodity?.types.find((t) => String(t.id) === typeId);
-    updateRow(row.farmerId, { typeId, quantity: type ? computeAllocation(type.rate, row.currentFarmSize) : row.quantity });
-  }
-
   function updateTotalQuantity(value) {
     setForm((f) => ({ ...f, quantity: value, taggedBeneficiaries: redistributeQuantities(f.taggedBeneficiaries, value, unit) }));
   }
 
-  // A different commodity: every row gets that commodity's type for the
-  // farmer and its quantity is recomputed (an adjusted row keeps the admin's
-  // quantity and reason). Moving to a commodity without types keeps the
-  // quantities and makes them the total.
+  // A different commodity: every row's quantity is recomputed with that
+  // commodity's rate (an adjusted row keeps the admin's quantity and
+  // reason). Moving to a commodity without a rate keeps the quantities and
+  // makes them the total.
   function changeCommodity(id) {
     const next = findCommodity(id);
+    const nextRate = rateOf(next);
     setEligibleResult(null);
     setRateNotice(null);
     setForm((f) => {
-      if (hasTypes(next)) {
+      if (nextRate) {
         return {
           ...f,
           commodityId: id,
           taggedBeneficiaries: f.taggedBeneficiaries.map((r) => {
-            const typeId = typeIdFor(r, next);
-            const type = next.types.find((t) => String(t.id) === typeId);
             const adjusted = quantityState(r, commodity).state === "adjusted";
-            return { ...r, typeId, saved: r.saved ? { ...r.saved, typeId: null } : null, quantity: adjusted ? r.quantity : computeAllocation(type?.rate, r.currentFarmSize) ?? r.quantity };
+            return { ...r, saved: null, quantity: adjusted ? r.quantity : computeAllocation(nextRate, r.currentFarmSize) ?? r.quantity };
           }),
         };
       }
@@ -741,7 +723,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
         ...f,
         commodityId: id,
         quantity: f.taggedBeneficiaries.length > 0 ? String(total) : f.quantity,
-        taggedBeneficiaries: f.taggedBeneficiaries.map((r) => ({ ...r, typeId: "", edited: true })),
+        taggedBeneficiaries: f.taggedBeneficiaries.map((r) => ({ ...r, saved: null, edited: true })),
       };
     });
     recheckAllDuplicates({ commodityId: id });
@@ -755,13 +737,14 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
   }
 
   const taggedTotal = round2(rows.reduce((sum, r) => sum + (Number(r.quantity) || 0), 0));
-  const totalIsSum = byType && rows.length > 0;
+  const totalIsSum = byRate && rows.length > 0;
   const allocation = showAllocation && String(form.allocation).trim() !== "" ? Number(form.allocation) : null;
   const allocated = rows.length ? taggedTotal : Number(form.quantity) || 0;
   const overAllocation = allocation !== null && allocation > 0 && allocated > allocation + 0.001;
 
-  // Adds every Active farmer whose crop matches, each with their type and
-  // farm size; skips repeat distributions and stops at the allocation.
+  // Adds every Active farmer enrolled in this commodity (or, when nobody
+  // is, whose crop matches its category), each at farm size × rate; skips
+  // repeat distributions and stops at the allocation.
   async function addAllEligible() {
     if (addingEligibleRef.current || !commodity) return;
     const program = form.program.trim();
@@ -781,17 +764,17 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
       const noRoom = [];
       let running = taggedTotal;
       for (const f of eligible.filter((x) => !tagged.has(x.id) && !x.duplicate)) {
-        const row = newRowFor({ ...f, profileTypeId: f.typeId });
-        if (byType && allocation !== null && running + Number(row.quantity) > allocation + 0.001) {
+        const row = newRowFor(f);
+        if (byRate && allocation !== null && running + Number(row.quantity) > allocation + 0.001) {
           noRoom.push(f);
           continue;
         }
         running += Number(row.quantity) || 0;
-        toAdd.push({ ...f, profileTypeId: f.typeId });
+        toAdd.push(f);
       }
       setForm((f) => withNewRows(f, toAdd));
       if (eligible.length === 0) {
-        setEligibleResult({ tone: "info", text: `No Active farmers with a ${commodity.category || "matching"} crop were found.` });
+        setEligibleResult({ tone: "info", text: `No Active farmers enrolled in ${commodity.name} or with a ${commodity.category || "matching"} crop were found.` });
       } else {
         const name = (f) => `${f.firstName} ${f.lastName}`;
         const parts = [`Added ${toAdd.length} ${farmersWord(toAdd.length)}.`];
@@ -808,13 +791,11 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     }
   }
 
-  // Total per type: "Total 1,250 kg · Inbred (RCEF) 1,040 kg · Hybrid 210 kg"
-  const perTypeMap = new Map();
-  for (const r of rows) {
-    const name = states.get(r.farmerId)?.type?.name ?? "No type";
-    perTypeMap.set(name, (perTypeMap.get(name) ?? 0) + (Number(r.quantity) || 0));
-  }
-  const perType = [...perTypeMap.entries()];
+  // A tagged farmer enrolled in a different seed program gets a warning chip.
+  const enrolledElsewhere = (row) => {
+    if (!row.seedProgramId || !commodity || String(row.seedProgramId) === String(commodity.id)) return "";
+    return row.seedProgram || findCommodity(row.seedProgramId)?.name || "another seed program";
+  };
 
   function validate() {
     if (beneficiaryLoadError) return `${beneficiaryLoadError} Close this form and open it again before saving.`;
@@ -844,15 +825,13 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     } else {
       const zero = rows.find((r) => !(Number(r.quantity) > 0));
       if (zero) {
-        return byType && !(states.get(zero.farmerId)?.size > 0)
+        return byRate && !(states.get(zero.farmerId)?.size > 0)
           ? `${fullName(zero)} has no farm size on record. Enter their quantity and a reason, or remove them.`
           : "Each farmer's quantity must be greater than 0.";
       }
       const split = rows.find((r) => isSplitQuantity(r.quantity, unit));
       if (split) return `Enter a whole number for ${fullName(split)}: ${wholeOnly}.`;
-      if (byType) {
-        const noType = rows.find((r) => !r.typeId && !(r.saved && !r.saved.typeId && round2(r.quantity) === r.saved.quantity));
-        if (noType) return `Choose a type for ${fullName(noType)}.`;
+      if (byRate) {
         const missing = rows.find((r) => states.get(r.farmerId)?.state === "adjusted" && !r.adjustmentReason.trim());
         if (missing) return `Give a short reason for the adjusted quantity of ${fullName(missing)}.`;
         if (rows.some((r) => r.adjustmentReason.trim().length > MAX_REASON_LENGTH)) return `Keep each adjustment reason to ${MAX_REASON_LENGTH} characters or fewer.`;
@@ -878,10 +857,12 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
     savingRef.current = true;
     setSaving(true);
     try {
+      // Rows moved to another commodity are computed again with its rate.
+      const commodityChanged = editing && !!primaryItem && String(form.commodityId) !== String(primaryItem.commodityId);
       const taggedBeneficiaries = rows.map((r) => ({
         farmerId: r.farmerId,
         quantity: round2(r.quantity),
-        typeId: r.typeId ? Number(r.typeId) : null,
+        recompute: r.recompute || commodityChanged,
         overrideReason: r.duplicate ? overrideReason.trim() : r.overrideReason || "",
         adjustmentReason: states.get(r.farmerId)?.state === "adjusted" ? r.adjustmentReason.trim() : "",
       }));
@@ -964,7 +945,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                 {commodityOptions.length === 0 && <option value="">No active commodities</option>}
                 {commodityOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              {byType && <div className="agri-field-hint">{activeTypes(commodity).map((t) => `${t.name} ${t.rate.toLocaleString()} kg/ha`).join(" · ")}</div>}
+              {byRate && <div className="agri-field-hint">Allocation {formatRate(commodityRate)}: each farmer gets farm size × {formatRate(commodityRate)}.</div>}
             </div>
             <div className="col-12 col-sm-6">
               <label className="agri-form-label" htmlFor="distribution-status">Status</label>
@@ -1005,7 +986,11 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                 <>
                   <input id="distribution-total" required type="number" min="0" step={isWholeUnit(unit) ? "1" : "any"} className="form-control" value={form.quantity} onChange={(e) => updateTotalQuantity(e.target.value)} />
                   <div className="agri-field-hint">
-                    {byType ? "Tag farmers below and each one's quantity is computed from their farm size and type." : commodity ? "Split equally among the tagged farmers. Add types and kg-per-hectare rates in Commodities to compute this automatically." : ""}
+                    {byRate
+                      ? "Tag farmers below and each one's quantity is computed from their farm size."
+                      : commodity
+                        ? `Split equally among the tagged farmers.${isKgUnit(unit) ? " Set this commodity's allocation per hectare in Commodities to compute it from farm size." : ""}`
+                        : ""}
                   </div>
                 </>
               )}
@@ -1025,7 +1010,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
           {rateNotice && (
             <div className="agri-warning-box" role="status" style={{ alignItems: "center" }}>
               <div style={{ flex: 1 }}>
-                {rateNotice.map((n) => `${n.name}'s rate changed from ${n.from.toLocaleString()} to ${n.to.toLocaleString()} kg/ha.`).join(" ")} Recompute quantities?
+                {`${rateNotice.name}'s allocation changed from ${rateNotice.from.map((r) => r.toLocaleString()).join(" / ")} to ${formatRate(rateNotice.to)} since these quantities were saved. Recompute quantities?`}
               </div>
               <button type="button" className="btn btn-sm btn-agri-primary" onClick={recomputeChangedRates}>Recompute</button>
               <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setRateNotice(null)}>Keep current</button>
@@ -1048,7 +1033,9 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                 {eligibleResult ? (
                   <span className="agri-add-eligible-result" role="status" style={eligibleResult.tone === "error" ? { color: "var(--agri-red)" } : undefined}>{eligibleResult.text}</span>
                 ) : (
-                  <span className="agri-add-eligible-result">Active farmers whose crop is {commodity?.category || "the commodity's category"}.</span>
+                  <span className="agri-add-eligible-result">
+                    {commodity ? `Active farmers enrolled in ${commodity.name} (or, if none are, whose crop is ${commodity.category || "its category"}).` : "Choose a commodity first."}
+                  </span>
                 )}
               </div>
             </>
@@ -1059,13 +1046,13 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
               <div className="agri-beneficiary-table-wrap agri-beneficiary-table-wrap-form">
                 <table className="agri-table">
                   <thead>
-                    <tr><th>Farmer</th>{byType && <th>Type</th>}<th className="agri-col-farm text-end">Farm Size</th><th className="text-end">Qty ({unit})</th></tr>
+                    <tr><th>Farmer</th><th className="agri-col-farm text-end">Farm Size</th><th className="text-end">Qty ({unit})</th></tr>
                   </thead>
                   <tbody>
                     {rows.map((row) => {
                       const { state, computed, rate, size } = states.get(row.farmerId) ?? { state: "manual" };
                       const reasonMissing = showReasonErrors && state === "adjusted" && !row.adjustmentReason.trim();
-                      const removedType = row.typeId && !activeTypes(commodity).some((t) => String(t.id) === row.typeId);
+                      const elsewhere = enrolledElsewhere(row);
                       return (
                         <Fragment key={row.farmerId}>
                           <tr className={state === "adjusted" ? "agri-beneficiary-adjusted" : undefined}>
@@ -1081,21 +1068,13 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                                 {[row.sitioPurok, row.barangay].filter(Boolean).join(", ")}
                               </div>
                               <div className="agri-beneficiary-meta agri-beneficiary-farm-inline">{formatHectares(size ?? row.currentFarmSize)}</div>
+                              {elsewhere && <span className="agri-enrolled-chip" title="This farmer's Seed program is a different commodity">Enrolled in {elsewhere}</span>}
                               {row.duplicate && (
                                 <div className="agri-beneficiary-duplicate-warning">
                                   Already received {formatQuantity(row.duplicate.quantity, unit)} from {row.duplicate.program} on {formatDate(row.duplicate.date)}
                                 </div>
                               )}
                             </td>
-                            {byType && (
-                              <td>
-                                <select className="form-select form-select-sm agri-row-type" aria-label={`Type for ${fullName(row)}`} value={row.typeId} onChange={(e) => changeRowType(row, e.target.value)} disabled={saving}>
-                                  {!row.typeId && <option value="">Not set</option>}
-                                  {removedType && <option value={row.typeId}>{(commodity?.allTypes ?? []).find((t) => String(t.id) === row.typeId)?.name ?? "Type"} (removed)</option>}
-                                  {activeTypes(commodity).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
-                              </td>
-                            )}
                             <td className="agri-col-farm text-end">{formatHectares(size ?? row.currentFarmSize)}</td>
                             <td className="agri-beneficiary-qty-cell text-end">
                               <input
@@ -1121,7 +1100,7 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
                           </tr>
                           {state === "adjusted" && (
                             <tr className="agri-beneficiary-reason-row">
-                              <td colSpan={byType ? 4 : 3}>
+                              <td colSpan={3}>
                                 <input
                                   className={`agri-beneficiary-reason-input${reasonMissing ? " is-invalid" : ""}`}
                                   aria-label={`Reason for adjusting ${fullName(row)}'s quantity`}
@@ -1142,7 +1121,6 @@ function DistributionModal({ mode, distribution, commodities, onClose, onSaved }
               </div>
               <div className="agri-type-totals">
                 {rows.length} {farmersWord(rows.length)} · <strong>Total {formatQuantity(taggedTotal, unit)}</strong>
-                {byType && perType.map(([name, kg]) => <span key={name}> · {name} {formatQuantity(round2(kg), unit)}</span>)}
               </div>
             </>
           )}

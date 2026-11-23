@@ -357,6 +357,11 @@
       "event_id": 44,
       "program_name": "RCEF Seed Distribution - Wet Season Replanting",
       "event_date": "2026-11-27"
+    },
+    {
+      "event_id": 46,
+      "program_name": "RCEF Seed Distribution - Wet Season Replanting (Rice Seeds – Hybrid)",
+      "event_date": "2026-11-27"
     }
   ],
   "eventItems": [
@@ -368,7 +373,8 @@
     30,
     31,
     45,
-    46
+    46,
+    48
   ],
   "claims": [
     79,
@@ -1427,6 +1433,14 @@
     {
       "harvest_report_id": 9,
       "farmer": "Luna Cuizon"
+    }
+  ],
+  "rateRestores": [
+    {
+      "commodity_id": 2,
+      "name": "Corn Seeds",
+      "seeded_rate": 20,
+      "restore_to": null
     }
   ],
   "lastCleanup": "2026-10-16T12:15:22.509Z"

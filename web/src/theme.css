@@ -1267,6 +1267,13 @@ table.agri-table tbody tr.agri-row-link:focus-visible .agri-row-title {
   white-space: nowrap;
 }
 
+/* Error and notice banners reuse the pill look as a block (inline
+   display: block): long messages wrap instead of being cut off. */
+.agri-pill[style*="display: block"] {
+  white-space: normal;
+  border-radius: 10px;
+  line-height: 1.4;
+}
 .agri-pill.green { background: var(--agri-primary-light); color: var(--agri-primary-dark); }
 .agri-pill.red { background: var(--agri-red-bg); color: var(--agri-red); }
 .agri-pill.orange { background: var(--agri-orange-bg); color: var(--agri-orange-text); }
@@ -3077,7 +3084,7 @@ input[type="number"] {
   align-items: center;
 }
 .agri-unit-input .form-control {
-  padding-right: 84px;
+  padding-right: 52px;
 }
 .agri-unit-input-unit {
   position: absolute;
@@ -3202,50 +3209,10 @@ input[type="number"] {
   font-size: 16px;
 }
 
-/* ---------- Commodity types and kg/ha rates ---------- */
-.agri-types-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.agri-type-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
-  gap: 8px;
-  align-items: start;
-}
-.agri-type-default {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  color: var(--agri-text-muted);
-  padding-top: 6px;
-  white-space: nowrap;
-  cursor: pointer;
-}
+/* Remove button in the MAO's item list. */
 .agri-type-remove {
   margin-top: 2px;
   color: var(--agri-red);
-}
-.agri-rate-list {
-  list-style: none;
-  margin: 0 0 4px;
-  padding: 0;
-}
-.agri-rate-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--agri-divider);
-  font-size: 0.86rem;
-}
-@media (max-width: 575.98px) {
-  .agri-type-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
 }
 
 /* ---------- Association requests: the MAO's item list ---------- */
@@ -3284,7 +3251,7 @@ input[type="number"] {
   flex: 1;
 }
 
-/* ---------- Distribution: barangay allocation bar, per-type totals ---------- */
+/* ---------- Distribution: barangay allocation bar, totals ---------- */
 .agri-alloc {
   margin: 4px 0 12px;
 }
@@ -3316,8 +3283,19 @@ input[type="number"] {
 .agri-type-totals strong {
   color: var(--agri-text);
 }
-.agri-row-type {
-  min-width: 110px;
+/* A tagged farmer whose Seed program is a different commodity. */
+.agri-enrolled-chip {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.5;
+  background: var(--agri-orange-bg);
+  color: var(--agri-orange-text);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 /* ==========================================================================

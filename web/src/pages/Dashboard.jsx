@@ -284,7 +284,7 @@ export default function Dashboard() {
               {rankedCommodities.length === 0 && <div className="agri-dash-empty agri-muted">No distributions recorded yet.</div>}
             </div>
             <div className="agri-muted agri-dash-card-note">
-              {commodities.length} commodity types available for distribution
+              {commodities.length} commodities available for distribution
             </div>
           </div>
 

@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import LoginScreen from "../screens/LoginScreen";
 import CropValidationScreen from "../screens/CropValidationScreen";
 import RequestsScreen from "../screens/RequestsScreen";
-import HarvestScreen from "../screens/HarvestScreen";
 import HarvestReportScreen from "../screens/HarvestReportScreen";
 import AnnouncementsScreen from "../screens/AnnouncementsScreen";
 import MyDistributionsScreen from "../screens/MyDistributionsScreen";
@@ -43,7 +42,6 @@ export default function RootNavigator() {
           <Stack.Screen name="MainTabs" component={MainTabs} />
           <Stack.Screen name="CropValidation" component={CropValidationScreen} options={{ presentation: "modal" }} />
           <Stack.Screen name="Requests" component={RequestsScreen} options={{ presentation: "modal" }} />
-          <Stack.Screen name="Harvest" component={HarvestScreen} options={{ presentation: "modal" }} />
           <Stack.Screen name="HarvestReport" component={HarvestReportScreen} options={{ presentation: "modal" }} />
           {/* No longer a bottom tab — reached from Home's bell instead. */}
           <Stack.Screen name="Announcements" component={AnnouncementsScreen} options={{ presentation: "modal" }} />

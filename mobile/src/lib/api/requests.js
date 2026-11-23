@@ -3,7 +3,7 @@ import { dbStatusToLabel } from "../status";
 
 const SELECT = `
   request_id, quantity_requested, reason, status, created_at, filed_by, mao_remarks, fa_recommended,
-  commodities ( name, unit ), commodity_types ( name )
+  commodities ( name, unit )
 `;
 
 // What the farmer sees: Pending → Approved or Rejected (by the MAO Admin).
@@ -22,7 +22,7 @@ function mapRequest(row) {
     reason: row.reason ?? "",
     requestDate: row.created_at,
     status: statusLabel(row),
-    typeName: row.commodity_types?.name ?? "",
+
     maoRemarks: row.mao_remarks ?? "",
     recommended: !!row.fa_recommended,
     // Filed for this farmer by their Farmers' Association President.
@@ -36,10 +36,10 @@ export async function listMyRequests() {
   return data.map(mapRequest);
 }
 
-export async function createRequest({ farmerId, commodityId, typeId = null, quantity, reason }) {
+export async function createRequest({ farmerId, commodityId, quantity, reason }) {
   const { data, error } = await supabase
     .from("requests")
-    .insert({ farmer_id: farmerId, commodity_id: commodityId, commodity_type_id: typeId, quantity_requested: Number(quantity) || 0, reason })
+    .insert({ farmer_id: farmerId, commodity_id: commodityId, quantity_requested: Number(quantity) || 0, reason })
     .select(SELECT)
     .single();
   if (error) throw error;

@@ -28,15 +28,17 @@
 // Claude, Luna and a seeded farmer — new request rows that only reference
 // them); and the FA President sends association requests in every status.
 //
-// MAO presentation (Nov 22, 2026): commodity types with kg/ha rates (Rice
-// Seeds: Inbred (RCEF) 40, Hybrid 15; Corn Seeds: Standard 20 — added only
-// when missing, never changed), each seeded farmer's Program / type,
+// MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per
+// commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF)
+// 40, Rice Seeds – Hybrid 15, made by the 20261123 migration from the old
+// types; reused, never changed) — each seeded farmer's Seed program,
 // requests that go straight to the MAO (Pending, some Recommended by the
 // Farmers' Association President, Approved, Rejected), association request
-// items from the MAO's list, a distribution with a 2,000 kg barangay
-// allocation by hectare and type, harvest reports in kg (Submitted,
-// Verified, Returned; Maui, Claude and Luna only as new rows), and the
-// default-password reminder turned off for the seeded (evaluator) farmers.
+// items from the MAO's list, distributions by farm size × the commodity's
+// rate (one with a 2,000 kg barangay allocation), harvest reports in kg
+// (Submitted, Verified, Returned; Maui, Claude and Luna only as new rows),
+// and the default-password reminder turned off for the seeded (evaluator)
+// farmers.
 import sharp from "sharp";
 import fs from "node:fs";
 import {
@@ -248,47 +250,22 @@ async function main() {
   }
   if (!DRY) saveLedger(ledger);
 
-  // ---------- Commodity types and kg/ha rates: add only the missing ones ----------
-  const typeOf = new Map(); // "commodity|type" -> { id, rate }
-  for (const c of data.commodities) {
-    const cid = commodityId.get(c.name);
-    if (!(c.types ?? []).length) continue;
-    const existing = typeof cid === "number"
-      ? await must(sb.from("commodity_types").select("commodity_type_id, name, rate_kg_per_ha, is_default").eq("commodity_id", cid).is("deleted_at", null), `types of ${c.name}`)
-      : [];
-    for (const t of c.types) {
-      let row = existing.find((x) => x.name.toLowerCase() === t.name.toLowerCase());
-      if (row) {
-        if (Number(row.rate_kg_per_ha) !== t.rate_kg_per_ha && !ledger.commodityTypes.some((x) => x.commodity_type_id === row.commodity_type_id)) {
-          log(`Type reused (not modified): ${c.name} · ${row.name} ${Number(row.rate_kg_per_ha)} kg/ha (JSON: ${t.rate_kg_per_ha})`);
-        }
-      } else if (DRY || typeof cid !== "number") {
-        log(`Type: would add ${c.name} · ${t.name} ${t.rate_kg_per_ha} kg/ha`);
-        typeOf.set(`${c.name}|${t.name}`, { id: `(new ${t.name})`, rate: t.rate_kg_per_ha });
-        continue;
-      } else {
-        row = await must(sb.from("commodity_types").insert({
-          commodity_id: cid, name: t.name, rate_kg_per_ha: t.rate_kg_per_ha, is_default: !!t.default && !existing.some((x) => x.is_default), updated_by: maoId,
-        }).select("commodity_type_id, name, rate_kg_per_ha, is_default").single(), `insert type ${c.name} · ${t.name}`);
-        existing.push(row);
-        remember(ledger.commodityTypes, { commodity_type_id: row.commodity_type_id, name: `${c.name} · ${t.name}` }, "commodity_type_id");
-        bump("commodity_types");
-        saveLedger(ledger);
-        log(`Type added: ${c.name} · ${t.name} ${t.rate_kg_per_ha} kg/ha`);
-      }
-      typeOf.set(`${c.name}|${t.name}`, { id: row.commodity_type_id, rate: Number(row.rate_kg_per_ha) });
+  // One rate per commodity (20261123): a type an earlier run added to a real
+  // commodity (Corn Seeds · Standard 20 kg/ha) became that commodity's rate.
+  // Noted once so cleanup-test-data.mjs can take it off again (only while it
+  // is still that rate — a rate the MAO set since is left alone).
+  if (!DRY) {
+    for (const t of ledger.commodityTypes) {
+      const name = t.name.split(" · ")[0];
+      const cid = commodityId.get(name);
+      if (typeof cid !== "number" || ledger.commodities.some((x) => x.commodity_id === cid)) continue;
+      if (ledger.rateRestores.some((x) => x.commodity_id === cid)) continue;
+      const type = await maybeOne(sb.from("commodity_types").select("rate_kg_per_ha").eq("commodity_type_id", t.commodity_type_id), `type ${t.name}`);
+      if (!type) continue;
+      remember(ledger.rateRestores, { commodity_id: cid, name, seeded_rate: Number(type.rate_kg_per_ha), restore_to: null }, "commodity_id");
+      saveLedger(ledger);
     }
   }
-  const typeFor = (commodity, name) => {
-    if (!name) return null;
-    const t = typeOf.get(`${commodity}|${name}`);
-    if (!t) throw new Error(`Unknown type "${name}" for ${commodity}`);
-    return t;
-  };
-  // The commodity a farmer's crop gets its type from (category = crop).
-  const commodityForCrop = (crop, typeName) => data.commodities.find((c) => c.category === crop && (c.types ?? []).some((t) => t.name === typeName))?.name ?? null;
-  // Farm size × rate, 2 decimals (worked in hundredths, as the database does).
-  const byRate = (rate, size) => Math.round((Math.round(Number(size) * 100) * Math.round(Number(rate) * 100)) / 100) / 100;
 
   // Allocation rule per commodity: the database's (what the app uses) when it
   // has one, otherwise the JSON's (a dry run before the migration).
@@ -379,20 +356,20 @@ async function main() {
   if (!DRY) saveLedger(ledger);
   log(`Seeded farmers: ${data.farmers.length} (${inserted.farmers ?? 0} new${DRY ? `, ${[...farmerByRsbsa.values()].filter((x) => x.dry).length} would be created` : ""})`);
 
-  // ---------- Seeded farmers: Program / type, and no default-password reminder ----------
-  // Only seeded farmers (never Maui, Claude or Luna). A type already set in
-  // the app is left as it is.
+  // ---------- Seeded farmers: Seed program, and no default-password reminder ----------
+  // Only seeded farmers (never Maui, Claude or Luna). A Seed program already
+  // set in the app is left as it is.
   for (const f of data.farmers) {
     const fr = farmerByRsbsa.get(f.rsbsa_number);
-    const commodity = commodityForCrop(f.commodity, f.program_type);
-    const t = commodity ? typeFor(commodity, f.program_type) : null;
-    if (DRY || fr.dry) { if (DRY && t) log(`Farmer ${f.login_id}: Program / type ${f.program_type}`); continue; }
+    const programId = f.seed_program ? commodityId.get(f.seed_program) : null;
+    if (f.seed_program && programId == null) throw new Error(`Unknown seed program ${f.seed_program}`);
+    if (DRY || fr.dry) { if (DRY && f.seed_program) log(`Farmer ${f.login_id}: Seed program ${f.seed_program}`); continue; }
     if (!ledger.farmers.some((x) => x.farmer_id === fr.id)) throw new StopError(`${f.rsbsa_number} is not a seeded farmer. Not changing it.`);
-    if (t && typeof t.id === "number") {
-      const cur = await must(sb.from("farmers").select("commodity_type_id").eq("farmer_id", fr.id).single(), `type of ${f.login_id}`);
-      if (cur.commodity_type_id == null) {
-        await must(sb.from("farmers").update({ commodity_type_id: t.id }).eq("farmer_id", fr.id), `set type ${f.login_id}`);
-        bump("farmers (Program / type set)");
+    if (typeof programId === "number") {
+      const cur = await must(sb.from("farmers").select("seed_program_id").eq("farmer_id", fr.id).single(), `seed program of ${f.login_id}`);
+      if (cur.seed_program_id == null) {
+        await must(sb.from("farmers").update({ seed_program_id: programId }).eq("farmer_id", fr.id), `set seed program ${f.login_id}`);
+        bump("farmers (Seed program set)");
       }
     }
     if (fr.profileId) {
@@ -432,7 +409,18 @@ async function main() {
     const prog = d.program_name.replace(/[%_\\]/g, "\\$&");
     let ev = await maybeOne(sb.from("distribution_events").select("event_id").eq("event_date", d.date).eq("is_deleted", false).ilike("program_name", prog), `event ${d.program_name}`);
     if (ev && !ledger.events.some((x) => x.event_id === ev.event_id)) {
-      throw new StopError(`A real distribution "${d.program_name}" on ${d.date} already exists (event ${ev.event_id}). Not adding beneficiaries to it.`);
+      // The 20261123 migration split a seeded distribution that mixed rice
+      // varieties: the new one holds only seeded rows, so it is test data too.
+      const evClaims = await must(sb.from("distribution_claims").select("claim_id").eq("event_id", ev.event_id), `claims of event ${ev.event_id}`);
+      if (!DRY && evClaims.length && evClaims.every((c) => ledger.claims.includes(c.claim_id))) {
+        remember(ledger.events, { event_id: ev.event_id, program_name: d.program_name, event_date: d.date }, "event_id");
+        const evItems = await must(sb.from("distribution_event_items").select("event_item_id").eq("event_id", ev.event_id), `items of event ${ev.event_id}`);
+        evItems.forEach((i) => remember(ledger.eventItems, i.event_item_id));
+        saveLedger(ledger);
+        log(`Distribution adopted (split from a seeded one by the one-rate migration): ${d.program_name}`);
+      } else if (!DRY || !evClaims.every((c) => ledger.claims.includes(c.claim_id))) {
+        throw new StopError(`A real distribution "${d.program_name}" on ${d.date} already exists (event ${ev.event_id}). Not adding beneficiaries to it.`);
+      }
     }
     // Two statuses: ongoing, or completed (items released and beneficiaries
     // signed; every tagged farmer is then Acknowledged on completed_at).
@@ -444,30 +432,12 @@ async function main() {
     // Marked Completed on the afternoon of the distribution (the database
     // would otherwise stamp the time of the insert).
     const completedAt = completed ? cap(at(d.date, "16:00")) : null;
-    // "allocation": "farm_size" — each quantity is farm size × allocation per
-    // hectare; a number in the JSON instead is an adjusted quantity and needs
-    // its adjustment_reason (as the app requires).
+    // "allocation": "farm_size" — each quantity is farm size × the
+    // commodity's kg/ha rate (saved on the row); a number in the JSON instead
+    // is an adjusted quantity and needs its adjustment_reason (as the app
+    // requires). The total must fit the barangay allocation.
     let plan = null;
-    if (d.allocation === "by_type") {
-      // Each farmer: farm size × their Program / type's kg/ha rate (the
-      // commodity's default type when they have none); a number in the JSON
-      // is an adjusted quantity with its reason. The total must fit the
-      // barangay allocation.
-      plan = new Map();
-      const defaultName = data.commodities.find((c) => c.name === d.commodity)?.types?.find((t) => t.default)?.name;
-      for (const b of d.beneficiaries) {
-        const seeded = data.farmers.find((f) => f.rsbsa_number === b.rsbsa_number);
-        const t = typeFor(d.commodity, seeded?.program_type ?? defaultName);
-        const size = await farmSizeOf(b.rsbsa_number, farmerByRsbsa.get(b.rsbsa_number).id);
-        const computed = byRate(t.rate, size);
-        const qty = typeof b.quantity_received === "number" ? b.quantity_received : computed;
-        const adjusted = qty !== computed;
-        if (adjusted && !b.adjustment_reason) throw new Error(`${b.name}: an adjusted quantity needs an adjustment_reason.`);
-        plan.set(b.rsbsa_number, { qty, size, adjusted, reason: adjusted ? b.adjustment_reason : null, typeId: t.id, rate: t.rate });
-      }
-      const total = [...plan.values()].reduce((a, p) => a + p.qty, 0);
-      if (d.allocation_kg && total > d.allocation_kg) throw new Error(`"${d.program_name}": ${total} kg is more than the ${d.allocation_kg} kg barangay allocation.`);
-    } else if (d.allocation === "farm_size") {
+    if (d.allocation === "farm_size") {
       const rate = rateOf.get(d.commodity);
       plan = new Map();
       for (const b of d.beneficiaries) {
@@ -477,8 +447,12 @@ async function main() {
         const qty = typeof b.quantity_received === "number" ? b.quantity_received : computed;
         const adjusted = qty !== computed;
         if (adjusted && !b.adjustment_reason) throw new Error(`${b.name}: an adjusted quantity needs an adjustment_reason.`);
-        plan.set(b.rsbsa_number, { qty, size, adjusted, reason: adjusted ? b.adjustment_reason : null });
+        plan.set(b.rsbsa_number, { qty, size, adjusted, reason: adjusted ? b.adjustment_reason : null, rate: Number(rate.allocation_per_hectare) });
       }
+      const total = [...plan.values()].reduce((a, p) => a + p.qty, 0);
+      if (d.allocation_kg && total > d.allocation_kg) throw new Error(`"${d.program_name}": ${total} kg is more than the ${d.allocation_kg} kg barangay allocation.`);
+    } else if (d.allocation) {
+      throw new Error(`Unknown allocation "${d.allocation}" for "${d.program_name}"`);
     }
     const totalQuantity = plan ? Math.round([...plan.values()].reduce((a, p) => a + p.qty, 0) * 100) / 100 : d.total_quantity;
     if (DRY) {
@@ -510,8 +484,7 @@ async function main() {
       return {
         event_id: ev.event_id, commodity_id: cid, farmer_id: farmerByRsbsa.get(b.rsbsa_number).id,
         quantity_received: p ? p.qty : b.quantity_received, claimed_at: cap(tagTime),
-        ...(p ? { farm_size_hectares: p.size, quantity_adjusted: p.adjusted, adjustment_reason: p.reason } : {}),
-        ...(p?.typeId ? { commodity_type_id: p.typeId, rate_kg_per_ha: p.rate } : {}),
+        ...(p ? { farm_size_hectares: p.size, quantity_adjusted: p.adjusted, adjustment_reason: p.reason, rate_kg_per_ha: p.rate } : {}),
       };
     });
     if (rows.length) {
@@ -567,8 +540,7 @@ async function main() {
   // Admin (notifies the farmer). Existing farmers are only referenced.
   const REQUEST_STATUS = { Pending: "pending", Recommended: "pending", Approved: "approved", Rejected: "rejected" };
   async function suggestedQty(r, fr) {
-    const t = typeFor(r.commodity, r.type);
-    const qty = t ? byRate(t.rate, await farmSizeOf(r.rsbsa_number, fr.id)) : allocationFor(rateOf.get(r.commodity), await farmSizeOf(r.rsbsa_number, fr.id));
+    const qty = allocationFor(rateOf.get(r.commodity), await farmSizeOf(r.rsbsa_number, fr.id));
     if (!(qty > 0)) throw new Error(`${r.farmer}: no suggested quantity for ${r.commodity} (no rate or farm size).`);
     return qty;
   }
@@ -591,13 +563,12 @@ async function main() {
     const status = REQUEST_STATUS[r.status];
     if (!status) throw new Error(`Unknown request status "${r.status}"`);
     const created = new Date(at(r.request_date, "08:30")).toISOString();
-    if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Request: would insert ${r.farmer} → ${r.commodity}${r.type ? ` · ${r.type}` : ""} (${r.status})`); continue; }
+    if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Request: would insert ${r.farmer} → ${r.commodity} (${r.status})`); continue; }
     const existing = await maybeOne(sb.from("requests").select("request_id").eq("farmer_id", fr.id).eq("commodity_id", cid).eq("created_at", created), `request ${r.farmer}`);
     if (existing) continue;
-    const t = typeFor(r.commodity, r.type);
     const qty = r.quantity === "suggested" ? await suggestedQty(r, fr) : r.quantity;
     const req = await must(sb.from("requests").insert({
-      farmer_id: fr.id, commodity_id: cid, commodity_type_id: t?.id ?? null, quantity_requested: qty, reason: r.reason ?? DEFAULT_REASON, status: "pending", created_at: created,
+      farmer_id: fr.id, commodity_id: cid, quantity_requested: qty, reason: r.reason ?? DEFAULT_REASON, status: "pending", created_at: created,
     }).select("request_id").single(), `insert request ${r.farmer}`);
     remember(ledger.requests, req.request_id);
     bump("requests");
@@ -619,13 +590,12 @@ async function main() {
     if (!fr) throw new Error(`Filed request for unknown farmer ${r.rsbsa_number}`);
     if (!status || r.status === "Recommended") throw new Error(`Unknown filed-request status "${r.status}"`);
     const created = new Date(at(r.request_date, "09:30")).toISOString();
-    if (DRY || fr.dry || typeof cid !== "number" || !faId) { if (DRY) log(`Filed request: would insert ${r.farmer} → ${r.commodity}${r.type ? ` · ${r.type}` : ""} (${r.status}${r.recommended ? ", recommended" : ""}, filed by the FA President)`); continue; }
+    if (DRY || fr.dry || typeof cid !== "number" || !faId) { if (DRY) log(`Filed request: would insert ${r.farmer} → ${r.commodity} (${r.status}${r.recommended ? ", recommended" : ""}, filed by the FA President)`); continue; }
     const existing = await maybeOne(sb.from("requests").select("request_id").eq("farmer_id", fr.id).eq("commodity_id", cid).eq("created_at", created), `filed request ${r.farmer}`);
     if (existing) continue;
-    const t = typeFor(r.commodity, r.type);
     const qty = r.quantity === "suggested" ? await suggestedQty(r, fr) : r.quantity;
     const req = await must(sb.from("requests").insert({
-      farmer_id: fr.id, commodity_id: cid, commodity_type_id: t?.id ?? null, quantity_requested: qty, reason: r.reason, status: "pending", created_at: created, filed_by: faId,
+      farmer_id: fr.id, commodity_id: cid, quantity_requested: qty, reason: r.reason, status: "pending", created_at: created, filed_by: faId,
     }).select("request_id").single(), `insert filed request ${r.farmer}`);
     remember(ledger.requests, req.request_id);
     bump("requests (filed by the FA President)");
@@ -689,8 +659,7 @@ async function main() {
     if (!fr) throw new Error(`Harvest report for unknown farmer ${hr.rsbsa_number}`);
     if (!season || !status) throw new Error(`Harvest report for ${hr.farmer}: unknown season or status`);
     if (status === "returned" && !hr.review_remarks) throw new Error(`Harvest report for ${hr.farmer}: Returned needs review_remarks.`);
-    const t = typeFor(hr.commodity, hr.type);
-    if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Harvest report: would insert ${hr.farmer} ${hr.season} ${hr.season_year} · ${hr.commodity}${hr.type ? ` · ${hr.type}` : ""} · ${hr.area_ha} ha · ${hr.yield_kg} kg (${hr.status}${hr.filed_by ? ", filed by the FA President" : ""})`); continue; }
+    if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Harvest report: would insert ${hr.farmer} ${hr.season} ${hr.season_year} · ${hr.commodity} · ${hr.area_ha} ha · ${hr.yield_kg} kg (${hr.status}${hr.filed_by ? ", filed by the FA President" : ""})`); continue; }
     const existing = await maybeOne(sb.from("harvest_reports").select("harvest_report_id").eq("farmer_id", fr.id).eq("season", season).eq("season_year", hr.season_year).eq("harvest_date", hr.harvest_date).is("deleted_at", null), `harvest report ${hr.farmer}`);
     if (existing) {
       if (!ledger.harvestReports.some((x) => x.harvest_report_id === existing.harvest_report_id)) notes.push(`A real harvest report by ${hr.farmer} for ${hr.season} ${hr.season_year} already exists; skipped.`);
@@ -711,7 +680,7 @@ async function main() {
       saveLedger(ledger);
     }
     const row = await must(sb.from("harvest_reports").insert({
-      farmer_id: fr.id, season, season_year: hr.season_year, commodity_id: cid, commodity_type_id: t?.id ?? null,
+      farmer_id: fr.id, season, season_year: hr.season_year, commodity_id: cid,
       area_harvested_ha: hr.area_ha, yield_kg: hr.yield_kg, harvest_date: hr.harvest_date, remarks: hr.remarks || null,
       photo_path: photoPath, latitude: hr.latitude ?? null, longitude: hr.longitude ?? null,
       gps_accuracy_meters: hr.latitude != null ? GPS_ACCURACY_M : null, photo_captured_at: photoPath ? cap(at(hr.harvest_date, "15:00")) : null,

@@ -219,6 +219,17 @@ async function main() {
   }
   await deleteIn("farmers", "farmer_id", farmerIds, "farmers (+ addresses, parcels, crops)");
   await deleteIn("commodity_types", "commodity_type_id", typesToDelete);
+  // A real commodity's rate that came from a seeded type (Corn Seeds 20
+  // kg/ha) is taken off again — only while it is still that rate.
+  for (const r of ledger.rateRestores ?? []) {
+    const [row] = await selectIn("commodities", "commodity_id, allocation_per_hectare", "commodity_id", [r.commodity_id]);
+    if (!row || Number(row.allocation_per_hectare) !== Number(r.seeded_rate)) {
+      if (row) log(`Keeping ${r.name}'s rate (${row.allocation_per_hectare ?? "not set"}): it was changed in the app.`);
+      continue;
+    }
+    if (!DRY) await must(sb.from("commodities").update({ allocation_per_hectare: r.restore_to }).eq("commodity_id", r.commodity_id), `restore rate ${r.name}`);
+    count(`commodities (seeded rate taken off: ${r.name})`, 1);
+  }
   await deleteIn("commodities", "commodity_id", comToDelete);
 
   for (const [bucket, set] of Object.entries(files)) {

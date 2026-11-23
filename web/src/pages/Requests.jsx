@@ -230,7 +230,7 @@ function FarmerRequestsView({ isMAO }) {
                         </span>
                       </span>
                     </td>
-                    <td>{r.commodity}{r.typeName && <span className="agri-muted"> · {r.typeName}</span>}</td>
+                    <td>{r.commodity}</td>
                     <td className="text-end">{formatQuantity(r.quantity, r.unit)}</td>
                     <td>{formatDate(r.requestDate)}</td>
                     <td>
@@ -280,7 +280,7 @@ function FarmerRequestsView({ isMAO }) {
                   {selected.cropType && <span className="agri-muted"> · {selected.cropType}</span>}
                 </div>
               </div>
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity</div>{selected.commodity}{selected.typeName && ` · ${selected.typeName}`}</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Commodity</div>{selected.commodity}</div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Quantity Requested</div>{formatQuantity(selected.quantity, selected.unit)}</div></div>
               {selected.suggestedQuantity !== null && (
                 <div className="agri-detail-row">
@@ -288,7 +288,7 @@ function FarmerRequestsView({ isMAO }) {
                     <div className="agri-detail-label">Suggested for Farm Size</div>
                     {formatQuantity(selected.suggestedQuantity, selected.unit)}
                     <div className="agri-muted" style={{ fontSize: "0.78rem" }}>
-                      {formatHectares(selected.farmSize)} × {selected.allocationPerHectare.toLocaleString()} kg/ha ({selected.rateTypeName})
+                      {formatHectares(selected.farmSize)} × {selected.allocationPerHectare.toLocaleString()} kg/ha
                       {selected.suggestedQuantity !== selected.quantity && " · differs from the request"}
                     </div>
                   </div>

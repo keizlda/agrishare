@@ -1,6 +1,5 @@
 import { supabase } from "../supabaseClient.js";
 import { isNetworkError } from "../friendlyError.js";
-import { activeTypes } from "../allocation.js";
 
 // Harvest reports (MAO presentation, Nov 2026), in kilograms. The database
 // decides who may do what (harvest_reports RLS + its guard trigger):
@@ -31,11 +30,10 @@ export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const SELECT = `
-  harvest_report_id, farmer_id, season, season_year, commodity_id, commodity_type_id, area_harvested_ha, yield_kg, yield_per_ha,
+  harvest_report_id, farmer_id, season, season_year, commodity_id, area_harvested_ha, yield_kg, yield_per_ha,
   harvest_date, photo_path, latitude, longitude, gps_accuracy_meters, photo_captured_at, distribution_claim_id, request_id,
   remarks, status, review_remarks, reviewed_at, submitted_by, resubmitted_at, created_at, updated_at,
   commodities ( name ),
-  commodity_types ( name ),
   farmers ( farmer_id, rsbsa_no, first_name, surname, profile_id, addresses ( barangay, street ), farm_parcels ( farm_size_hectares ), profiles!profile_id ( avatar_url ) ),
   reviewer:profiles!reviewed_by ( full_name ),
   submitter:profiles!submitted_by ( full_name, role )
@@ -67,9 +65,7 @@ function mapHarvest(row) {
     seasonLabel: seasonLabel(row.season, row.season_year),
     commodityId: row.commodity_id,
     commodityName: row.commodities?.name ?? "",
-    typeId: row.commodity_type_id,
-    typeName: row.commodity_types?.name ?? "",
-    crop: [row.commodities?.name, row.commodity_types?.name].filter(Boolean).join(" · "),
+    crop: row.commodities?.name ?? "",
     areaHa: num(row.area_harvested_ha),
     yieldKg: num(row.yield_kg),
     yieldPerHa: num(row.yield_per_ha),
@@ -153,7 +149,6 @@ const toRow = (form) => ({
   season: form.season,
   season_year: Number(form.seasonYear),
   commodity_id: idOf(form.commodityId),
-  commodity_type_id: idOf(form.typeId),
   area_harvested_ha: Number(form.areaHa),
   yield_kg: Number(form.yieldKg),
   harvest_date: form.harvestDate,
@@ -197,12 +192,13 @@ export async function removeHarvestReport(id) {
 }
 
 // The crops a harvest can be reported for: active commodities measured in kg
-// that have programs / types (seeds), managed on the Commodities page. If
-// none has types yet, every active kg commodity.
+// that have a kg-per-hectare allocation (the seed programs, e.g. "Rice
+// Seeds – Inbred (RCEF)"), managed on the Commodities page. If none has a
+// rate yet, every active kg commodity.
 export function harvestCrops(commodities) {
   const active = commodities.filter((c) => c.status === "Active" && c.unit === "kg");
-  const withTypes = active.filter((c) => activeTypes(c).length > 0);
-  return withTypes.length ? withTypes : active;
+  const withRate = active.filter((c) => c.rate > 0);
+  return withRate.length ? withRate : active;
 }
 
 // The season a harvest on this date most likely belongs to: wet-season

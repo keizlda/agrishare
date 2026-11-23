@@ -5,8 +5,6 @@ import TableFooter from "../components/ui/TableFooter.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
-import TypesEditor from "../components/commodities/TypesEditor.jsx";
-import { typeRowsFor, typeRowsToSave, validateTypeRows } from "../lib/commodityTypeRows.js";
 import { computeCommodityStats } from "../data/mockData.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
@@ -16,56 +14,72 @@ import { useCardLabels } from "../hooks/useCardLabels.js";
 import { useRevealDetail } from "../hooks/useRevealDetail.js";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard.js";
-import { deleteCommodity, listCommodities, saveCommodity, setCommodityStatus } from "../lib/api/commodities.js";
+import { COMMODITY_CATEGORIES, categoryOption, deleteCommodity, listCommodities, saveCommodity, setCommodityStatus } from "../lib/api/commodities.js";
 import { listDistributions } from "../lib/api/distributions.js";
-import { describeRates } from "../lib/allocation.js";
+import { formatRate } from "../lib/allocation.js";
 import { formatDate } from "../lib/dates.js";
 import { formatQuantity } from "../lib/quantity.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
 const isKg = (unit) => String(unit ?? "").trim().toLowerCase() === "kg";
+const MAX_NAME_LENGTH = 80;
+const MAX_RATE = 1000;
+const RATE_HINT = "Leave blank for items not given by hectare (quantities are then split equally or entered manually).";
 
 // Inline edit (Commodity Details card): the fields that become inputs.
 function editFormFor(commodity) {
-  return { name: commodity.name, category: commodity.category, unit: commodity.unit ?? "kg", status: commodity.status, types: typeRowsFor(commodity) };
+  return { name: commodity.name, category: categoryOption(commodity.category), rate: commodity.rate == null ? "" : String(commodity.rate), status: commodity.status };
 }
-const sameForm = (a, b) => JSON.stringify({ ...a, types: a.types.map(({ key: _k, ...r }) => r) }) === JSON.stringify({ ...b, types: b.types.map(({ key: _k, ...r }) => r) });
-
-const MAX_NAME_LENGTH = 80;
+const sameForm = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const sameName = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-// Name rules shared by Add and Edit: required, a sensible length, and not
-// another active commodity's name (ignoring case and spaces — the database
-// refuses duplicates too). `others`: the other commodities.
-function nameError(name, others) {
-  if (!name.trim()) return "Enter the commodity name.";
-  if (name.trim().length > MAX_NAME_LENGTH) return `Keep the name to ${MAX_NAME_LENGTH} characters or fewer.`;
-  if (others.some((c) => sameName(c.name, name))) return "A commodity with this name already exists.";
-  return null;
-}
-
-function validateForm(form, others) {
+// The rules shared by Add and Edit (the database checks the same). `others`:
+// the other commodities; `unit`: the commodity's unit (new ones are kg).
+function validateForm(form, others, unit = "kg") {
   const errors = {};
-  const name = nameError(form.name, others);
-  if (name) errors.name = name;
-  if (!form.category.trim()) errors.category = "Enter a category, e.g. Rice or Fertilizer.";
-  if (!form.unit.trim()) errors.unit = "Enter a unit, e.g. kg, set or head.";
-  const typeErrors = validateTypeRows(form.types);
-  if (Object.keys(typeErrors).length) errors.types = typeErrors;
-  if (form.types.some((t) => !t.removed) && !isKg(form.unit)) errors.unit = "Types and rates are only for commodities measured in kg.";
+  const name = form.name.trim();
+  if (!name) errors.name = "Enter the commodity name.";
+  else if (name.length > MAX_NAME_LENGTH) errors.name = `Keep the name to ${MAX_NAME_LENGTH} characters or fewer.`;
+  else if (others.some((c) => sameName(c.name, name))) errors.name = "A commodity with this name already exists.";
+  if (!form.category.trim()) errors.category = "Choose a category.";
+  const rate = form.rate.trim();
+  if (rate) {
+    if (!isKg(unit)) errors.rate = "An allocation per hectare is only for commodities measured in kg.";
+    else if (!/^\d+(\.\d{1,2})?$/.test(rate) || Number(rate) <= 0) errors.rate = "Enter the kg per hectare as a number above 0, with up to 2 decimals.";
+    else if (Number(rate) > MAX_RATE) errors.rate = `Enter up to ${MAX_RATE.toLocaleString()} kg per hectare.`;
+  }
   return errors;
 }
 
-// Category suggestions: whatever categories exist (nothing hardcoded).
-function CategoryInput({ id, value, onChange, categories, invalid, disabled }) {
+// Category dropdown. A stored category that isn't one of the choices (from
+// before the list) stays selectable so editing doesn't change it.
+function CategorySelect({ id, value, onChange, invalid, disabled, small }) {
+  const options = COMMODITY_CATEGORIES.includes(value) || !value ? COMMODITY_CATEGORIES : [value, ...COMMODITY_CATEGORIES];
   return (
-    <>
-      <input id={id} list={`${id}-list`} className={`form-control form-control-sm${invalid ? " is-invalid" : ""}`} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} placeholder="e.g. Rice" maxLength={40} />
-      <datalist id={`${id}-list`}>
-        {categories.map((c) => <option key={c} value={c} />)}
-      </datalist>
-    </>
+    <select id={id} className={`form-select${small ? " form-select-sm" : ""}${invalid ? " is-invalid" : ""}`} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+      {!value && <option value="">Choose a category</option>}
+      {options.map((c) => <option key={c} value={c}>{c}</option>)}
+    </select>
+  );
+}
+
+// "Allocation (kg per hectare)": a number with "kg/ha" shown inside, right.
+function RateInput({ id, value, onChange, invalid, disabled, small }) {
+  return (
+    <div className="agri-unit-input">
+      <input
+        id={id}
+        inputMode="decimal"
+        className={`form-control${small ? " form-control-sm" : ""} text-end${invalid ? " is-invalid" : ""}`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        placeholder="Not set"
+        aria-describedby={`${id}-hint`}
+      />
+      <span className="agri-unit-input-unit" aria-hidden="true">kg/ha</span>
+    </div>
   );
 }
 
@@ -97,12 +111,16 @@ export default function Commodities() {
     if (!selectedId && commodities.length > 0) setSelectedId(commodities[0].id);
   }, [commodities, selectedId]);
 
-  const categories = useMemo(() => [...new Set(commodities.map((c) => c.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [commodities]);
+  // Filter choices: the listed categories plus any older stored ones.
+  const categories = useMemo(() => {
+    const stored = commodities.map((c) => categoryOption(c.category)).filter(Boolean);
+    return [...new Set([...COMMODITY_CATEGORIES, ...stored])];
+  }, [commodities]);
 
   const filtered = useMemo(() => {
     return commodities.filter((c) => {
       const matchesSearch = !search || c.name.toLowerCase().includes(search.toLowerCase());
-      const matchesCategory = categoryFilter === "All" || c.category === categoryFilter;
+      const matchesCategory = categoryFilter === "All" || categoryOption(c.category) === categoryFilter;
       const matchesStatus = statusFilter === "All" || c.status === statusFilter;
       return matchesSearch && matchesCategory && matchesStatus;
     });
@@ -151,16 +169,17 @@ export default function Commodities() {
   async function saveEdit(e) {
     e.preventDefault();
     if (saving) return;
-    const errors = validateForm(edit, commodities.filter((c) => c.id !== selected.id));
+    const errors = validateForm(edit, commodities.filter((c) => c.id !== selected.id), selected.unit);
     setEditErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setSaving(true);
     try {
-      const saved = await saveCommodity(
-        selected.id,
-        { name: edit.name.trim().replace(/\s+/g, " "), category: edit.category.trim(), unit: edit.unit.trim(), status: edit.status },
-        typeRowsToSave(edit.types),
-      );
+      const saved = await saveCommodity(selected.id, {
+        name: edit.name.trim().replace(/\s+/g, " "),
+        category: edit.category,
+        rate: edit.rate.trim(),
+        status: edit.status,
+      });
       setCommodities((prev) => prev.map((c) => (c.id === saved.id ? saved : c)));
       stopEditing();
       setToast({ tone: "success", message: "Commodity updated." });
@@ -235,13 +254,13 @@ export default function Commodities() {
 
           <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table agri-table-cards">
-              <thead><tr><th>Name</th><th>Category</th><th>Types / Rate</th><th>Status</th><th>Date Added</th></tr></thead>
+              <thead><tr><th>Name</th><th>Category</th><th className="text-end">Rate</th><th>Status</th><th>Date Added</th></tr></thead>
               <tbody>
                 {pageItems.map((c) => (
                   <tr key={c.id} {...rowLinkProps(() => selectRow(c.id), { selected: c.id === selectedId })}>
                     <td><span className="agri-row-title">{c.name}</span></td>
-                    <td>{c.category}</td>
-                    <td className="agri-cell-truncate" title={describeRates(c)}>{describeRates(c)}</td>
+                    <td>{categoryOption(c.category)}</td>
+                    <td className="text-end">{formatRate(c.rate)}</td>
                     <td><Pill status={c.status} /></td>
                     <td>{formatDate(c.dateAdded)}</td>
                   </tr>
@@ -278,44 +297,33 @@ export default function Commodities() {
                     <input id="commodity-name" maxLength={MAX_NAME_LENGTH} className={`form-control form-control-sm${editErrors.name ? " is-invalid" : ""}`} value={edit.name} onChange={(e) => updateField("name", e.target.value)} disabled={saving} autoFocus />
                   </EditField>
                   <EditField label="Category" id="commodity-category" error={editErrors.category}>
-                    <CategoryInput id="commodity-category" value={edit.category} onChange={(v) => updateField("category", v)} categories={categories} invalid={!!editErrors.category} disabled={saving} />
+                    <CategorySelect id="commodity-category" value={edit.category} onChange={(v) => updateField("category", v)} invalid={!!editErrors.category} disabled={saving} small />
                   </EditField>
-                  <EditField label="Unit" id="commodity-unit" error={editErrors.unit}>
-                    <input id="commodity-unit" className={`form-control form-control-sm${editErrors.unit ? " is-invalid" : ""}`} value={edit.unit} onChange={(e) => updateField("unit", e.target.value)} disabled={saving} placeholder="e.g. kg, set" />
-                  </EditField>
-                  <div className="agri-detail-section-title">Types and rates</div>
-                  {isKg(edit.unit) || edit.types.some((t) => !t.removed) ? (
-                    <TypesEditor rows={edit.types} onChange={(rows) => updateField("types", rows)} errors={editErrors.types} disabled={saving} idPrefix="edit-type" />
+                  {isKg(selected.unit) ? (
+                    <EditField label="Allocation (kg per hectare)" id="commodity-rate" error={editErrors.rate} hint={RATE_HINT}>
+                      <RateInput id="commodity-rate" value={edit.rate} onChange={(v) => updateField("rate", v)} invalid={!!editErrors.rate} disabled={saving} small />
+                    </EditField>
                   ) : (
-                    <div className="agri-field-hint" style={{ marginTop: 0 }}>Types and kg-per-hectare rates are for commodities measured in kg.</div>
+                    <div className="agri-detail-row"><div><div className="agri-detail-label">Allocation</div><span className="agri-muted">Measured in {selected.unit}, so it isn't given by hectare.</span></div></div>
                   )}
                 </>
               ) : (
                 <>
                   <div className="agri-detail-row"><div><div className="agri-detail-label">Name</div>{selected.name}</div></div>
-                  <div className="agri-detail-row"><div><div className="agri-detail-label">Category</div>{selected.category}</div></div>
-                  <div className="agri-detail-row"><div><div className="agri-detail-label">Unit</div>{selected.unit}</div></div>
-                  <div className="agri-detail-section-title">Types and rates</div>
-                  {selected.types.length ? (
-                    <>
-                      <ul className="agri-rate-list">
-                        {selected.types.map((t) => (
-                          <li key={t.id}>
-                            <span>{t.name} — {t.rate.toLocaleString()} kg/ha</span>
-                            {t.isDefault && <span className="agri-filed-tag">Default</span>}
-                          </li>
-                        ))}
-                      </ul>
-                      {selected.typesUpdatedAt && (
-                        <div className="agri-field-hint">Last updated {formatDate(selected.typesUpdatedAt)}{selected.typesUpdatedBy ? ` by ${selected.typesUpdatedBy}` : ""}</div>
+                  <div className="agri-detail-row"><div><div className="agri-detail-label">Category</div>{categoryOption(selected.category)}</div></div>
+                  <div className="agri-detail-row">
+                    <div>
+                      <div className="agri-detail-label">Allocation</div>
+                      {selected.rate != null ? `${selected.rate.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg/ha` : <span className="agri-muted">Not set</span>}
+                      {selected.rateUpdatedAt && (
+                        <div className="agri-field-hint">Last updated {formatDate(selected.rateUpdatedAt)}{selected.rateUpdatedBy ? ` by ${selected.rateUpdatedBy}` : ""}</div>
                       )}
-                    </>
-                  ) : (
-                    <div className="agri-muted" style={{ fontSize: "0.82rem" }}>No types. Distributions of this commodity split the total equally.</div>
-                  )}
+                    </div>
+                  </div>
+                  {!isKg(selected.unit) && <div className="agri-detail-row"><div><div className="agri-detail-label">Unit</div>{selected.unit}</div></div>}
                 </>
               )}
-              <div className="agri-detail-row" style={{ marginTop: 10 }}><div><div className="agri-detail-label">Total Distributed</div>{formatQuantity(selectedDistributedQty, selected.unit)}</div></div>
+              <div className="agri-detail-row"><div><div className="agri-detail-label">Total Distributed</div>{formatQuantity(selectedDistributedQty, selected.unit)}</div></div>
               <div className="agri-detail-row"><div><div className="agri-detail-label">Date Added</div>{formatDate(selected.dateAdded)}</div></div>
 
               {canEdit && (
@@ -367,7 +375,6 @@ export default function Commodities() {
       {adding && (
         <AddCommodityModal
           existing={commodities}
-          categories={categories}
           onClose={() => setAdding(false)}
           onSaved={(saved) => {
             setCommodities((prev) => [saved, ...prev]);
@@ -416,14 +423,14 @@ function EditField({ label, id, error, hint, children }) {
       <div style={{ flex: 1 }}>
         <label className="agri-detail-label" htmlFor={id}>{label}</label>
         {children}
-        {error ? <div className="invalid-feedback d-block">{error}</div> : hint && <div className="agri-field-hint">{hint}</div>}
+        {error ? <div className="invalid-feedback d-block">{error}</div> : hint && <div className="agri-field-hint" id={`${id}-hint`}>{hint}</div>}
       </div>
     </div>
   );
 }
 
-function AddCommodityModal({ existing, categories, onClose, onSaved }) {
-  const [form, setForm] = useState({ name: "", category: categories[0] ?? "", unit: "kg", status: "Active", types: [] });
+function AddCommodityModal({ existing, onClose, onSaved }) {
+  const [form, setForm] = useState({ name: "", category: "", rate: "", status: "Active" });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -446,7 +453,7 @@ function AddCommodityModal({ existing, categories, onClose, onSaved }) {
     savingRef.current = true;
     setSaving(true);
     try {
-      onSaved(await saveCommodity(null, { name: form.name.trim().replace(/\s+/g, " "), category: form.category.trim(), unit: form.unit.trim(), status: "Active" }, typeRowsToSave(form.types)));
+      onSaved(await saveCommodity(null, { name: form.name.trim().replace(/\s+/g, " "), category: form.category, rate: form.rate.trim(), status: "Active" }));
     } catch (err) {
       setFormError(friendlyError(err, "Couldn't save this commodity. Please try again."));
     } finally {
@@ -481,29 +488,25 @@ function AddCommodityModal({ existing, categories, onClose, onSaved }) {
             className={`form-control${errors.name ? " is-invalid" : ""}`}
             value={form.name}
             onChange={(e) => update("name", e.target.value)}
-            placeholder="e.g. Yellow Corn Seeds"
+            placeholder="e.g. Rice Seeds – Hybrid"
             autoFocus
           />
           {errors.name && <div className="invalid-feedback d-block">{errors.name}</div>}
+          <div className="agri-field-hint">Give each variety its own commodity, e.g. "Rice Seeds – Inbred (RCEF)" and "Rice Seeds – Hybrid".</div>
 
           <div className="row g-3 mt-0 mb-2">
-            <div className="col-7">
+            <div className="col-12 col-sm-6">
               <label className="agri-form-label" htmlFor="add-commodity-category">Category <span style={{ color: "var(--agri-red)" }}>*</span></label>
-              <CategoryInput id="add-commodity-category" value={form.category} onChange={(v) => update("category", v)} categories={categories} invalid={!!errors.category} disabled={saving} />
+              <CategorySelect id="add-commodity-category" value={form.category} onChange={(v) => update("category", v)} invalid={!!errors.category} disabled={saving} />
               {errors.category && <div className="invalid-feedback d-block">{errors.category}</div>}
             </div>
-            <div className="col-5">
-              <label className="agri-form-label" htmlFor="add-commodity-unit">Unit <span style={{ color: "var(--agri-red)" }}>*</span></label>
-              <input id="add-commodity-unit" className={`form-control form-control-sm${errors.unit ? " is-invalid" : ""}`} value={form.unit} onChange={(e) => update("unit", e.target.value)} placeholder="kg" maxLength={20} />
-              {errors.unit && <div className="invalid-feedback d-block">{errors.unit}</div>}
+            <div className="col-12 col-sm-6">
+              <label className="agri-form-label" htmlFor="add-commodity-rate">Allocation (kg per hectare)</label>
+              <RateInput id="add-commodity-rate" value={form.rate} onChange={(v) => update("rate", v)} invalid={!!errors.rate} disabled={saving} />
+              {errors.rate && <div className="invalid-feedback d-block">{errors.rate}</div>}
             </div>
           </div>
-
-          <div className="agri-detail-section-title">Types and rates (optional)</div>
-          <div className="agri-field-hint" style={{ marginTop: -4, marginBottom: 8 }}>
-            For kg commodities: each type's kg per hectare. A farmer's quantity = farm size × their type's rate.
-          </div>
-          <TypesEditor rows={form.types} onChange={(rows) => update("types", rows)} errors={errors.types} disabled={saving} idPrefix="add-type" />
+          <div className="agri-field-hint" id="add-commodity-rate-hint" style={{ marginTop: 0 }}>{RATE_HINT} Quantities are in kilograms.</div>
         </div>
         <div className="agri-modal-footer">
           <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>

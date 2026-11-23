@@ -119,8 +119,7 @@ function BeneficiaryList({ claims, distributions, filters }) {
           <col style={{ width: "13%" }} />
           <col style={{ width: "12%" }} />
           <col style={{ width: "8%" }} />
-          <col style={{ width: "11%" }} />
-          <col style={{ width: "8%" }} />
+          <col style={{ width: "19%" }} />
           <col style={{ width: "6%" }} />
           <col style={{ width: "8%" }} />
           <col style={{ width: "8%" }} />
@@ -134,7 +133,6 @@ function BeneficiaryList({ claims, distributions, filters }) {
             <th>Full Name</th>
             <th>Barangay</th>
             <th>Commodity</th>
-            <th>Type</th>
             <th className="pr-num">Farm Size (ha)</th>
             <th className="pr-num">Quantity (kg)</th>
             <th>Date</th>
@@ -150,7 +148,6 @@ function BeneficiaryList({ claims, distributions, filters }) {
               <td>{c.firstName} {c.lastName}</td>
               <td>{c.barangay}</td>
               <td>{c.commodity}</td>
-              <td>{c.typeName || "—"}</td>
               <td className="pr-num">{c.farmSize > 0 ? c.farmSize.toFixed(2) : "—"}</td>
               <td className="pr-num">{qty(c.quantity, c.unit)}</td>
               <td>{formatDateNumeric(c.eventDate)}</td>
@@ -164,7 +161,6 @@ function BeneficiaryList({ claims, distributions, filters }) {
               <td colSpan={2} className="agri-muted">{d.beneficiaries} beneficiaries (not individually tagged)</td>
               <td>{d.barangay}</td>
               <td>{d.items.map((i) => i.name).join(", ")}</td>
-              <td>—</td>
               <td className="pr-num">—</td>
               <td className="pr-num">{d.items.reduce((sum, i) => sum + i.quantity, 0).toLocaleString()}</td>
               <td>{formatDateNumeric(d.date)}</td>
@@ -175,7 +171,7 @@ function BeneficiaryList({ claims, distributions, filters }) {
           ))}
           {rows.length > 0 && (
             <tr className="pr-items-total">
-              <td colSpan={6}>{rows.length.toLocaleString()} {rows.length === 1 ? "beneficiary" : "beneficiaries"}</td>
+              <td colSpan={5}>{rows.length.toLocaleString()} {rows.length === 1 ? "beneficiary" : "beneficiaries"}</td>
               <td className="pr-num">{kgTotal > 0 ? formatKg(kgTotal) : "—"}</td>
               <td colSpan={4} />
             </tr>
@@ -225,7 +221,7 @@ function DistributionSummary({ distributions, filters }) {
   );
 }
 
-// RSBSA/Name/Commodity/Type/Qty/blank Signature — for farmers to sign as
+// RSBSA/Name/Commodity/Qty/blank Signature — for farmers to sign as
 // physical proof of receipt at the distribution site.
 function AttendanceSheet({ claims, filters }) {
   const rows = filterClaims(claims, filters);
@@ -238,7 +234,6 @@ function AttendanceSheet({ claims, filters }) {
             <th>RSBSA No.</th>
             <th>Farmer Name</th>
             <th>Commodity</th>
-            <th>Type</th>
             <th className="pr-num pr-col-pad-left">Qty</th>
             <th className="pr-col-pad-left">Signature</th>
           </tr>
@@ -249,7 +244,6 @@ function AttendanceSheet({ claims, filters }) {
               <td>{c.rsbsaNo}</td>
               <td>{c.firstName} {c.lastName}</td>
               <td>{c.commodity}</td>
-              <td>{c.typeName || "—"}</td>
               <td className="pr-num pr-col-pad-left">{c.quantity.toLocaleString(undefined, { maximumFractionDigits: 2 })} {c.unit}</td>
               <td className="pr-col-pad-left">&nbsp;</td>
             </tr>
@@ -312,7 +306,7 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
         <KV label="Proof of Planting Validated" value={`${validatedSubmissions} of ${submissions.length} submissions`} />
         <KV label="Completed Distribution Activities" value={completed.length} />
         <KV label="Total Quantity Distributed" value={totalQty} />
-        <KV label="Commodity Types Available" value={commodities.filter((c) => !c.deletedAt).length} />
+        <KV label="Commodities Available" value={commodities.filter((c) => !c.deletedAt).length} />
         <KV label="Harvest Reported" value={harvestSummary(filterHarvests(harvests, { ...filters, status: "All Status", commodity: "All Commodities" }))} />
         <KV label="Harvest Verified by the MAO" value={harvestSummary(filterHarvests(harvests, { ...filters, status: "Verified", commodity: "All Commodities" }))} />
       </div>

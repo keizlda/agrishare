@@ -72,6 +72,9 @@ export function emptyLedger() {
     events: [], eventItems: [], claims: [], cropValidations: [], requests: [], announcements: [],
     associationRequests: [], notifications: [], auditLogs: [], storage: [],
     commodityTypes: [], harvestReports: [],
+    // Rates a seeded type put on a real commodity (one rate per commodity):
+    // { commodity_id, name, seeded_rate, restore_to }.
+    rateRestores: [],
   };
 }
 

@@ -14,7 +14,7 @@ import {
   updateHarvestReport,
   validatePhoto,
 } from "../../lib/api/harvest.js";
-import { activeTypes, defaultType, formatHectares } from "../../lib/allocation.js";
+import { formatHectares } from "../../lib/allocation.js";
 import { todayIso } from "../../lib/dates.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
@@ -28,7 +28,6 @@ function initialForm(report) {
       season: report.season,
       seasonYear: String(report.seasonYear),
       commodityId: String(report.commodityId),
-      typeId: report.typeId ? String(report.typeId) : "",
       areaHa: String(report.areaHa),
       yieldKg: String(report.yieldKg),
       harvestDate: report.harvestDate,
@@ -37,18 +36,17 @@ function initialForm(report) {
   }
   const today = todayIso();
   const guess = guessSeason(today);
-  return { season: guess.season, seasonYear: String(guess.seasonYear), commodityId: "", typeId: "", areaHa: "", yieldKg: "", harvestDate: today, remarks: "" };
+  return { season: guess.season, seasonYear: String(guess.seasonYear), commodityId: "", areaHa: "", yieldKg: "", harvestDate: today, remarks: "" };
 }
 
 // The same rules the database checks, as plain messages per field.
-function validate(form, { farmer, crop, types, dateTyped }) {
+function validate(form, { farmer, crop, dateTyped }) {
   const e = {};
   const thisYear = Number(todayIso().slice(0, 4));
   if (!farmer) e.farmer = "Search for the farmer this report is for.";
   const year = Number(form.seasonYear);
   if (!/^\d{4}$/.test(form.seasonYear.trim()) || year < 2000 || year > thisYear + 1) e.seasonYear = `Enter a year from 2000 to ${thisYear + 1}.`;
   if (!crop) e.commodityId = "Choose the crop.";
-  else if (types.length && !form.typeId) e.typeId = "Choose the program / type.";
   if (!form.areaHa.trim()) e.areaHa = "Enter the area harvested.";
   else if (!twoDecimals(form.areaHa) || Number(form.areaHa) <= 0) e.areaHa = "Enter the area in hectares, more than 0 (up to 2 decimals).";
   else if (farmer?.farmSize > 0 && Number(form.areaHa) > farmer.farmSize) e.areaHa = `The area harvested can't be more than the farm size (${farmer.farmSize.toFixed(2)} ha).`;
@@ -86,40 +84,40 @@ export default function HarvestReportModal({ report, presetFarmer = null, onClos
 
   useEffect(() => {
     listCommodities()
-      .then((rows) => setCrops(harvestCrops(rows)))
+      .then((rows) => {
+        const list = harvestCrops(rows);
+        // A report being corrected keeps its crop even if it's no longer offered.
+        if (report && !list.some((c) => String(c.id) === String(report.commodityId))) list.push({ id: report.commodityId, name: report.commodityName });
+        setCrops(list);
+      })
       .catch((err) => setFormError(friendlyError(err, "Couldn't load the crops. Close this form and try again.")));
+    // Loaded once, when the form opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const crop = crops?.find((c) => String(c.id) === form.commodityId) ?? null;
-  const types = activeTypes(crop);
 
   function update(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
     if (errors[key]) setErrors((x) => ({ ...x, [key]: undefined }));
   }
 
-  // A picked farmer fills in their crop and type (from their Program /
-  // type) and their farm size as the area harvested.
+  // A picked farmer fills in their crop (their Seed program) and their farm
+  // size as the area harvested.
   useEffect(() => {
     if (editing || !farmer || !crops) return;
-    const ownCrop = crops.find((c) => activeTypes(c).some((t) => String(t.id) === String(farmer.typeId ?? "")));
+    const ownCrop = crops.find((c) => String(c.id) === String(farmer.seedProgramId ?? ""));
     setForm((f) => ({
       ...f,
       commodityId: ownCrop ? String(ownCrop.id) : f.commodityId || (crops.length === 1 ? String(crops[0].id) : ""),
-      typeId: ownCrop ? String(farmer.typeId) : f.typeId,
       areaHa: !areaTouched && farmer.farmSize > 0 ? farmer.farmSize.toFixed(2) : f.areaHa,
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmer?.id, crops]);
 
-  // A crop change picks the farmer's own type when it belongs, else the
-  // crop's default type.
   function chooseCrop(id) {
-    const next = crops.find((c) => String(c.id) === id) ?? null;
-    const list = activeTypes(next);
-    const own = list.find((t) => String(t.id) === String(farmer?.typeId ?? ""));
-    setForm((f) => ({ ...f, commodityId: id, typeId: String((own ?? defaultType(next))?.id ?? "") }));
-    setErrors((x) => ({ ...x, commodityId: undefined, typeId: undefined }));
+    setForm((f) => ({ ...f, commodityId: id }));
+    setErrors((x) => ({ ...x, commodityId: undefined }));
   }
 
   async function pickPhoto(e) {
@@ -135,7 +133,7 @@ export default function HarvestReportModal({ report, presetFarmer = null, onClos
     e.preventDefault();
     if (savingRef.current || !crops) return;
     const dateTyped = document.getElementById("harvest-date")?.value?.trim().length > 0;
-    const found = validate(form, { farmer, crop, types, dateTyped });
+    const found = validate(form, { farmer, crop, dateTyped });
     setErrors(found);
     setFormError("");
     if (Object.keys(found).length > 0) return;
@@ -210,7 +208,7 @@ export default function HarvestReportModal({ report, presetFarmer = null, onClos
           </div>
 
           <div className="row g-3 mt-0">
-            <div className={types.length ? "col-12 col-sm-7" : "col-12"}>
+            <div className="col-12">
               <label className="agri-form-label" htmlFor="harvest-crop">Crop <Required /></label>
               <select id="harvest-crop" className={`form-select${errors.commodityId ? " is-invalid" : ""}`} value={form.commodityId} onChange={(e) => chooseCrop(e.target.value)} disabled={saving || !crops}>
                 <option value="">{crops ? "Choose the crop" : "Loading…"}</option>
@@ -218,16 +216,6 @@ export default function HarvestReportModal({ report, presetFarmer = null, onClos
               </select>
               {fieldError("commodityId")}
             </div>
-            {types.length > 0 && (
-              <div className="col-12 col-sm-5">
-                <label className="agri-form-label" htmlFor="harvest-type">Program / Type <Required /></label>
-                <select id="harvest-type" className={`form-select${errors.typeId ? " is-invalid" : ""}`} value={form.typeId} onChange={(e) => update("typeId", e.target.value)} disabled={saving}>
-                  <option value="">Choose a type</option>
-                  {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-                {fieldError("typeId")}
-              </div>
-            )}
           </div>
 
           <div className="row g-3 mt-0">
