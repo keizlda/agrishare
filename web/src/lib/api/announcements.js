@@ -1,8 +1,16 @@
 import { supabase } from "../supabaseClient.js";
 
-export const RECIPIENTS = ["All Registered Farmers", "Farmers' Association President"];
+// Announcements are simple posts by "MAO Labangan": text (up to 2,000
+// characters) with an optional photo, posted to an audience, pinned or not.
+// The old structured fields (title, date, venue, …) stay in the database but
+// aren't used; title is kept as the post's first line by the database.
+export const AUDIENCES = [
+  { value: "farmers", label: "All farmers" },
+  { value: "fa_president", label: "Farmers' Association President" },
+  { value: "everyone", label: "Everyone" },
+];
+export const audienceLabel = (value) => AUDIENCES.find((a) => a.value === value)?.label ?? "All farmers";
 
-export const MAX_TITLE = 150;
 export const MAX_BODY = 2000;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -11,36 +19,29 @@ const BUCKET = "announcement-images";
 // announcement_reads(count) embeds the number of farmers who've opened it
 // (admin can read every receipt; see the RLS policy).
 const SELECT = `
-  announcement_id, title, body, for_all_registered_farmers, for_fa_president, image_url, is_pinned, status,
-  distribution_date, distribution_time, venue, assistance_type, requirements, linked_distribution_id,
+  announcement_id, title, body, audience, image_url, is_pinned, status,
   forwarded_by, forwarded_at, published_at, created_by, created_at, updated_at,
   announcement_reads ( count )
 `;
 
+// The first non-empty line of a post (or "Photo" for a photo-only post).
+export function firstLine(body) {
+  return String(body ?? "").split("\n").map((l) => l.trim()).find(Boolean) || "Photo";
+}
+
 function mapAnnouncement(row) {
-  const recipients = [];
-  if (row.for_all_registered_farmers) recipients.push("All Registered Farmers");
-  if (row.for_fa_president) recipients.push("Farmers' Association President");
   return {
     id: row.announcement_id,
-    title: row.title,
-    body: row.body,
-    recipients,
-    forAllRegisteredFarmers: row.for_all_registered_farmers,
-    forFaPresident: row.for_fa_president,
+    body: row.body ?? "",
+    firstLine: firstLine(row.body),
+    audience: row.audience,
+    audienceLabel: audienceLabel(row.audience),
     imagePath: row.image_url,
     isPinned: row.is_pinned,
-    status: row.status === "published" ? "Published" : "Draft",
-    distributionDate: row.distribution_date,
-    distributionTime: row.distribution_time,
-    venue: row.venue,
-    assistanceType: row.assistance_type,
-    requirements: row.requirements,
-    linkedDistributionId: row.linked_distribution_id,
-    isGeneralNotice: !row.distribution_date,
-    forwardedBy: row.forwarded_by,
+    // A draft from before posts (never shown to farmers until it's posted).
+    isDraft: row.status !== "published",
     forwardedAt: row.forwarded_at,
-    publishedAt: row.published_at,
+    postedAt: row.published_at ?? row.created_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     readCount: row.announcement_reads?.[0]?.count ?? 0,
@@ -51,6 +52,7 @@ export async function listAnnouncements() {
   const { data, error } = await supabase
     .from("announcements")
     .select(SELECT)
+    .is("deleted_at", null)
     .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -69,27 +71,24 @@ export async function forwardAnnouncementToFarmers(id) {
 }
 
 // The types the announcement-images bucket accepts (it refuses others too).
-export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+export const IMAGE_TYPES = ["image/jpeg", "image/png"];
 
 // How each allowed type's file starts. A file's type comes from its name, so
 // a program renamed photo.jpg still says image/jpeg — its bytes don't.
 const SIGNATURES = [
   [0xff, 0xd8, 0xff], // JPEG
   [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], // PNG
-  [0x47, 0x49, 0x46, 0x38], // GIF
 ];
 
 async function looksLikeImage(file) {
   const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
-  const ascii = (from, to) => String.fromCharCode(...head.slice(from, to));
-  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return true;
   return SIGNATURES.some((sig) => sig.every((byte, i) => head[i] === byte));
 }
 
 export async function validateImageFile(file) {
-  if (!IMAGE_TYPES.includes(file.type)) return "Please choose a JPG, PNG, WebP or GIF image.";
-  if (file.size > MAX_IMAGE_BYTES) return "Image must be 5 MB or smaller.";
-  if (!(await looksLikeImage(file))) return "That file isn't a real image. Please choose a JPG, PNG, WebP or GIF photo.";
+  if (!IMAGE_TYPES.includes(file.type)) return "Choose a JPG or PNG photo.";
+  if (file.size > MAX_IMAGE_BYTES) return "The photo must be 5 MB or smaller.";
+  if (!(await looksLikeImage(file))) return "That file isn't a real photo. Choose a JPG or PNG.";
   return null;
 }
 
@@ -112,40 +111,15 @@ export async function getAnnouncementImageUrl(path, expiresInSeconds = 3600) {
   return data.signedUrl;
 }
 
-// `status` is "Draft" | "Published". published_at is stamped by a database
-// trigger the moment a post becomes Published, never sent from here.
-// `recipients` is a subset of RECIPIENTS — the DB check constraint requires
-// at least one, which the form also enforces before ever calling this.
-// General-notice posts (isGeneralNotice) carry no distribution fields;
-// distribution posts carry them and may leave body blank (see the
-// Phase 3 migration's relaxed body check).
-function toDbFields({
-  title,
-  body,
-  recipients,
-  isPinned,
-  status,
-  isGeneralNotice,
-  distributionDate,
-  distributionTime,
-  venue,
-  assistanceType,
-  requirements,
-  linkedDistributionId,
-}) {
+// A post: { body, audience, isPinned }. Saving always posts it (a draft
+// from before is posted when it's saved); published_at is stamped by the
+// database the moment a post goes up.
+function toDbFields({ body, audience, isPinned }) {
   return {
-    title: title.trim(),
     body: body.trim(),
-    for_all_registered_farmers: recipients.includes("All Registered Farmers"),
-    for_fa_president: recipients.includes("Farmers' Association President"),
+    audience,
     is_pinned: !!isPinned,
-    status: status === "Published" ? "published" : "draft",
-    distribution_date: isGeneralNotice ? null : distributionDate || null,
-    distribution_time: isGeneralNotice ? null : distributionTime || null,
-    venue: isGeneralNotice ? null : venue || null,
-    assistance_type: isGeneralNotice ? null : assistanceType || null,
-    requirements: isGeneralNotice ? null : requirements || null,
-    linked_distribution_id: isGeneralNotice ? null : linkedDistributionId || null,
+    status: "published",
   };
 }
 
@@ -199,12 +173,12 @@ async function patch(id, values) {
   return mapAnnouncement(data);
 }
 
-export const setAnnouncementStatus = (id, status) => patch(id, { status: status === "Published" ? "published" : "draft" });
 export const setAnnouncementPinned = (id, isPinned) => patch(id, { is_pinned: isPinned });
 
-export async function deleteAnnouncement(id, imagePath) {
-  const { data, error } = await supabase.from("announcements").delete().eq("announcement_id", id).select("announcement_id").maybeSingle();
+// Deleting hides the post from everyone (deleted_at); the record and its
+// photo are kept.
+export async function deleteAnnouncement(id) {
+  const { data, error } = await supabase.from("announcements").update({ deleted_at: new Date().toISOString() }).eq("announcement_id", id).select("announcement_id").maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Couldn't delete this announcement — refresh and try again.");
-  await removeImage(imagePath);
 }

@@ -16,6 +16,14 @@ Quantities are in kilograms only; no bags or bag sizes are shown anywhere.
 
 Updated November 23, 2026 (see the updates below).
 
+- **Announcements are simple posts.** The MAO Admin writes one text (up to
+  2,000 characters) with an optional photo, chooses who it's for (All
+  farmers, the Farmers' Association President, or Everyone) and can pin it.
+  Distribution details such as the date, time, venue, type of assistance and
+  requirements are written in the post. Posts appear as cards ("MAO
+  Labangan", when it was posted, the text with "See more", the photo full
+  width; pinned posts first) on the web and in the farmer app, and each post
+  can be edited, pinned / unpinned or deleted.
 - **Farmer forms have no pre-filled values.** Add Farmer starts empty: every
   choice shows a placeholder ("Select sitio/purok", "Select commodity",
   "Select seed program", "Select status") and required fields show an error
@@ -126,6 +134,63 @@ Updated November 23, 2026 (see the updates below).
 - **Multi-tab sign-in fix.** If another tab logs out, logs in, or switches to
   a different account, this tab follows instead of acting as the wrong
   account.
+
+## Update: announcements as simple posts (November 24, 2026)
+
+Migration `20261124000400_announcement_posts.sql`; web deployed; mobile
+update published over the air (update group
+`4633ffe7-bec7-4ba3-9c25-4dcb4b67ca21`). No new APK is needed.
+
+- **Create post (MAO Admin, web):** header "Create post"; "MAO Labangan" with
+  the seal and a "Post to" dropdown (All farmers — the default, Farmers'
+  Association President, Everyone); one text box that grows (6 lines to
+  start) with the placeholder "What do you want to announce? Include the
+  date, time, venue, type of assistance, and requirements if it's about a
+  distribution." and a 2,000-character counter; "Add to your post": Photo
+  (JPG or PNG up to 5 MB, previewed in the post with ✕) and Pin; one full
+  width "Post" button, disabled until there is text or a photo. Closing
+  (✕ or Esc) after typing asks "Discard this post?". The Title, distribution
+  link, general-notice toggle, date, time, venue, type of assistance,
+  requirements, additional details and Save as Draft are gone.
+- **Showing posts:** the web Announcements page and the farmer app list
+  posts as cards (seal, "MAO Labangan", "2h ago" or the date, the text with
+  "See more" after about 5 lines, the photo full width; pinned first with a
+  "Pinned" label). The app's Home card previews each post's first line with
+  a small photo thumbnail. Notifications read "MAO Labangan posted an
+  announcement" with the first line.
+- **Managing posts:** each post has a ⋯ menu with Edit (the same window),
+  Pin / Unpin and Delete (with a confirmation; the post is hidden for
+  everyone and kept in the database). The Farmers' Association President
+  can still forward a post meant for them to all farmers (it becomes
+  Everyone).
+- **Database:** announcements use body, image_url, audience, is_pinned,
+  created_by, created_at, updated_at and deleted_at. The old columns
+  (title, distribution date and time, venue, type of assistance,
+  requirements, linked distribution) stay, unused; title now holds the
+  post's first line. Existing announcements had their title and those
+  fields written into the text ("Date: October 23, 2026 · 9:00 AM",
+  "Venue: …", "Type of assistance: …", "Requirements: …"). The "You're
+  included" check tied to a linked distribution was removed (farmers still
+  get their own distribution notifications).
+- **Who sees what:** All farmers → farmers; Farmers' Association President →
+  the FA President; Everyone → both. Older announcements that went to all
+  registered farmers only are now "All farmers", so the FA President no
+  longer sees those on the web.
+- **Draft (not posted):** "FA meeting with the MAO" (#32, test data, for the
+  Farmers' Association President) is still a draft; it shows on the MAO
+  Admin's page labeled "Draft" and "Not posted yet" and is posted only if the
+  MAO Admin opens it and saves.
+
+### Checks run (this update)
+
+| Check | Result |
+| --- | --- |
+| Database on a local copy (old announcements, then this migration) | 56/56 (10 new) |
+| Web on a mock back end: the window (Post to, counter, photo, pin, discard), text / text + photo / photo-only / pinned / each audience, See more, draft, Edit / Pin / Unpin / Delete, Dashboard shortcut, FA President view and forward, fit at 1366×768 and 1920×1080 | 30/30 |
+| Farmer app (Expo web preview) at 360 and 412 px: Home previews with thumbnails, post cards, See more, photos full width | 15/15 |
+| Live database, as each role, rolled back | 73/73, nothing left behind |
+| Live: web as the test FA President; farmer app as test farmer 000201 at 360 px | 6/6 |
+| Lint, web build, mobile bundle | Pass (2 lint warnings, both from before) |
 
 ## Update: sitio/purok, farmers' association and crop lists (November 24, 2026)
 

@@ -721,35 +721,30 @@ async function main() {
     await captureNotifs(reviewedAt, ["Harvest report verified", "Harvest report returned"]);
   }
 
-  // ---------- Announcements ----------
+  // ---------- Announcements (simple posts) ----------
+  // A post is its text (distribution details written in it) and an
+  // audience; the database keeps its first line as the title, which is how
+  // an earlier run's post is recognized.
   for (const a of data.announcements) {
-    const existing = await maybeOne(sb.from("announcements").select("announcement_id").eq("title", a.title), `announcement ${a.title}`);
+    const first = a.body.split("\n").map((l) => l.trim()).find(Boolean) ?? "Photo";
+    const existing = await maybeOne(sb.from("announcements").select("announcement_id").eq("title", first), `announcement ${first}`);
     if (existing) {
-      if (!ledger.announcements.some((x) => x.announcement_id === existing.announcement_id)) notes.push(`A real announcement titled "${a.title}" already exists; skipped.`);
+      if (!ledger.announcements.some((x) => x.announcement_id === existing.announcement_id)) notes.push(`A real announcement "${first}" already exists; skipped.`);
       continue;
     }
-    if (DRY) { log(`Announcement: would insert "${a.title}" (${a.status})`); continue; }
-    let linked = null;
-    if (a.linked_distribution) {
-      linked = eventByKey.get(a.linked_distribution.replace(/\s*·\s*/, " · "));
-      if (!linked) throw new Error(`Linked distribution not found: ${a.linked_distribution}`);
-    }
-    const postedAt = cap(ANNOUNCEMENT_AT[a.title] ?? new Date(NOW).toISOString());
+    if (DRY) { log(`Announcement: would post "${first}" (${a.status}, ${a.audience})`); continue; }
+    const postedAt = cap(ANNOUNCEMENT_AT[first] ?? new Date(NOW).toISOString());
     const published = a.status === "Published";
     const ann = await must(sb.from("announcements").insert({
-      title: a.title, body: a.details, is_pinned: !!a.pinned, status: published ? "published" : "draft",
-      for_all_registered_farmers: a.recipients.includes("All Registered Farmers"),
-      for_fa_president: a.recipients.includes("Farmers' Association President"),
-      distribution_date: a.distribution_date ?? null, distribution_time: a.time ?? null, venue: a.venue ?? null,
-      assistance_type: a.assistance_type ?? null, requirements: a.requirements ?? null, linked_distribution_id: linked,
+      body: a.body, audience: a.audience, is_pinned: !!a.pinned, status: published ? "published" : "draft",
       created_by: maoId, created_at: postedAt,
-    }).select("announcement_id").single(), `insert announcement ${a.title}`);
-    remember(ledger.announcements, { announcement_id: ann.announcement_id, title: a.title }, "announcement_id");
+    }).select("announcement_id").single(), `insert announcement ${first}`);
+    remember(ledger.announcements, { announcement_id: ann.announcement_id, title: first }, "announcement_id");
     bump("announcements");
     saveLedger(ledger);
     if (published) {
       await must(sb.from("announcements").update({ published_at: postedAt }).eq("announcement_id", ann.announcement_id), "backdate published_at");
-      await captureNotifs(postedAt, [`New announcement: ${a.title}`]);
+      await captureNotifs(postedAt, ["MAO Labangan posted an announcement"]);
     }
   }
 

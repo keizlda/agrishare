@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { Megaphone, Pin } from "lucide-react-native";
+import { Megaphone } from "lucide-react-native";
 import ScreenHeader from "../components/ScreenHeader";
-import AnnouncementDetailModal from "../components/AnnouncementDetailModal";
+import PostCard from "../components/PostCard";
 import EmptyState from "../components/ui/EmptyState";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
@@ -37,7 +37,6 @@ export default function AnnouncementsScreen({ navigation }) {
   const [error, setError] = useState("");
   const [tab, setTab] = useState(TABS[0]);
   const [updates, setUpdates] = useState([]);
-  const [open, setOpen] = useState(null); // announcement shown in the detail sheet
 
   const load = useCallback(async () => {
     try {
@@ -69,8 +68,8 @@ export default function AnnouncementsScreen({ navigation }) {
     listMyNotifications().then(setUpdates).catch((err) => setError(friendlyError(err, "Couldn't load your updates. Pull down to try again.")));
   }
 
+  // Tapping a post (or its "See more") marks it read.
   function openAnnouncement(a) {
-    setOpen(a);
     if (!a.read && farmerId) {
       setItems((prev) => prev.map((x) => (x.id === a.id ? { ...x, read: true } : x)));
       markAnnouncementRead(a.id, farmerId).catch(() => {
@@ -174,28 +173,7 @@ export default function AnnouncementsScreen({ navigation }) {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListHeaderComponent={error ? <Text style={styles.errorText}>{error}</Text> : null}
-          renderItem={({ item: a }) => (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => openAnnouncement(a)}
-              style={[styles.card, styles.annCard, !a.read && styles.cardUnread]}
-            >
-              <View style={{ flex: 1 }}>
-                <View style={styles.rowBetween}>
-                  {a.isPinned && (
-                    <View style={styles.pinned}>
-                      <Pin size={11} color={colors.primaryDark} />
-                      <Text style={styles.pinnedText}>Pinned</Text>
-                    </View>
-                  )}
-                  {!a.read && <View style={styles.unreadDot} accessibilityLabel="Unread" />}
-                </View>
-                <Text style={[styles.title, !a.read && { fontWeight: "800" }]} numberOfLines={2}>{a.title}</Text>
-                <Text style={styles.body} numberOfLines={2}>{a.body}</Text>
-                <Text style={styles.dateLine}>{a.date}</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+          renderItem={({ item: a }) => <PostCard post={a} unread={!a.read} onOpen={openAnnouncement} />}
           ListEmptyComponent={
             error ? null : (
               <EmptyState
@@ -207,7 +185,6 @@ export default function AnnouncementsScreen({ navigation }) {
         />
       )}
 
-      <AnnouncementDetailModal announcement={open} onClose={() => setOpen(null)} />
     </View>
   );
 }
@@ -230,7 +207,6 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
-  annCard: { padding: 14 },
   cardUnread: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   markAllBtn: { alignSelf: "flex-end", marginBottom: 8 },
   markAllText: { fontSize: 12, fontWeight: "700", color: colors.primaryDark },
@@ -243,10 +219,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  pinned: { flexDirection: "row", alignItems: "center", gap: 3 },
-  pinnedText: { fontSize: 10.5, fontWeight: "700", color: colors.primaryDark },
   date: { fontSize: 10, color: colors.textMuted, fontWeight: "600" },
-  dateLine: { fontSize: 10.5, color: colors.textFaint, marginTop: 6 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
   title: { fontSize: 13.5, fontWeight: "700", color: colors.text, marginTop: 6 },
   body: { fontSize: 11.5, color: colors.textMuted, marginTop: 3, lineHeight: 16 },

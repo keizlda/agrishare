@@ -313,9 +313,9 @@ export default function Dashboard() {
       {showAnnouncement && (
         <AnnouncementModal
           onClose={() => setShowAnnouncement(false)}
-          onSaved={(saved, { published }) => {
+          onSaved={() => {
             setShowAnnouncement(false);
-            setToast({ tone: "success", message: published ? "Announcement published." : "Draft saved." });
+            setToast({ tone: "success", message: "Posted." });
           }}
         />
       )}

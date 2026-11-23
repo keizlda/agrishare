@@ -1,5 +1,5 @@
 {
-  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Sitios/puroks, farmers' associations and crops come from the managed lists (Nov 24, 2026): test farmers use list entries; the two test associations are added to the list if missing. Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
+  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Sitios/puroks, farmers' associations and crops come from the managed lists (Nov 24, 2026): test farmers use list entries; the two test associations are added to the list if missing. Announcements are simple posts (Nov 24, 2026): text with an optional photo and an audience; distribution details are written in the post. Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
   "accounts": {
     "fa_president": {
       "name": "Pedro Lagunay",
@@ -1493,56 +1493,28 @@
   ],
   "announcements": [
     {
-      "title": "RCEF wet season seed distribution on October 2",
-      "distribution_date": "2026-10-02",
-      "time": "08:00",
-      "venue": "Langapud Barangay Hall",
-      "assistance_type": "Rice Seeds (NSIC Rc222)",
-      "requirements": "RSBSA stub and one valid ID",
-      "linked_distribution": "RCEF Seed Distribution - Wet Season · 2026-10-02",
-      "recipients": [
-        "All Registered Farmers",
-        "Farmers' Association President"
-      ],
+      "body": "RCEF wet season seed distribution on October 2\n\nPlease arrive early. Distribution is first come, first served per purok.\n\nDate: October 2, 2026 · 8:00 AM\nVenue: Langapud Barangay Hall\nType of assistance: Rice Seeds (NSIC Rc222)\nRequirements: RSBSA stub and one valid ID",
+      "audience": "everyone",
       "status": "Published",
-      "pinned": false,
-      "details": "Please arrive early. Distribution is first come, first served per purok."
+      "pinned": false
     },
     {
-      "title": "Urea fertilizer distribution on October 23",
-      "distribution_date": "2026-10-23",
-      "time": "09:00",
-      "venue": "Langapud Covered Court",
-      "assistance_type": "Urea Fertilizer (46-0-0)",
-      "requirements": "RSBSA stub, valid ID, and validated proof of planting",
-      "linked_distribution": "Urea Fertilizer Assistance · 2026-10-23",
-      "recipients": [
-        "All Registered Farmers",
-        "Farmers' Association President"
-      ],
+      "body": "Urea fertilizer distribution on October 23\n\nOnly tagged beneficiaries will receive fertilizer. Check the app if you are included.\n\nDate: October 23, 2026 · 9:00 AM\nVenue: Langapud Covered Court\nType of assistance: Urea Fertilizer (46-0-0)\nRequirements: RSBSA stub, valid ID, and validated proof of planting",
+      "audience": "everyone",
       "status": "Published",
-      "pinned": true,
-      "details": "Only tagged beneficiaries will receive fertilizer. Check the app if you are included."
+      "pinned": true
     },
     {
-      "title": "Submit proof of planting for the wet season",
-      "general_notice": true,
-      "recipients": [
-        "All Registered Farmers"
-      ],
+      "body": "Submit proof of planting for the wet season\n\nUpload a geotagged photo of your planted crop through the AgriShare app before October 31, 2026.",
+      "audience": "farmers",
       "status": "Published",
-      "pinned": false,
-      "details": "Upload a geotagged photo of your planted crop through the AgriShare app before October 31, 2026."
+      "pinned": false
     },
     {
-      "title": "FA meeting with the MAO",
-      "general_notice": true,
-      "recipients": [
-        "Farmers' Association President"
-      ],
+      "body": "FA meeting with the MAO\n\nCoordination meeting on November 5, 2026, 2:00 PM at the MAO Labangan Office.",
+      "audience": "fa_president",
       "status": "Draft",
-      "pinned": false,
-      "details": "Coordination meeting on November 5, 2026, 2:00 PM at the MAO Labangan Office."
+      "pinned": false
     }
   ],
   "harvest_reports": [

@@ -1,104 +1,86 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Megaphone, Pencil, Pin, PinOff, Plus, Search, Send, Trash2 } from "lucide-react";
-import Pill from "../components/ui/Pill.jsx";
-import TableFooter from "../components/ui/TableFooter.jsx";
 import Toast from "../components/ui/Toast.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx";
+import PostCard from "../components/announcements/PostCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
-import { usePagination } from "../hooks/usePagination.js";
-import { useFitPageSize } from "../hooks/useFitPageSize.js";
-import { useCardLabels } from "../hooks/useCardLabels.js";
-import { formatDate } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
-import {
-  deleteAnnouncement,
-  forwardAnnouncementToFarmers,
-  listAnnouncements,
-  setAnnouncementPinned,
-  setAnnouncementStatus,
-} from "../lib/api/announcements.js";
+import maoSeal from "../assets/mao-seal.png";
+import { deleteAnnouncement, forwardAnnouncementToFarmers, listAnnouncements, setAnnouncementPinned } from "../lib/api/announcements.js";
 
+// Pinned first, then newest — the same order the farmer app uses.
+const sortPosts = (list) => [...list].sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || new Date(b.createdAt) - new Date(a.createdAt));
+
+// Announcements as a feed of simple posts. The MAO Admin creates posts and
+// has Edit / Pin / Delete on each; the Farmers' Association President reads
+// them and can forward one meant for them to all farmers.
 export default function Announcements() {
   const { user } = useAuth();
   const isMAO = user?.role !== "FA President";
   const { data: announcements, setData: setAnnouncements, loading, error: loadError } = useSupabaseList(listAnnouncements);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
   const [modal, setModal] = useState(null); // null | { announcement? }
   const [pendingDelete, setPendingDelete] = useState(null);
-  const [busyId, setBusyId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const filtered = useMemo(() => {
+  const posts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return announcements.filter(
-      (a) =>
-        (statusFilter === "All" || a.status === statusFilter) &&
-        (!q || a.title.toLowerCase().includes(q) || a.body.toLowerCase().includes(q)),
-    );
-  }, [announcements, search, statusFilter]);
+    return announcements.filter((a) => !q || a.body.toLowerCase().includes(q));
+  }, [announcements, search]);
 
-  // Rows per page = however many fit in the full-height table area (min 5).
-  const tableRef = useRef(null);
-  const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
-  useCardLabels(tableRef);
-  const filtersActive = search || statusFilter !== "All";
-
-  function resetFilters() {
-    setSearch("");
-    setStatusFilter("All");
-  }
-
-  // Pinned first, then newest — same order the farmer app uses.
-  function sortList(list) {
-    return [...list].sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || new Date(b.createdAt) - new Date(a.createdAt));
-  }
-
-  function handleSaved(saved, { editing, status, published }) {
-    setAnnouncements((prev) => sortList(editing ? prev.map((a) => (a.id === saved.id ? saved : a)) : [saved, ...prev]));
+  function handleSaved(saved, { editing }) {
+    setAnnouncements((prev) => sortPosts(editing ? prev.map((a) => (a.id === saved.id ? saved : a)) : [saved, ...prev]));
     setModal(null);
-    setToast({
-      tone: "success",
-      message: published ? "Announcement published." : status === "Published" ? "Announcement updated." : "Draft saved.",
-    });
+    setToast({ tone: "success", message: editing ? "Post updated." : "Posted." });
   }
 
   async function run(a, action, successMessage) {
-    setBusyId(a.id);
     try {
       const updated = await action();
-      setAnnouncements((prev) => sortList(prev.map((x) => (x.id === a.id ? { ...updated } : x))));
+      setAnnouncements((prev) => sortPosts(prev.map((x) => (x.id === a.id ? { ...updated } : x))));
       setToast({ tone: "success", message: successMessage });
     } catch (err) {
       setToast({ tone: "error", message: friendlyError(err, "Something went wrong. Please try again.") });
-    } finally {
-      setBusyId(null);
     }
   }
 
-  const togglePin = (a) => run(a, () => setAnnouncementPinned(a.id, !a.isPinned), a.isPinned ? "Announcement unpinned." : "Announcement pinned.");
-  const publish = (a) => run(a, () => setAnnouncementStatus(a.id, "Published"), "Announcement published.");
-  const forward = (a) => run(a, () => forwardAnnouncementToFarmers(a.id), "Announcement forwarded to all farmers.");
+  const togglePin = (a) => run(a, () => setAnnouncementPinned(a.id, !a.isPinned), a.isPinned ? "Post unpinned." : "Post pinned to the top.");
+  const forward = (a) => run(a, () => forwardAnnouncementToFarmers(a.id), "Post forwarded to all farmers.");
 
   async function confirmDelete() {
     const a = pendingDelete;
-    setPendingDelete(null);
-    setBusyId(a.id);
+    setDeleting(true);
     try {
-      await deleteAnnouncement(a.id, a.imagePath);
+      await deleteAnnouncement(a.id);
       setAnnouncements((prev) => prev.filter((x) => x.id !== a.id));
-      setToast({ tone: "success", message: "Announcement deleted." });
+      setToast({ tone: "success", message: "Post deleted." });
     } catch (err) {
-      setToast({ tone: "error", message: friendlyError(err, "Couldn't delete the announcement.") });
+      setToast({ tone: "error", message: friendlyError(err, "Couldn't delete the post.") });
     } finally {
-      setBusyId(null);
+      setDeleting(false);
+      setPendingDelete(null);
     }
   }
+
+  const menuFor = (a) => (
+    <RowActionsMenu
+      label={`Actions for post: ${a.firstLine}`}
+      actions={
+        isMAO
+          ? [
+              { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ announcement: a }) },
+              { key: "pin", label: a.isPinned ? "Unpin" : "Pin", icon: a.isPinned ? PinOff : Pin, onClick: () => togglePin(a) },
+              { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(a) },
+            ]
+          : [a.audience === "fa_president" && { key: "forward", label: "Forward to farmers", icon: Send, onClick: () => forward(a) }]
+      }
+    />
+  );
 
   return (
     <div className="agri-fill-root">
@@ -110,93 +92,44 @@ export default function Announcements() {
         <div className="agri-toolbar">
           {isMAO && (
             <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setModal({})}>
-              <Plus size={16} /> New Announcement
+              <Plus size={16} /> Create post
             </button>
           )}
           <div className="agri-toolbar-search">
             <Search size={15} />
-            <input className="form-control" placeholder="Search announcements" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="form-control" placeholder="Search posts" aria-label="Search posts" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "140px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
-            <option value="All">All Status</option>
-            <option>Published</option>
-            <option>Draft</option>
-          </select>
         </div>
 
-        <div className="agri-table-wrap" ref={tableRef}>
-          <table className="agri-table agri-table-cards">
-            <thead>
-              <tr><th>Announcement</th><th>Date / Venue</th><th>Recipients</th><th>Status</th><th></th></tr>
-            </thead>
-            <tbody>
-              {pageItems.map((a) => (
-                <tr key={a.id}>
-                  <td style={{ maxWidth: 280 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
-                      {a.isPinned && <Pin size={13} color="var(--agri-primary-dark)" aria-label="Pinned" />}
-                      <span className="agri-cell-truncate" style={{ maxWidth: 250 }} title={a.title}>{a.title}</span>
-                    </div>
-                    <div className="agri-muted agri-cell-truncate" style={{ fontSize: "0.75rem", maxWidth: 260 }} title={a.body}>{a.body}</div>
-                    {a.forwardedAt && (
-                      <div className="agri-muted" style={{ fontSize: "0.72rem", marginTop: 2 }}>
-                        Forwarded by Farmers' Association President on {formatDate(a.forwardedAt)}
-                      </div>
-                    )}
-                  </td>
-                  <td>{a.isGeneralNotice ? <span className="agri-muted">General notice</span> : `${formatDate(a.distributionDate)} — ${a.venue}`}</td>
-                  <td>{a.recipients.join(", ")}</td>
-                  <td><Pill status={a.status} /></td>
-                  <td>
-                    <RowActionsMenu
-                      label={`Actions for ${a.title}`}
-                      actions={
-                        isMAO
-                          ? [
-                              { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ announcement: a }) },
-                              { key: "pin", label: a.isPinned ? "Unpin" : "Pin to top", icon: a.isPinned ? PinOff : Pin, onClick: () => togglePin(a) },
-                              a.status === "Draft" && { key: "publish", label: "Publish", icon: Send, onClick: () => publish(a) },
-                              { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(a) },
-                            ]
-                          : [
-                              a.forFaPresident &&
-                                !a.forAllRegisteredFarmers && { key: "forward", label: "Forward to farmers", icon: Send, onClick: () => forward(a) },
-                            ]
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-              {loading && (
-                <tr><td colSpan={5} className="agri-muted text-center py-4">Loading announcements…</td></tr>
-              )}
-            </tbody>
-          </table>
-          {!loading && filtered.length === 0 && (
-            <EmptyState
-              icon={Megaphone}
-              title="No announcements found"
-              hint={filtersActive ? "Try a different search or clear the filters." : "Post your first announcement and farmers will see it in the app."}
-              action={
-                filtersActive ? (
-                  <button type="button" className="btn btn-outline-secondary btn-sm mt-2" onClick={resetFilters}>Clear filters</button>
-                ) : (
-                  <button type="button" className="btn btn-agri-primary btn-sm mt-2" onClick={() => setModal({})}>New Announcement</button>
-                )
-              }
-            />
-          )}
+        <div className="agri-post-feed">
+          <div className="agri-post-feed-inner">
+            {isMAO && (
+              <button type="button" className="agri-card agri-post-composer" onClick={() => setModal({})}>
+                <img src={maoSeal} alt="" className="agri-post-avatar" />
+                <span>What do you want to announce?</span>
+              </button>
+            )}
+            {loading && <div className="agri-muted text-center py-4">Loading posts…</div>}
+            {posts.map((a) => <PostCard key={a.id} post={a} menu={menuFor(a)} />)}
+            {!loading && posts.length === 0 && (
+              <EmptyState
+                icon={Megaphone}
+                title={search ? "No posts found" : "No posts yet"}
+                hint={search ? "Try a different search." : isMAO ? "Create a post and farmers will see it in the app." : "Posts from the MAO will show up here."}
+              />
+            )}
+          </div>
         </div>
-        <TableFooter page={page} pageSize={pageSize} total={filtered.length} totalPages={totalPages} onPageChange={setPage} noun={["announcement", "announcements"]} />
       </div>
 
       {modal && <AnnouncementModal announcement={modal.announcement} onClose={() => setModal(null)} onSaved={handleSaved} />}
 
       {pendingDelete && (
         <ConfirmDialog
-          title="Delete announcement?"
-          message={`"${pendingDelete.title}" will be removed for everyone, including farmers who already read it. This can't be undone.`}
+          title="Delete this post?"
+          message="It will be removed for everyone, including farmers who already saw it."
           confirmLabel="Delete"
+          busy={deleting}
           onConfirm={confirmDelete}
           onCancel={() => setPendingDelete(null)}
         />

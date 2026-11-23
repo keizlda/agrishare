@@ -1,9 +1,10 @@
 import { useCallback, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { CheckCircle2, ChevronRight, Leaf, Megaphone, Package, Pin } from "lucide-react-native";
+import { ChevronRight, Leaf, Megaphone, Package, Pin } from "lucide-react-native";
 import TabScreenLayout, { tabCard } from "../components/TabScreenLayout";
 import AnnouncementDetailModal from "../components/AnnouncementDetailModal";
+import { PostThumb } from "../components/PostCard";
 import Avatar from "../components/Avatar";
 import Pill from "../components/Pill";
 import ReminderBanner from "../components/ReminderBanner";
@@ -13,7 +14,7 @@ import { useAuth } from "../context/AuthContext";
 import { listMyDistributions } from "../lib/api/distributions";
 import { listAnnouncements, markAnnouncementRead } from "../lib/api/announcements";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
-import { formatDate } from "../lib/dates";
+import { formatDate, formatPostedAt } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
 
 const ANNOUNCEMENT_ROWS = 3;
@@ -24,19 +25,6 @@ function recentBadge(status) {
   if (status === "Completed") return "Received";
   if (status === "Ongoing") return "Upcoming";
   return status;
-}
-
-// "Oct 23, 2026 · 9:00 AM · Langapud Covered Court" for distribution posts, the
-// first line of the details for general notices.
-function announcementLine(a) {
-  if (a.isGeneralNotice) return (a.body ?? "").split("\n").find((l) => l.trim()) ?? "";
-  const date = a.distributionDate ? formatDate(a.distributionDate) : null;
-  let time = null;
-  if (a.distributionTime) {
-    const [h, m] = a.distributionTime.split(":").map(Number);
-    time = `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
-  }
-  return [date, time, a.venue].filter(Boolean).join(" · ");
 }
 
 export default function HomeScreen({ navigation }) {
@@ -76,7 +64,6 @@ export default function HomeScreen({ navigation }) {
   const recent = distributions.slice(0, 3);
   // Pinned first, then newest (listAnnouncements' order).
   const latestAnnouncements = (announcements ?? []).slice(0, ANNOUNCEMENT_ROWS);
-  const taggedEventIds = new Set(distributions.map((d) => d.id));
 
   function openPost(a) {
     setOpenAnnouncement(a);
@@ -144,29 +131,25 @@ export default function HomeScreen({ navigation }) {
           ) : (
             latestAnnouncements.map((a, i) => {
               const Icon = a.isPinned ? Pin : Megaphone;
-              const included = !!a.linkedDistributionId && taggedEventIds.has(a.linkedDistributionId);
-              const line = announcementLine(a);
               return (
                 <TouchableOpacity
                   key={a.id}
                   style={[styles.annRow, i === latestAnnouncements.length - 1 && styles.lastRow]}
                   onPress={() => openPost(a)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${a.isPinned ? "Pinned. " : ""}${a.title}${a.read ? "" : ". Unread"}`}
+                  accessibilityLabel={`${a.isPinned ? "Pinned. " : ""}${a.firstLine}${a.read ? "" : ". Unread"}`}
                 >
                   <View style={styles.annIcon}>
                     <Icon size={16} color={colors.primaryDark} />
                   </View>
+                  {/* The post's first line as the preview, with a small photo. */}
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.annTitle} numberOfLines={1}>{a.title}</Text>
-                    {!!line && <Text style={styles.annSub} numberOfLines={1}>{line}</Text>}
-                    {included && (
-                      <View style={styles.includedRow}>
-                        <CheckCircle2 size={12} color={colors.primary} />
-                        <Text style={styles.includedText}>You're included</Text>
-                      </View>
-                    )}
+                    <Text style={styles.annTitle} numberOfLines={1}>{a.firstLine}</Text>
+                    <Text style={styles.annSub} numberOfLines={1}>
+                      MAO Labangan · {formatPostedAt(a.postedAt)}
+                    </Text>
                   </View>
+                  {!!a.imagePath && <PostThumb path={a.imagePath} size={38} />}
                   {!a.read && <View style={styles.unreadDot} accessibilityLabel="Unread" />}
                 </TouchableOpacity>
               );
@@ -265,8 +248,6 @@ const styles = StyleSheet.create({
   },
   annTitle: { fontSize: 12.5, fontWeight: "700", color: colors.text },
   annSub: { fontSize: 10.5, color: colors.textMuted, marginTop: 2 },
-  includedRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
-  includedText: { fontSize: 10.5, fontWeight: "700", color: colors.primaryDark },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
   skeleton: { backgroundColor: colors.grayBg, borderRadius: 6 },
 

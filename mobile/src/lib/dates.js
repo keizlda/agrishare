@@ -34,6 +34,19 @@ export function formatDateTime(value, fallback = "—") {
     : value || fallback;
 }
 
+// When a post went up: "Just now", "5m ago", "2h ago", then the date
+// ("Nov 23, 2026").
+export function formatPostedAt(value, now = new Date()) {
+  const d = toDate(value);
+  if (!d) return "";
+  const minutes = Math.floor((now - d) / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return formatDate(d);
+}
+
 // Digits only, slashes added while typing: "1027" -> "10/27".
 export function maskTypedDate(text) {
   const digits = text.replace(/\D/g, "").slice(0, 8);

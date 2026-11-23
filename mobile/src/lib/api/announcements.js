@@ -1,45 +1,31 @@
 import { supabase } from "../supabaseClient";
 
-// RLS already limits rows to published posts aimed at this farmer (recipient
-// booleans + validation status), and the embedded announcement_reads only
-// ever contains this farmer's own receipt — so a non-empty array = read.
+// Announcements are simple posts by "MAO Labangan": text with an optional
+// photo. RLS already limits rows to published, not-deleted posts aimed at
+// this farmer, and the embedded announcement_reads only ever contains this
+// farmer's own receipt — so a non-empty array = read.
 const SELECT = `
-  announcement_id, title, body, image_url, is_pinned, published_at, created_at,
-  distribution_date, distribution_time, venue, assistance_type, requirements, linked_distribution_id,
-  forwarded_at, announcement_reads ( read_at )
+  announcement_id, body, image_url, is_pinned, published_at, created_at, forwarded_at,
+  announcement_reads ( read_at )
 `;
 
-function mapAnnouncement(row) {
-  const posted = new Date(row.published_at ?? row.created_at);
-  return {
-    id: row.announcement_id,
-    title: row.title,
-    body: row.body,
-    imagePath: row.image_url,
-    isPinned: row.is_pinned,
-    postedAt: posted.toISOString(),
-    date: posted.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-    read: (row.announcement_reads ?? []).length > 0,
-    distributionDate: row.distribution_date,
-    distributionTime: row.distribution_time,
-    venue: row.venue,
-    assistanceType: row.assistance_type,
-    requirements: row.requirements,
-    linkedDistributionId: row.linked_distribution_id,
-    isGeneralNotice: !row.distribution_date,
-    wasForwarded: !!row.forwarded_at,
-  };
+// The first non-empty line of a post (or "Photo" for a photo-only post).
+export function firstLine(body) {
+  const line = String(body ?? "").split("\n").map((l) => l.trim()).find(Boolean);
+  return line || "Photo";
 }
 
-// Used by the detail sheet to show "You are included in this distribution" —
-// RLS already scopes distribution_claims to this farmer's own rows, so a
-// non-empty result means this specific farmer, not just any farmer, is
-// tagged in the linked distribution.
-export async function isTaggedInDistribution(eventId) {
-  if (!eventId) return false;
-  const { data, error } = await supabase.from("distribution_claims").select("claim_id").eq("event_id", eventId).limit(1);
-  if (error) throw error;
-  return data.length > 0;
+function mapAnnouncement(row) {
+  return {
+    id: row.announcement_id,
+    body: row.body ?? "",
+    firstLine: firstLine(row.body),
+    imagePath: row.image_url,
+    isPinned: row.is_pinned,
+    postedAt: row.published_at ?? row.created_at,
+    read: (row.announcement_reads ?? []).length > 0,
+    wasForwarded: !!row.forwarded_at,
+  };
 }
 
 // Pinned first, then newest.
@@ -47,6 +33,7 @@ export async function listAnnouncements() {
   const { data, error } = await supabase
     .from("announcements")
     .select(SELECT)
+    .is("deleted_at", null)
     .order("is_pinned", { ascending: false })
     .order("published_at", { ascending: false });
   if (error) throw error;
@@ -62,17 +49,22 @@ export async function markAnnouncementRead(announcementId, farmerId) {
   if (error) throw error;
 }
 
+// Signed photo URLs, kept for a while so lists don't ask again on every render.
+const urlCache = new Map();
 export async function getAnnouncementImageUrl(path, expiresInSeconds = 3600) {
   if (!path) return null;
+  const hit = urlCache.get(path);
+  if (hit && hit.until > Date.now()) return hit.url;
   const { data, error } = await supabase.storage.from("announcement-images").createSignedUrl(path, expiresInSeconds);
   if (error) throw error;
+  urlCache.set(path, { url: data.signedUrl, until: Date.now() + (expiresInSeconds - 60) * 1000 });
   return data.signedUrl;
 }
 
-// Fires `onChange` whenever a post is added, edited, pinned/unpinned,
-// unpublished or deleted. Realtime applies the table's SELECT policies per
-// subscriber, so a farmer is only notified about posts they can read; the
-// caller just refetches. Returns an unsubscribe function.
+// Fires `onChange` whenever a post is added, edited, pinned/unpinned or
+// deleted. Realtime applies the table's SELECT policies per subscriber, so a
+// farmer is only notified about posts they can read; the caller just
+// refetches. Returns an unsubscribe function.
 export function subscribeToAnnouncements(onChange) {
   const channel = supabase
     .channel(`announcements-${Math.random().toString(36).slice(2)}`)
