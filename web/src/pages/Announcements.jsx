@@ -9,11 +9,20 @@ import PostCard from "../components/announcements/PostCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { friendlyError } from "../lib/friendlyError.js";
+import { formatDate, formatDateLong, formatDateNumeric, formatTime } from "../lib/dates.js";
 import maoSeal from "../assets/mao-seal.png";
 import { deleteAnnouncement, forwardAnnouncementToFarmers, listAnnouncements, setAnnouncementPinned } from "../lib/api/announcements.js";
 
 // Pinned first, then newest — the same order the farmer app uses.
 const sortPosts = (list) => [...list].sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || new Date(b.createdAt) - new Date(a.createdAt));
+
+// What the search box looks through: the title, details, venue, and the
+// post's dates the way they're shown or typed ("Oct 23, 2026", "October
+// 23, 2026", "10/23/2026", "2026-10-23"), its time and when it was posted.
+function searchText(a) {
+  const dates = (v) => (v ? [formatDate(v), formatDateLong(v), formatDateNumeric(v), String(v).slice(0, 10)] : []);
+  return [a.title, a.details, a.venue, ...dates(a.date), a.time && formatTime(a.time), ...dates(a.postedAt)].filter(Boolean).join(" \n").toLowerCase();
+}
 
 // Announcements as a feed of simple posts. The MAO Admin creates posts and
 // has Edit / Pin / Delete on each; the Farmers' Association President reads
@@ -30,7 +39,7 @@ export default function Announcements() {
 
   const posts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return announcements.filter((a) => !q || a.body.toLowerCase().includes(q));
+    return announcements.filter((a) => !q || searchText(a).includes(q));
   }, [announcements, search]);
 
   function handleSaved(saved, { editing }) {
@@ -69,7 +78,7 @@ export default function Announcements() {
 
   const menuFor = (a) => (
     <RowActionsMenu
-      label={`Actions for post: ${a.firstLine}`}
+      label={`Actions for post: ${a.title}`}
       actions={
         isMAO
           ? [
@@ -97,7 +106,7 @@ export default function Announcements() {
           )}
           <div className="agri-toolbar-search">
             <Search size={15} />
-            <input className="form-control" placeholder="Search posts" aria-label="Search posts" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className="form-control" placeholder="Search title, details, venue or date" aria-label="Search posts" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
         </div>
 

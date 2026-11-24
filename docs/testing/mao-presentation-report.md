@@ -16,14 +16,17 @@ Quantities are in kilograms only; no bags or bag sizes are shown anywhere.
 
 Updated November 23, 2026 (see the updates below).
 
-- **Announcements are simple posts.** The MAO Admin writes one text (up to
-  2,000 characters) with an optional photo, chooses who it's for (All
-  farmers, the Farmers' Association President, or Everyone) and can pin it.
-  Distribution details such as the date, time, venue, type of assistance and
-  requirements are written in the post. Posts appear as cards ("MAO
-  Labangan", when it was posted, the text with "See more", the photo full
-  width; pinned posts first) on the web and in the farmer app, and each post
-  can be edited, pinned / unpinned or deleted.
+- **Announcements are posts with a title.** The MAO Admin chooses who it's
+  for (All farmers, the Farmers' Association President, or Everyone), and
+  enters a title (required, up to 150 characters), an optional date, time and
+  venue, optional details, an optional photo, and can pin it. On the web,
+  each post is a separate card on a darker feed about three quarters of the
+  page wide: "MAO Labangan", when it was posted, the bold title, a
+  highlighted date · time · venue row, the details with "See more", and the
+  photo full width (pinned posts first). The search box looks through the
+  title, details, venue and dates. Each post can be edited, pinned /
+  unpinned or deleted. The farmer app shows the whole post as text (title,
+  details, then the date / time / venue lines).
 - **Farmer forms have no pre-filled values.** Add Farmer starts empty: every
   choice shows a placeholder ("Select sitio/purok", "Select commodity",
   "Select seed program", "Select status") and required fields show an error
@@ -134,6 +137,34 @@ Updated November 23, 2026 (see the updates below).
 - **Multi-tab sign-in fix.** If another tab logs out, logs in, or switches to
   a different account, this tab follows instead of acting as the wrong
   account.
+
+## Update: posts with a title, date, time and venue (November 24, 2026)
+
+Web only (`release/live`); no database change and no mobile update. Posts
+are still saved as one text (title, details, then "Date: …" / "Venue: …"
+lines), so the farmer app already on phones shows them complete; the date,
+time and venue are also saved in their own columns.
+
+- **Create post:** Post to (unchanged), Title (required, up to 150
+  characters, with a counter), Date and Time side by side (optional), Venue
+  (optional), Details (optional, up to 1,500 characters), then Add to your
+  post (Photo, Pin) and Post.
+- **Feed:** a darker background behind the posts; each post is a separate
+  card with a shadow; the posts take about three quarters of the width (full
+  width on small screens). Each card shows the bold title and a highlighted
+  row with only the filled parts of date, time and venue.
+- **Search:** title, details, venue and dates (as shown, e.g. "Dec 5, 2026",
+  or "December 5", "12/05/2026", "2026-12-05").
+- **Existing posts:** shown with their title and details apart; older
+  distribution posts keep "Type of assistance" and "Requirements" in the
+  details.
+
+| Check | Result |
+| --- | --- |
+| The 11 live posts split into title / details / date / time / venue (read-only) | 11/11 |
+| Live database accepts the new posts (as the MAO Admin, rolled back: title kept, title-only post, edit) | Pass, nothing left behind |
+| Web on a mock back end: Create post order, title required, post with date/time/venue/details/photo/pin, edit, title-only post, search, menu, Dashboard shortcut, FA President view, fit at 1366×768 | 14/14 |
+| Lint, web build | Pass (2 lint warnings, both from before) |
 
 ## Update: announcements as simple posts (November 24, 2026)
 

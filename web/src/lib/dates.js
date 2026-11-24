@@ -40,6 +40,14 @@ export function formatDateTime(value, fallback = "—") {
   return format(value, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }, fallback);
 }
 
+// A time of day ("08:00" or "08:00:00") as "8:00 AM".
+export function formatTime(value, fallback = "") {
+  const m = /^(\d{1,2}):(\d{2})/.exec(value ?? "");
+  if (!m) return fallback;
+  const h = Number(m[1]);
+  return `${h % 12 || 12}:${m[2]} ${h < 12 ? "AM" : "PM"}`;
+}
+
 // Today in Manila as "2026-10-27".
 export function todayIso() {
   const [m, d, y] = formatDateNumeric(new Date()).split("/");

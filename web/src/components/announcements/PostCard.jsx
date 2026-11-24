@@ -1,12 +1,32 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Pin, Users } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Pin, Users } from "lucide-react";
 import maoSeal from "../../assets/mao-seal.png";
 import { getAnnouncementImageUrl } from "../../lib/api/announcements.js";
-import { formatDate, formatPostedAt } from "../../lib/dates.js";
+import { formatDate, formatPostedAt, formatTime } from "../../lib/dates.js";
 
-// One announcement as a simple post: the "MAO Labangan" seal and name, when
-// it was posted and who it's for, the text ("See more" after about 5 lines)
-// and the photo full width. `menu`: the ⋯ actions (MAO Admin / forward).
+// The highlighted date · time · venue row (only the parts that are filled).
+function PostEventRow({ post }) {
+  const parts = [
+    post.date && { key: "date", icon: CalendarDays, text: formatDate(post.date), label: "Date" },
+    post.time && { key: "time", icon: Clock, text: formatTime(post.time), label: "Time" },
+    post.venue && { key: "venue", icon: MapPin, text: post.venue, label: "Venue" },
+  ].filter(Boolean);
+  if (!parts.length) return null;
+  return (
+    <div className="agri-post-event">
+      {parts.map(({ key, icon: Icon, text, label }) => (
+        <span key={key} className="agri-post-event-part" title={label}>
+          <Icon size={14} aria-hidden="true" /> <span className="visually-hidden">{label}: </span>{text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// One announcement as a post: the "MAO Labangan" seal and name, when it was
+// posted and who it's for, the bold title, the date / time / venue row, the
+// details ("See more" after about 4 lines) and the photo full width.
+// `menu`: the ⋯ actions (MAO Admin / forward).
 export default function PostCard({ post, menu }) {
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -22,7 +42,7 @@ export default function PostCard({ post, menu }) {
     };
   }, [post.imagePath]);
 
-  // "See more" only when the text is longer than the 5 lines shown.
+  // "See more" only when the details are longer than the lines shown.
   useLayoutEffect(() => {
     const el = textRef.current;
     if (!el || expanded) return undefined;
@@ -31,10 +51,10 @@ export default function PostCard({ post, menu }) {
     const ro = new ResizeObserver(check);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [post.body, expanded]);
+  }, [post.details, expanded]);
 
   return (
-    <article className={`agri-card agri-post${post.isDraft ? " draft" : ""}`} aria-label={`Post: ${post.firstLine}`}>
+    <article className={`agri-card agri-post${post.isDraft ? " draft" : ""}`} aria-label={`Post: ${post.title}`}>
       <header className="agri-post-head">
         <img src={maoSeal} alt="" className="agri-post-avatar" />
         <div className="agri-post-who">
@@ -58,9 +78,12 @@ export default function PostCard({ post, menu }) {
         <div className="agri-post-forwarded">Forwarded to all farmers by the Farmers&apos; Association President on {formatDate(post.forwardedAt)}</div>
       )}
 
-      {!!post.body.trim() && (
+      <h3 className="agri-post-title">{post.title}</h3>
+      <PostEventRow post={post} />
+
+      {!!post.details && (
         <>
-          <div ref={textRef} className={`agri-post-body${expanded ? "" : " clamped"}`}>{post.body}</div>
+          <div ref={textRef} className={`agri-post-body${expanded ? "" : " clamped"}`}>{post.details}</div>
           {!expanded && overflows && (
             <button type="button" className="agri-post-more" onClick={() => setExpanded(true)}>See more</button>
           )}

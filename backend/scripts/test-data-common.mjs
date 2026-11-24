@@ -4,6 +4,10 @@
 // (gitignored by `.env.*`; never commit it). The ledger file records the ID of
 // every row, account and file the seed created, so cleanup removes exactly
 // those and nothing else. It holds IDs only, no secrets, so it is committed.
+//
+// AGRISHARE_DB=dev targets the development database (agrishare-dev) instead:
+// backend/.env.seed.dev and its own ledger, test-data.ledger.dev.json
+// (gitignored). Without it, the scripts target the live project.
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -12,8 +16,9 @@ export const BATCH = "test-2026-10";
 export const HERE = import.meta.dirname;
 export const ROOT = path.resolve(HERE, "../..");
 export const DATA_FILE = path.join(ROOT, "agrishare-test-data.json");
-export const LEDGER_FILE = path.join(HERE, "test-data.ledger.json");
-const ENV_FILE = path.resolve(HERE, "../.env.seed");
+export const TARGET = process.env.AGRISHARE_DB === "dev" ? "dev" : "live";
+export const LEDGER_FILE = path.join(HERE, TARGET === "dev" ? "test-data.ledger.dev.json" : "test-data.ledger.json");
+const ENV_FILE = path.resolve(HERE, TARGET === "dev" ? "../.env.seed.dev" : "../.env.seed");
 
 // Tables with the generic audit trigger, and the key that identifies a row
 // inside audit_logs.details (record_id alone is ambiguous: for
@@ -42,6 +47,7 @@ export function adminClient() {
       .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]),
   );
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) throw new Error(`${ENV_FILE} needs SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.`);
+  console.log(`Database: ${TARGET} (${env.SUPABASE_URL})`);
   return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
     global: { fetch: fetchWithTimeout },

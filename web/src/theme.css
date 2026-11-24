@@ -28,6 +28,9 @@
   /* Light fill for small count chips; stays pale so muted text on it
      remains readable. */
   --agri-chip-bg: #e6ebe5;
+  /* Behind the announcement posts: a step darker than the page, so each
+     white post card stands apart. */
+  --agri-feed-bg: #dde6d9;
   --agri-text: #1f2a22;
   /* Labels, icon buttons — between body text and muted. */
   --agri-text-secondary: #45524a;
@@ -4102,9 +4105,31 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   width: auto;
   min-width: 150px;
 }
+/* Create post fields. */
+.agri-post-field {
+  margin-bottom: 14px;
+}
+.agri-post-field-error {
+  color: var(--agri-red);
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+.agri-post-optional {
+  font-weight: 400;
+  font-size: 0.74rem;
+}
+.agri-post-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.agri-post-label-row .agri-post-count {
+  margin-top: 0;
+}
 .agri-post-text {
   resize: none;
-  min-height: 9.5rem;
+  min-height: 6.5rem;
   max-height: 46vh;
   overflow-y: auto;
   font-size: 0.95rem;
@@ -4195,22 +4220,38 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
 }
 
 /* Feed */
+/* The feed: a darker band with the posts as separate cards, about three
+   quarters of the width (full width on small screens). */
 .agri-post-feed {
   margin-top: 14px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--agri-feed-bg);
 }
 .agri-post-feed-inner {
-  max-width: 680px;
+  width: 75%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+}
+@media (max-width: 991.98px) {
+  .agri-post-feed {
+    padding: 10px;
+  }
+  .agri-post-feed-inner {
+    width: 100%;
+  }
+}
+.agri-post-feed .agri-card {
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(31, 42, 34, 0.06), 0 3px 12px rgba(31, 42, 34, 0.07);
 }
 @media (min-width: 1024px) {
   .agri-app-fill .agri-post-feed {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding-right: 4px;
   }
 }
 .agri-post-composer {
@@ -4230,7 +4271,40 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   background: var(--agri-chip-bg);
 }
 .agri-post {
+  position: relative; /* keeps its screen-reader-only labels inside the feed */
   padding: 14px 16px;
+}
+.agri-post-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--agri-text);
+  overflow-wrap: anywhere;
+}
+.agri-post-event {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-bottom: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--agri-primary-soft);
+  border: 1px solid var(--agri-primary-light);
+  color: var(--agri-primary-darker);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.agri-post-event-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.agri-post-event-part > svg {
+  flex-shrink: 0;
+  color: var(--agri-primary-dark);
 }
 .agri-post.draft {
   border-style: dashed;
@@ -4284,7 +4358,7 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
 }
 .agri-post-body.clamped {
   display: -webkit-box;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

@@ -1,0 +1,3 @@
+# Local settings files never go up with a deployment: Vercel builds the
+# live site with its own Production environment variables.
+.env*

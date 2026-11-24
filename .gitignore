@@ -14,6 +14,9 @@ web-build/
 # One-off handoff prompt (contains live deploy tokens, never committed)
 HANDOFF_PROMPT.md
 
+# The development database's seed ledger (IDs in agrishare-dev only)
+backend/scripts/test-data.ledger.dev.json
+
 # Supabase local dev state
 backend/supabase/.branches/
 backend/supabase/.temp/

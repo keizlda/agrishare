@@ -1,12 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ImagePlus, Pin, X } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog.jsx";
+import DateInput from "../ui/DateInput.jsx";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import maoSeal from "../../assets/mao-seal.png";
 import {
   AUDIENCES,
   IMAGE_TYPES,
   MAX_BODY,
+  MAX_DETAILS,
+  MAX_TITLE,
+  composeBody,
   createAnnouncement,
   getAnnouncementImageUrl,
   updateAnnouncement,
@@ -14,21 +18,35 @@ import {
 } from "../../lib/api/announcements.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
-const PLACEHOLDER =
-  "What do you want to announce? Include the date, time, venue, type of assistance, and requirements if it's about a distribution.";
+const Req = () => <span style={{ color: "var(--agri-red)" }}>*</span>;
+const Opt = () => <span className="agri-muted agri-post-optional">(optional)</span>;
 
-// "Create post" (and "Edit post"): one text box, an optional photo, Pin, and
-// who it's for. Shared by the Dashboard's "Post Announcement" and the
-// Announcements page. `announcement` present = edit.
+// "Create post" (and "Edit post"): who it's for, the title, date and time,
+// venue, details, then photo and pin. Shared by the Dashboard's "Post
+// Announcement" and the Announcements page. `announcement` present = edit.
 export default function AnnouncementModal({ announcement, onClose, onSaved }) {
   const editing = !!announcement;
-  const [body, setBody] = useState(announcement?.body ?? "");
-  const [audience, setAudience] = useState(announcement?.audience ?? "farmers");
-  const [isPinned, setIsPinned] = useState(announcement?.isPinned ?? false);
+  const [initial] = useState(() => ({
+    audience: announcement?.audience ?? "farmers",
+    title: announcement?.title ?? "",
+    date: announcement?.date ?? "",
+    time: announcement?.time ?? "",
+    venue: announcement?.venue ?? "",
+    details: announcement?.details ?? "",
+    isPinned: announcement?.isPinned ?? false,
+  }));
+  const [audience, setAudience] = useState(initial.audience);
+  const [title, setTitle] = useState(initial.title);
+  const [date, setDate] = useState(initial.date);
+  const [time, setTime] = useState(initial.time);
+  const [venue, setVenue] = useState(initial.venue);
+  const [details, setDetails] = useState(initial.details);
+  const [isPinned, setIsPinned] = useState(initial.isPinned);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [currentImage, setCurrentImage] = useState(null); // signed URL of the saved photo
   const [removeCurrentImage, setRemoveCurrentImage] = useState(false);
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -41,25 +59,22 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
   }, [announcement?.imagePath]);
   useEffect(() => () => imagePreview && URL.revokeObjectURL(imagePreview), [imagePreview]);
 
-  // The text box grows with the text (6 lines to start).
+  // The details box grows with the text.
   useLayoutEffect(() => {
     const el = textRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight + 2}px`;
-  }, [body]);
-  useEffect(() => {
-    textRef.current?.focus();
-  }, []);
+  }, [details]);
 
   const hasSavedPhoto = editing && !!announcement.imagePath && !removeCurrentImage;
   const hasPhoto = !!imageFile || hasSavedPhoto;
-  const tooLong = body.length > MAX_BODY;
-  const canPost = (body.trim().length > 0 || hasPhoto) && !tooLong && !saving;
+  const titleTooLong = title.length > MAX_TITLE;
+  const detailsTooLong = details.length > MAX_DETAILS;
   // Something to lose if the window closes.
-  const dirty = editing
-    ? body !== announcement.body || audience !== announcement.audience || isPinned !== announcement.isPinned || !!imageFile || removeCurrentImage
-    : body.trim().length > 0 || !!imageFile;
+  const dirty =
+    audience !== initial.audience || title !== initial.title || date !== initial.date || time !== initial.time || venue !== initial.venue
+    || details !== initial.details || isPinned !== initial.isPinned || !!imageFile || removeCurrentImage;
 
   function requestClose() {
     if (saving) return;
@@ -67,6 +82,8 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
     else onClose();
   }
   useEscapeToClose(!confirmDiscard, requestClose);
+
+  const clear = (key) => setErrors((e) => (e[key] ? { ...e, [key]: undefined } : e));
 
   async function choosePhoto(e) {
     const file = e.target.files?.[0];
@@ -93,13 +110,25 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
     }
   }
 
+  function validate() {
+    const next = {};
+    if (!title.trim()) next.title = "Enter a title.";
+    else if (titleTooLong) next.title = `Keep the title to ${MAX_TITLE} characters or fewer.`;
+    if (detailsTooLong) next.details = `Keep the details to ${MAX_DETAILS.toLocaleString()} characters or fewer.`;
+    else if (composeBody({ title, details, date, time, venue }).length > MAX_BODY) next.details = "This post is too long. Shorten the details.";
+    return next;
+  }
+
   async function post() {
-    if (!canPost || savingRef.current) return;
+    if (saving || savingRef.current) return;
+    const problems = validate();
+    setErrors(problems);
+    if (Object.values(problems).some(Boolean)) return;
     savingRef.current = true;
     setSaving(true);
     setError("");
     try {
-      const fields = { body, audience, isPinned };
+      const fields = { title, date, time, venue, details, audience, isPinned };
       const saved = editing
         ? await updateAnnouncement(announcement.id, fields, { imageFile, removeCurrentImage, currentImagePath: announcement.imagePath })
         : await createAnnouncement(fields, imageFile);
@@ -119,7 +148,7 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
       <div className="agri-modal-backdrop" onClick={requestClose}>
         <div
           className="agri-card agri-modal agri-post-modal"
-          style={{ "--agri-modal-width": "560px" }}
+          style={{ "--agri-modal-width": "580px" }}
           role="dialog"
           aria-label={editing ? "Edit post" : "Create post"}
           onClick={(e) => e.stopPropagation()}
@@ -141,18 +170,61 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
               </label>
             </div>
 
-            <textarea
-              ref={textRef}
-              className={`form-control agri-post-text${tooLong ? " is-invalid" : ""}`}
-              rows={6}
-              placeholder={PLACEHOLDER}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              aria-label="Post text"
-              disabled={saving}
-            />
-            <div className={`agri-post-count${tooLong ? " over" : ""}`} aria-live="polite">
-              {body.length.toLocaleString()} / {MAX_BODY.toLocaleString()}
+            <div className="agri-post-field">
+              <div className="agri-post-label-row">
+                <label className="agri-form-label" htmlFor="post-title">Title <Req /></label>
+                <span className={`agri-post-count${titleTooLong ? " over" : ""}`}>{title.length}/{MAX_TITLE}</span>
+              </div>
+              <input
+                id="post-title"
+                className={`form-control${errors.title ? " is-invalid" : ""}`}
+                value={title}
+                placeholder="e.g. RCEF seed distribution on Friday"
+                onChange={(e) => {
+                  setTitle(e.target.value.replace(/[\r\n]+/g, " "));
+                  clear("title");
+                }}
+                disabled={saving}
+                autoFocus
+              />
+              {errors.title && <div className="agri-post-field-error" role="alert">{errors.title}</div>}
+            </div>
+
+            <div className="row g-3 agri-post-field">
+              <div className="col-6">
+                <label className="agri-form-label" htmlFor="post-date">Date <Opt /></label>
+                <DateInput id="post-date" value={date} onChange={setDate} disabled={saving} aria-label="Date" />
+              </div>
+              <div className="col-6">
+                <label className="agri-form-label" htmlFor="post-time">Time <Opt /></label>
+                <input id="post-time" type="time" className="form-control" value={time} onChange={(e) => setTime(e.target.value)} disabled={saving} />
+              </div>
+            </div>
+
+            <div className="agri-post-field">
+              <label className="agri-form-label" htmlFor="post-venue">Venue <Opt /></label>
+              <input id="post-venue" className="form-control" value={venue} placeholder="e.g. Langapud Barangay Hall" maxLength={150} onChange={(e) => setVenue(e.target.value.replace(/[\r\n]+/g, " "))} disabled={saving} />
+            </div>
+
+            <div className="agri-post-field">
+              <div className="agri-post-label-row">
+                <label className="agri-form-label" htmlFor="post-details">Details <Opt /></label>
+                <span className={`agri-post-count${detailsTooLong ? " over" : ""}`} aria-live="polite">{details.length.toLocaleString()}/{MAX_DETAILS.toLocaleString()}</span>
+              </div>
+              <textarea
+                id="post-details"
+                ref={textRef}
+                className={`form-control agri-post-text${errors.details ? " is-invalid" : ""}`}
+                rows={4}
+                placeholder="What farmers need to know: what to bring, who can join, requirements…"
+                value={details}
+                onChange={(e) => {
+                  setDetails(e.target.value);
+                  clear("details");
+                }}
+                disabled={saving}
+              />
+              {errors.details && <div className="agri-post-field-error" role="alert">{errors.details}</div>}
             </div>
 
             {photoSrc ? (
@@ -190,7 +262,7 @@ export default function AnnouncementModal({ announcement, onClose, onSaved }) {
           </div>
 
           <div className="agri-modal-footer">
-            <button type="button" className="btn btn-agri-primary w-100" disabled={!canPost} onClick={post}>
+            <button type="button" className="btn btn-agri-primary w-100" disabled={saving} onClick={post}>
               {saving ? (editing ? "Saving…" : "Posting…") : editing ? "Save" : "Post"}
             </button>
           </div>

@@ -5,6 +5,8 @@
 //
 // Usage (from the repo root):
 //   node backend/scripts/db-query.mjs "select role, count(*) from profiles group by role"
+//   AGRISHARE_DB=dev node backend/scripts/db-query.mjs "…"   (the development
+//   database, agrishare-dev; its ref is in .env.dev)
 //
 // Reads SUPABASE_ACCESS_TOKEN from .env.deploy (gitignored). The token is
 // never printed. Schema changes belong in supabase/migrations + `db push`,
@@ -13,7 +15,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
-const PROJECT_REF = "bofvqdywhyrlbzatvxve";
+const LIVE_REF = "bofvqdywhyrlbzatvxve";
 
 const sql = process.argv[2];
 if (!sql) {
@@ -34,6 +36,19 @@ if (!token) {
 if (!token) {
   console.error("No SUPABASE_ACCESS_TOKEN found in the environment or .env.deploy.");
   process.exit(2);
+}
+
+let PROJECT_REF = LIVE_REF;
+if (process.env.AGRISHARE_DB === "dev") {
+  try {
+    PROJECT_REF = readFileSync(resolve(repoRoot, ".env.dev"), "utf8").match(/^SUPABASE_DEV_REF=(.*)$/m)?.[1]?.trim();
+  } catch {
+    PROJECT_REF = null;
+  }
+  if (!PROJECT_REF) {
+    console.error("AGRISHARE_DB=dev needs SUPABASE_DEV_REF in .env.dev.");
+    process.exit(2);
+  }
 }
 
 const res = await fetch(`https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`, {
