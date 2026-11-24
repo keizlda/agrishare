@@ -76,6 +76,10 @@ cd backend && npx supabase@3.2.0 db push --remote --password "<SUPABASE_DEV_DB_P
 AGRISHARE_DB=dev node backend/scripts/dev-setup.mjs
 AGRISHARE_DB=dev node backend/scripts/seed-test-data.mjs
 
+# Sample farmers: every barangay up to 20 Active farmers (dev only; no
+# mobile logins). --remove takes them out again.
+node backend/scripts/seed-barangay-sample.mjs
+
 # Look at data
 AGRISHARE_DB=dev node backend/scripts/db-query.mjs "select * from barangays"
 ```

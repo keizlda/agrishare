@@ -16,6 +16,7 @@ HANDOFF_PROMPT.md
 
 # The development database's seed ledger (IDs in agrishare-dev only)
 backend/scripts/test-data.ledger.dev.json
+backend/scripts/sample-farmers.ledger.dev.json
 
 # Supabase local dev state
 backend/supabase/.branches/
