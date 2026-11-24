@@ -76,6 +76,10 @@ const ANNOUNCEMENT_AT = {
   "FA meeting with the MAO": "2026-10-15T16:00:00+08:00",
   "Corn seed distribution in Bagalupa on December 3": "2026-11-20T09:00:00+08:00",
   "Bagalupa Farmers' Association Presidents' meeting": "2026-11-21T10:00:00+08:00",
+  "Corn seed distribution in Bokong on December 2": "2026-11-22T09:00:00+08:00",
+  "Combo Farmers' Association Presidents' planning meeting": "2026-11-22T13:00:00+08:00",
+  "Fertilizer distribution in New Labangan and Bagalupa": "2026-11-23T08:30:00+08:00",
+  "Typhoon preparedness reminder for all barangays": "2026-11-23T15:00:00+08:00",
 };
 
 const inserted = {};
@@ -175,7 +179,7 @@ async function renderPlaceholderPhoto(s, look = {}) {
     <rect y="${horizon}" width="${w}" height="${h - horizon}" fill="url(#field)"/>${rows}
     <rect y="${h - 170}" width="${w}" height="170" fill="#0b1f12" opacity="0.62"/>
     <text x="40" y="${h - 110}" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700" fill="#ffffff">${look.title ?? "SAMPLE PROOF-OF-PLANTING PHOTO · TEST DATA"}</text>
-    <text x="40" y="${h - 58}" font-family="Segoe UI, Arial, sans-serif" font-size="30" fill="#e8f2ea">${xml(`${s.farmer} · ${s.crop_type} · ${s.submitted_at.slice(0, 10)} · ${s.latitude}, ${s.longitude}`)}</text>
+    <text x="40" y="${h - 58}" font-family="Segoe UI, Arial, sans-serif" font-size="30" fill="#e8f2ea">${xml(look.caption ?? `${s.farmer} · ${s.crop_type} · ${s.submitted_at.slice(0, 10)} · ${s.latitude}, ${s.longitude}`)}</text>
   </svg>`;
   return sharp(Buffer.from(svg)).jpeg({ quality: 82 }).toBuffer();
 }
@@ -756,10 +760,21 @@ async function main() {
     if (DRY) { log(`Announcement: would post "${first}" (${a.status}, ${a.audience}, ${a.barangays?.join(", ") ?? "all barangays"})`); continue; }
     const postedAt = cap(ANNOUNCEMENT_AT[first] ?? new Date(NOW).toISOString());
     const published = a.status === "Published";
+    // "photo": true — a sample photo (marked as test data) in the post.
+    let imagePath = null;
+    if (a.photo) {
+      imagePath = `test/${first.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.jpg`;
+      const jpg = await renderPlaceholderPhoto({}, { title: "SAMPLE ANNOUNCEMENT PHOTO · TEST DATA", caption: `${first} · ${a.barangays?.join(", ") ?? "All barangays"}` });
+      const { error: upErr } = await sb.storage.from("announcement-images").upload(imagePath, jpg, { contentType: "image/jpeg", upsert: true });
+      if (upErr) throw new Error(`upload announcement photo ${first}: ${upErr.message}`);
+      remember(ledger.storage, { bucket: "announcement-images", path: imagePath }, "path");
+      saveLedger(ledger);
+      bump("storage announcement photos");
+    }
     const ann = await must(sb.from("announcements").insert({
       title: a.title, body: a.details ?? "", distribution_date: a.date ?? null, distribution_time: a.time ?? null, venue: a.venue ?? null,
       audience: a.audience, all_barangays: !a.barangays, barangay_ids: (a.barangays ?? []).map(barangayId),
-      is_pinned: !!a.pinned, status: published ? "published" : "draft",
+      is_pinned: !!a.pinned, status: published ? "published" : "draft", image_url: imagePath,
       created_by: maoId, created_at: postedAt,
     }).select("announcement_id").single(), `insert announcement ${first}`);
     remember(ledger.announcements, { announcement_id: ann.announcement_id, title: first }, "announcement_id");

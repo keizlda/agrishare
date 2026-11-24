@@ -1,5 +1,5 @@
 {
-  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Sitios/puroks, farmers' associations and crops come from the managed lists (Nov 24, 2026): test farmers use list entries; the two test associations are added to the list if missing. Announcements (Nov 24, 2026): a title, optional date, time and venue, details, and who can see it — farmers and/or Farmers' Association Presidents, in all barangays or chosen ones. AgriShare covers the barangays of Labangan: farmers belong to their address's barangay and each Farmers' Association President to a barangay; the second test FA President and farmer 000226 are in Bagalupa so visibility by barangay can be tested. Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
+  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Sitios/puroks, farmers' associations and crops come from the managed lists (Nov 24, 2026): test farmers use list entries; the two test associations are added to the list if missing. Announcements (Nov 24, 2026): a title, optional date, time and venue, details, and who can see it — farmers and/or Farmers' Association Presidents, in all barangays or chosen ones. AgriShare covers the barangays of Labangan: farmers belong to their address's barangay and each Farmers' Association President to a barangay; the second test FA President and farmer 000226 are in Bagalupa, a third FA President and farmers 000227–000232 are in Bokong, Combo and New Labangan (with a distribution, requests, proof of planting and harvest reports each), and posts go to single barangays, two barangays and all barangays, so the barangay filters can be tested. The all-barangays post is for Farmers' Association Presidents only, so seeding it on live doesn't notify every real farmer. Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
   "accounts": {
     "fa_president": {
       "name": "Pedro Lagunay",
@@ -17,6 +17,13 @@
         "password": "password123",
         "role": "fa_president",
         "barangay": "Bagalupa"
+      },
+      {
+        "name": "Arturo Bagaipo",
+        "email": "fapresident.bokong@agrishare.test",
+        "password": "password123",
+        "role": "fa_president",
+        "barangay": "Bokong"
       }
     ]
   },
@@ -636,6 +643,132 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000227",
+      "login_id": "000227",
+      "first_name": "Ramon",
+      "middle_name": "",
+      "municipality": "Labangan",
+      "province": "Zamboanga del Sur",
+      "pcic_insured": false,
+      "status": "Active",
+      "password": "password123",
+      "last_name": "Cabiling",
+      "sex": "Male",
+      "birth_date": "1977-02-14",
+      "contact_number": "09761222031",
+      "sitio_purok": "Purok 1",
+      "barangay": "Bokong",
+      "commodity": "Rice",
+      "farm_size_ha": 1.8,
+      "farm_location": "Purok 1",
+      "ownership": "Owner"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000228",
+      "login_id": "000228",
+      "first_name": "Leticia",
+      "middle_name": "",
+      "municipality": "Labangan",
+      "province": "Zamboanga del Sur",
+      "pcic_insured": false,
+      "status": "Active",
+      "password": "password123",
+      "last_name": "Ompad",
+      "sex": "Female",
+      "birth_date": "1984-06-03",
+      "contact_number": "09761222032",
+      "sitio_purok": "Purok 2",
+      "barangay": "Bokong",
+      "commodity": "Corn",
+      "farm_size_ha": 1,
+      "farm_location": "Purok 2",
+      "ownership": "Tenant"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000229",
+      "login_id": "000229",
+      "first_name": "Joel",
+      "middle_name": "",
+      "municipality": "Labangan",
+      "province": "Zamboanga del Sur",
+      "pcic_insured": false,
+      "status": "Active",
+      "password": "password123",
+      "last_name": "Lumapas",
+      "sex": "Male",
+      "birth_date": "1975-11-22",
+      "contact_number": "09761222033",
+      "sitio_purok": "Purok 1",
+      "barangay": "Combo",
+      "commodity": "Rice",
+      "farm_size_ha": 2.2,
+      "farm_location": "Purok 1",
+      "ownership": "Owner"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000230",
+      "login_id": "000230",
+      "first_name": "Gemma",
+      "middle_name": "",
+      "municipality": "Labangan",
+      "province": "Zamboanga del Sur",
+      "pcic_insured": false,
+      "status": "Active",
+      "password": "password123",
+      "last_name": "Sumalpong",
+      "sex": "Female",
+      "birth_date": "1988-04-09",
+      "contact_number": "09761222034",
+      "sitio_purok": "Purok 3",
+      "barangay": "Combo",
+      "commodity": "Vegetables",
+      "farm_size_ha": 0.7,
+      "farm_location": "Purok 3",
+      "ownership": "Lessee"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000231",
+      "login_id": "000231",
+      "first_name": "Noel",
+      "middle_name": "",
+      "municipality": "Labangan",
+      "province": "Zamboanga del Sur",
+      "pcic_insured": false,
+      "status": "Active",
+      "password": "password123",
+      "last_name": "Bacus",
+      "sex": "Male",
+      "birth_date": "1980-09-30",
+      "contact_number": "09761222035",
+      "sitio_purok": "Purok 2",
+      "barangay": "New Labangan",
+      "commodity": "Rice",
+      "farm_size_ha": 1.4,
+      "farm_location": "Purok 2",
+      "ownership": "Owner"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000232",
+      "login_id": "000232",
+      "first_name": "Aida",
+      "middle_name": "",
+      "municipality": "Labangan",
+      "province": "Zamboanga del Sur",
+      "pcic_insured": false,
+      "status": "Active",
+      "password": "password123",
+      "last_name": "Pepito",
+      "sex": "Female",
+      "birth_date": "1986-01-17",
+      "contact_number": "09761222036",
+      "sitio_purok": "Purok 4",
+      "barangay": "New Labangan",
+      "commodity": "Corn",
+      "farm_size_ha": 0.9,
+      "farm_location": "Purok 4",
+      "ownership": "Tenant"
     }
   ],
   "commodities": [
@@ -1205,6 +1338,77 @@
           "quantity_received": "farm size x allocation"
         }
       ]
+    },
+    {
+      "date": "2026-11-18",
+      "program_name": "Corn Seed Distribution - Bokong",
+      "crop_type": "Corn",
+      "commodity": "Corn Seeds",
+      "venue": "Bokong Barangay Hall",
+      "barangay": "Bokong",
+      "funding_source": "DA",
+      "status": "Completed",
+      "allocation": "farm_size",
+      "total_quantity": "sum of the farmers' quantities",
+      "beneficiaries": [
+        {
+          "rsbsa_number": "09-73-00-000-000227",
+          "name": "Ramon Cabiling",
+          "quantity_received": "farm size x allocation"
+        },
+        {
+          "rsbsa_number": "09-73-00-000-000228",
+          "name": "Leticia Ompad",
+          "quantity_received": "farm size x allocation"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-26",
+      "program_name": "RCEF Seed Distribution - Combo",
+      "crop_type": "Rice",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
+      "venue": "Combo Covered Court",
+      "barangay": "Combo",
+      "funding_source": "DA-RCEF",
+      "status": "Ongoing",
+      "allocation": "farm_size",
+      "total_quantity": "sum of the farmers' quantities",
+      "beneficiaries": [
+        {
+          "rsbsa_number": "09-73-00-000-000229",
+          "name": "Joel Lumapas",
+          "quantity_received": "farm size x allocation"
+        },
+        {
+          "rsbsa_number": "09-73-00-000-000230",
+          "name": "Gemma Sumalpong",
+          "quantity_received": "farm size x allocation"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-10",
+      "program_name": "Urea Fertilizer Distribution - New Labangan",
+      "crop_type": "Fertilizer",
+      "commodity": "Urea Fertilizer (46-0-0)",
+      "venue": "New Labangan Barangay Hall",
+      "barangay": "New Labangan",
+      "funding_source": "LGU Labangan",
+      "status": "Completed",
+      "total_quantity": 4,
+      "beneficiaries": [
+        {
+          "rsbsa_number": "09-73-00-000-000231",
+          "name": "Noel Bacus",
+          "quantity_received": 2
+        },
+        {
+          "rsbsa_number": "09-73-00-000-000232",
+          "name": "Aida Pepito",
+          "quantity_received": 2
+        }
+      ]
     }
   ],
   "proof_of_planting_submissions": [
@@ -1399,6 +1603,54 @@
       "longitude": 123.512979,
       "status": "Rejected",
       "remarks": "Location is outside the declared farm parcel."
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000227",
+      "crop_type": "Rice",
+      "area_planted_ha": 1.8,
+      "planting_date": "2026-10-20",
+      "submitted_at": "2026-11-02T09:10:00+08:00",
+      "latitude": 7.8741,
+      "longitude": 123.4982,
+      "status": "Pending",
+      "remarks": "",
+      "farmer": "Ramon Cabiling"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000229",
+      "crop_type": "Rice",
+      "area_planted_ha": 2,
+      "planting_date": "2026-10-12",
+      "submitted_at": "2026-10-28T10:40:00+08:00",
+      "latitude": 7.8613,
+      "longitude": 123.5367,
+      "status": "Validated",
+      "remarks": "Crop verified.",
+      "farmer": "Joel Lumapas"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000231",
+      "crop_type": "Rice",
+      "area_planted_ha": 1.4,
+      "planting_date": "2026-10-05",
+      "submitted_at": "2026-10-21T14:05:00+08:00",
+      "latitude": 7.8452,
+      "longitude": 123.5221,
+      "status": "Rejected",
+      "remarks": "The photo doesn't show the planted area clearly.",
+      "farmer": "Noel Bacus"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000232",
+      "crop_type": "Corn",
+      "area_planted_ha": 0.9,
+      "planting_date": "2026-10-18",
+      "submitted_at": "2026-11-04T08:25:00+08:00",
+      "latitude": 7.8466,
+      "longitude": 123.5249,
+      "status": "Pending",
+      "remarks": "",
+      "farmer": "Aida Pepito"
     }
   ],
   "commodity_requests": [
@@ -1476,6 +1728,43 @@
       "status": "Approved",
       "fa_remarks": "Active member; field is ready for planting.",
       "remarks": "Release at the next RCEF distribution."
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000227",
+      "farmer": "Ramon Cabiling",
+      "commodity": "Corn Seeds",
+      "quantity": 30,
+      "request_date": "2026-11-12",
+      "status": "Pending",
+      "remarks": ""
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000229",
+      "farmer": "Joel Lumapas",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
+      "quantity": 80,
+      "request_date": "2026-11-08",
+      "status": "Approved",
+      "remarks": ""
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000230",
+      "farmer": "Gemma Sumalpong",
+      "commodity": "Vegetable Seeds",
+      "quantity": 2,
+      "request_date": "2026-11-14",
+      "status": "Recommended",
+      "remarks": "",
+      "fa_remarks": "Verified with the farmer; recommending approval."
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000231",
+      "farmer": "Noel Bacus",
+      "commodity": "Organic Fertilizer",
+      "quantity": 50,
+      "request_date": "2026-11-06",
+      "status": "Rejected",
+      "remarks": "Not enough supply this season."
     }
   ],
   "farmer_requests_filed_by_fa": [
@@ -1594,6 +1883,55 @@
       ],
       "status": "Published",
       "pinned": false
+    },
+    {
+      "title": "Corn seed distribution in Bokong on December 2",
+      "details": "For registered corn farmers of Bokong. Bring your RSBSA stub.",
+      "date": "2026-12-02",
+      "time": "09:00",
+      "venue": "Bokong Barangay Hall",
+      "audience": "farmers",
+      "barangays": [
+        "Bokong"
+      ],
+      "status": "Published",
+      "pinned": false,
+      "photo": true
+    },
+    {
+      "title": "Combo Farmers' Association Presidents' planning meeting",
+      "details": "Planning the dry season requests with the MAO.",
+      "date": "2026-12-04",
+      "time": "14:00",
+      "venue": "Combo Covered Court",
+      "audience": "fa_president",
+      "barangays": [
+        "Combo"
+      ],
+      "status": "Published",
+      "pinned": false
+    },
+    {
+      "title": "Fertilizer distribution in New Labangan and Bagalupa",
+      "details": "Urea fertilizer for tagged beneficiaries of both barangays. Bring your RSBSA stub and one valid ID.",
+      "date": "2026-12-08",
+      "time": "08:00",
+      "venue": "New Labangan Barangay Hall",
+      "audience": "everyone",
+      "barangays": [
+        "New Labangan",
+        "Bagalupa"
+      ],
+      "status": "Published",
+      "pinned": false,
+      "photo": true
+    },
+    {
+      "title": "Typhoon preparedness reminder for all barangays",
+      "details": "Remind the farmers in your barangay to harvest early where possible and secure their seed stocks before the typhoon season.",
+      "audience": "fa_president",
+      "status": "Published",
+      "pinned": false
     }
   ],
   "harvest_reports": [
@@ -1696,6 +2034,47 @@
       "status": "Returned",
       "filed_by": "fa_president",
       "review_remarks": "Please confirm the area harvested; the parcel survey shows 8 ha planted."
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000228",
+      "commodity": "Corn Seeds",
+      "area_ha": 1,
+      "yield_kg": 3800,
+      "harvest_date": "2026-11-15",
+      "status": "Submitted",
+      "photo": true,
+      "latitude": 7.8752,
+      "longitude": 123.4995,
+      "remarks": "First corn harvest this year.",
+      "farmer": "Leticia Ompad"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000230",
+      "commodity": "Vegetable Seeds",
+      "area_ha": 0.7,
+      "yield_kg": 1200,
+      "harvest_date": "2026-11-01",
+      "status": "Verified",
+      "photo": true,
+      "latitude": 7.8627,
+      "longitude": 123.5381,
+      "remarks": "",
+      "review_remarks": "Checked with the barangay technician.",
+      "farmer": "Gemma Sumalpong"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000231",
+      "commodity": "Rice Seeds – Inbred (RCEF)",
+      "area_ha": 1.4,
+      "yield_kg": 6100,
+      "harvest_date": "2026-11-09",
+      "status": "Returned",
+      "photo": true,
+      "latitude": 7.8455,
+      "longitude": 123.5226,
+      "remarks": "",
+      "review_remarks": "Please add a clearer photo of the harvest.",
+      "farmer": "Noel Bacus"
     }
   ]
 }

@@ -18,7 +18,7 @@ const SELECT = `
   request_id, commodity_id, quantity_requested, reason, status, fa_remarks, mao_remarks, created_at,
   reviewed_by_fa, reviewed_by_mao, fa_decision_at, admin_decision_at, filed_by, fa_recommended, fa_recommended_at,
   filer:profiles!filed_by ( full_name ),
-  farmers ( farmer_id, first_name, surname, rsbsa_no, addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ) ),
+  farmers ( farmer_id, first_name, surname, rsbsa_no, addresses ( barangay, barangay_id, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ) ),
   commodities ( name, unit, allocation_per_hectare ),
   fa:profiles!reviewed_by_fa ( full_name ),
   mao:profiles!reviewed_by_mao ( full_name )
@@ -35,7 +35,8 @@ function mapRequest(row) {
     farmerLastName: row.farmers?.surname ?? "",
     farmerName: `${row.farmers?.first_name ?? ""} ${row.farmers?.surname ?? ""}`.trim(),
     rsbsaNo: row.farmers?.rsbsa_no ?? "",
-    barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
+    barangay: row.farmers?.addresses?.[0]?.barangay ?? "",
+    barangayId: row.farmers?.addresses?.[0]?.barangay_id ?? null,
     sitioPurok: row.farmers?.addresses?.[0]?.street ?? "",
     avatarUrl: row.farmers?.profiles?.avatar_url ?? null,
     farmSize: farm.farmSize,

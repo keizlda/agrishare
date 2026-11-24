@@ -48,8 +48,8 @@ export default function PostDetailModal({ post, barangays, onClose }) {
           <PostEventRow post={post} />
           {!!post.body.trim() && <div className="agri-post-body">{post.body}</div>}
 
-          {post.imagePath && (
-            photo ? <img src={photo} alt="Photo in this post" className="agri-post-detail-image" /> : <div className="agri-post-detail-image loading" aria-label="Loading photo" />
+          {!photo.failed && (
+            photo.url ? <img src={photo.url} alt="Photo in this post" className="agri-post-detail-image" onError={photo.onError} /> : <div className="agri-post-detail-image loading" aria-label="Loading photo" />
           )}
 
           <div className="agri-post-detail-foot">

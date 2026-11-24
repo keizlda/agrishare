@@ -138,6 +138,32 @@ Updated November 23, 2026 (see the updates below).
   a different account, this tab follows instead of acting as the wrong
   account.
 
+## On `develop` (not on the live site yet): filters and test data in more barangays
+
+- **Announcements:** the "What do you want to announce?" box opens Create
+  post (no separate button); no sort (always newest first, pinned on top);
+  the search box fills the toolbar next to the barangay filter. A photo that
+  can't be loaded is hidden instead of leaving an empty space (web and app).
+- **Barangay filter on every list:** Announcements, Farmers, Validation,
+  Distributions and Requests ("All barangays" + the barangays list); results
+  change as soon as a barangay is chosen. Reports already had one.
+- **Farmers:** only two filters, Barangay and Status.
+- **Validation:** status filter All / Pending / Approved / Rejected
+  (Approved = validated proof of planting and verified harvest reports;
+  Rejected = rejected proof of planting and returned harvest reports); the
+  badges stay as they were.
+- **Distributions:** a search box (program, commodity, venue or date) in
+  place of the program filter; the distribution form's Barangay is a
+  dropdown of the barangays (new distributions too).
+- **Test data:** a Farmers' Association President for Bokong; two farmers
+  each in Bokong, Combo and New Labangan with a distribution, requests,
+  proof of planting and harvest reports; posts for Bokong only, Combo only,
+  New Labangan and Bagalupa, and all barangays (two with a photo).
+
+| Check (localhost + agrishare-dev, 1366×768 and 1920×1080) | Result |
+| --- | --- |
+| Announcements toolbar, newest first, composer, barangay filter, photos load, broken photo hidden; Farmers / Validation / Distributions / Requests filters by barangay (and status / search); New Distribution barangay dropdown; Reports List of Farmers by barangay; Lists with a real barangay name; Bokong FA President's posts | 48/48 |
+
 ## On `develop` (not on the live site yet): who can see a post, and the barangays of Labangan
 
 Runs on localhost against the development database (agrishare-dev); it

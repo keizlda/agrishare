@@ -3,6 +3,7 @@
 // fields the list and the opened view need.
 import { listSubmissions } from "./api/cropValidation.js";
 import { listHarvestReports } from "./api/harvest.js";
+import { inBarangay } from "./listMatch.js";
 
 export const KINDS = { planting: "Proof of planting", harvest: "Harvest" };
 
@@ -13,31 +14,34 @@ export const TYPE_TABS = [
 ];
 
 // Planting: Pending / Validated / Rejected. Harvest: Submitted / Verified /
-// Returned. The filter groups them.
+// Returned. The filter groups them: Approved = validated or verified,
+// Rejected = rejected or returned.
 export const STATUS_FILTERS = [
   { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
-  { value: "approved", label: "Validated / Verified" },
-  { value: "declined", label: "Rejected / Returned" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
 ];
-const GROUP = { Pending: "pending", Validated: "approved", Rejected: "declined", submitted: "pending", verified: "approved", returned: "declined" };
-// Older links: ?status=Pending, ?status=submitted …
-const LEGACY_STATUS = { pending: "pending", submitted: "pending", validated: "approved", verified: "approved", rejected: "declined", returned: "declined", all: "all", approved: "approved", declined: "declined" };
+const GROUP = { Pending: "pending", Validated: "approved", Rejected: "rejected", submitted: "pending", verified: "approved", returned: "rejected" };
+// Older links: ?status=Pending, ?status=submitted, ?status=declined …
+const LEGACY_STATUS = { pending: "pending", submitted: "pending", validated: "approved", verified: "approved", rejected: "rejected", returned: "rejected", declined: "rejected", all: "all", approved: "approved" };
 
 export function readFilters(params) {
   const type = TYPE_TABS.some((t) => t.value === params.get("type")) ? params.get("type") : "all";
   const status = LEGACY_STATUS[(params.get("status") ?? "").toLowerCase()] ?? "pending";
   const q = params.get("q") ?? "";
+  const barangay = params.get("barangay") || "all";
   const page = Math.max(1, Number(params.get("page")) || 1);
-  return { type, status, q, page };
+  return { type, status, q, barangay, page };
 }
 
 // URL query for the filters (defaults left out).
-export function filterQuery({ type, status, q, page }) {
+export function filterQuery({ type, status, q, barangay, page }) {
   const p = new URLSearchParams();
   if (type && type !== "all") p.set("type", type);
   if (status && status !== "pending") p.set("status", status);
   if (q) p.set("q", q);
+  if (barangay && barangay !== "all") p.set("barangay", barangay);
   if (page > 1) p.set("page", String(page));
   const s = p.toString();
   return s ? `?${s}` : "";
@@ -75,6 +79,7 @@ function fromPlanting(s) {
     avatarUrl: f?.avatarUrl ?? null,
     rsbsaNo: f?.rsbsaNo ?? "",
     barangay: f?.barangay ?? "",
+    barangayId: f?.barangayId ?? null,
     farmSize: f?.farmSize ?? null,
     summary: [d.crop || "Crop not given", d.areaPlanted != null ? `${fmt(d.areaPlanted)} ha` : null].filter(Boolean).join(" · "),
     status: s.status,
@@ -100,6 +105,7 @@ function fromHarvest(h) {
     avatarUrl: h.avatarUrl,
     rsbsaNo: h.rsbsaNo,
     barangay: h.barangay,
+    barangayId: h.barangayId,
     farmSize: h.farmSize,
     summary: `${crop} · ${fmt(h.yieldKg)} kg`,
     status: h.status,
@@ -118,13 +124,15 @@ export async function loadInbox() {
   return [...planting.map(fromPlanting), ...harvest.map(fromHarvest)].sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
-export function applyFilters(items, { type, status, q }) {
+// `barangays`: the list, for records matched by their barangay text.
+export function applyFilters(items, { type, status, q, barangay }, barangays = []) {
   const query = q.trim().toLowerCase();
   const digits = query.replace(/\D/g, "");
   return items.filter(
     (i) =>
       (type === "all" || i.kind === type) &&
       (status === "all" || i.group === status) &&
+      inBarangay(barangays, barangay, i.barangayId, i.barangay) &&
       (!query || i.farmerName.toLowerCase().includes(query) || i.rsbsaNo.toLowerCase().includes(query) || (digits.length >= 3 && i.rsbsaNo.replace(/\D/g, "").includes(digits))),
   );
 }

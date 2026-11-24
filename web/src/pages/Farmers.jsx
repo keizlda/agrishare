@@ -19,7 +19,8 @@ import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { categoryOption, listCommodities } from "../lib/api/commodities.js";
 import { listAllEntries } from "../lib/api/lists.js";
-import { entryForText, nameKey as listKey } from "../lib/listMatch.js";
+import BarangayFilter from "../components/lists/BarangayFilter.jsx";
+import { entryForText, inBarangay } from "../lib/listMatch.js";
 import { PLACE } from "../lib/place.js";
 import { formatRate } from "../lib/allocation.js";
 import { formatDate, todayIso } from "../lib/dates.js";
@@ -133,13 +134,6 @@ function farmerToForm(f, lists) {
     orgLegacy: assoc.legacy,
     status: f.status || "",
   };
-}
-
-// Does farmer value (id, or older text) match the chosen list entry?
-function matchesEntry(entries, chosenId, id, text) {
-  if (id) return String(id) === String(chosenId);
-  const chosen = entries.find((e) => String(e.id) === String(chosenId));
-  return !!chosen && !!text && listKey(chosen.name) === listKey(text);
 }
 
 // Self-contained print window (no route/data round-trip) so the temporary
@@ -318,11 +312,9 @@ export default function Farmers() {
   const { data: farmers, setData: setFarmers, loading, error: loadError } = useSupabaseList(listFarmers);
   const [search, setSearch] = useState(location.state?.presetSearch ?? "");
   const [debouncedSearch, setDebouncedSearch] = useState(search);
-  const [commodityFilter, setCommodityFilter] = useState("All");
-  const [programFilter, setProgramFilter] = useState("All");
+  // Two filters: barangay and status.
+  const [barangayFilter, setBarangayFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [sitioFilter, setSitioFilter] = useState("All");
-  const [associationFilter, setAssociationFilter] = useState("All");
   // Commodities with a kg/ha rate, for the Seed program field.
   const [commodities, setCommodities] = useState([]);
   // Sitios/puroks, farmers' associations and crops (Settings).
@@ -332,7 +324,6 @@ export default function Farmers() {
     listAllEntries().then(setLists).catch(() => {});
   }, []);
   const addToList = (kind, entry) => setLists((l) => ({ ...l, [kind]: [...l[kind].filter((e) => e.id !== entry.id), entry].sort((a, b) => a.name.localeCompare(b.name)) }));
-  const programFilterOptions = useMemo(() => [...new Set(farmers.map((f) => f.seedProgram).filter(Boolean))].sort(), [farmers]);
 
   // Deep-link support: the Validation page's "View full profile" / "Open
   // farmer record" links navigate here with a preset search term.
@@ -363,17 +354,11 @@ export default function Farmers() {
         fullName.includes(debouncedSearch.toLowerCase()) ||
         f.rsbsaNo.includes(debouncedSearch) ||
         (searchDigits && f.rsbsaNo.replace(/\D/g, "").includes(searchDigits));
-      const matchesCommodity = commodityFilter === "All" || matchesEntry(lists.crops, commodityFilter, f.cropTypeId, f.commodity);
-      const matchesProgram = programFilter === "All" || (programFilter === "None" ? !f.seedProgramId : f.seedProgram === programFilter);
       const matchesStatus = statusFilter === "All" || f.status === statusFilter;
-      const matchesSitio = sitioFilter === "All" || matchesEntry(lists.sitios, sitioFilter, f.sitioId, f.sitioPurok);
-      const matchesAssociation =
-        associationFilter === "All" ||
-        (associationFilter === "None" ? !f.associationId && !f.orgAffiliation : matchesEntry(lists.associations, associationFilter, f.associationId, f.orgAffiliation));
-      return matchesSearch && matchesCommodity && matchesProgram && matchesStatus && matchesSitio && matchesAssociation;
+      return matchesSearch && matchesStatus && inBarangay(lists.barangays, barangayFilter, f.barangayId, f.barangay);
     });
-  }, [farmers, debouncedSearch, commodityFilter, programFilter, statusFilter, sitioFilter, associationFilter, lists]);
-  const filtersOn = commodityFilter !== "All" || programFilter !== "All" || statusFilter !== "All" || sitioFilter !== "All" || associationFilter !== "All";
+  }, [farmers, debouncedSearch, statusFilter, barangayFilter, lists]);
+  const filtersOn = statusFilter !== "All" || barangayFilter !== "all";
 
 
   // Rows per page = however many fit in the full-height table area (min 5).
@@ -444,27 +429,7 @@ export default function Farmers() {
             />
           </div>
 
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "168px" }} value={sitioFilter} onChange={(e) => setSitioFilter(e.target.value)} aria-label="Filter by sitio/purok">
-            <option value="All">All Sitios/Puroks</option>
-            {lists.sitios.map((s) => <option key={s.id} value={String(s.id)}>{s.name}{s.isActive ? "" : " (deactivated)"}</option>)}
-          </select>
-
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "168px" }} value={associationFilter} onChange={(e) => setAssociationFilter(e.target.value)} aria-label="Filter by farmers' association">
-            <option value="All">All Associations</option>
-            {lists.associations.map((a) => <option key={a.id} value={String(a.id)}>{a.name}{a.isActive ? "" : " (deactivated)"}</option>)}
-            <option value="None">No association</option>
-          </select>
-
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "168px" }} value={commodityFilter} onChange={(e) => setCommodityFilter(e.target.value)} aria-label="Filter by commodity/crop">
-            <option value="All">All Commodities</option>
-            {lists.crops.map((c) => <option key={c.id} value={String(c.id)}>{c.name}{c.isActive ? "" : " (deactivated)"}</option>)}
-          </select>
-
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "180px" }} value={programFilter} onChange={(e) => setProgramFilter(e.target.value)} aria-label="Filter by seed program">
-            <option value="All">All Seed Programs</option>
-            {programFilterOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-            <option value="None">No seed program</option>
-          </select>
+          <BarangayFilter barangays={lists.barangays} value={barangayFilter} onChange={setBarangayFilter} />
 
           <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "122px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
             <option value="All">All Status</option>

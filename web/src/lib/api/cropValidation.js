@@ -6,7 +6,7 @@ const SELECT = `
   crop:crops ( crop_type, area_planted ),
   farmers (
     farmer_id, rsbsa_no, surname, first_name, sex, birth_date, contact_no, status, deleted_at,
-    addresses ( street, barangay, municipality, province ),
+    addresses ( street, barangay, barangay_id, municipality, province ),
     farm_parcels ( farm_location, farm_size_hectares, ownership_type, crops ( crop_type ) ),
     profiles!profile_id ( avatar_url )
   ),
@@ -47,7 +47,8 @@ function mapSubmission(row) {
           birthDate: farmer.birth_date,
           contactNo: farmer.contact_no ?? "",
           address: [address?.street, address?.barangay, address?.municipality, address?.province].filter(Boolean).join(", "),
-          barangay: address?.barangay ?? "Langapud",
+          barangay: address?.barangay ?? "",
+          barangayId: address?.barangay_id ?? null,
           commodity: parcel?.crops?.[0]?.crop_type ?? "",
           farmSize: parcel?.farm_size_hectares != null ? Number(parcel.farm_size_hectares) : null,
           farmLocation: parcel?.farm_location ?? "",

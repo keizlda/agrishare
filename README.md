@@ -43,7 +43,8 @@ Development accounts (agrishare-dev only; password `password123`):
 | MAO Admin | `admin@agrishare.test` |
 | Farmers' Association President, Langapud | `fapresident@agrishare.test` |
 | Farmers' Association President, Bagalupa | `fapresident.bagalupa@agrishare.test` |
-| Farmer, Langapud / Bagalupa (mobile) | login ID `000201` / `000226` |
+| Farmers' Association President, Bokong | `fapresident.bokong@agrishare.test` |
+| Farmers (mobile), by barangay | Langapud `000201`, Bagalupa `000226`, Bokong `000227`–`000228`, Combo `000229`–`000230`, New Labangan `000231`–`000232` |
 
 Database work on the development database:
 

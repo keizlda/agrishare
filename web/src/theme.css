@@ -3390,7 +3390,11 @@ input[type="number"] {
 }
 .agri-vinbox-status {
   flex: none;
-  width: 220px;
+  width: 130px;
+}
+.agri-vinbox-barangay {
+  flex: none;
+  width: 172px;
 }
 /* Rows like the earlier Validation list: about 72–80px tall, a 40px avatar,
    two lines of text, thin dividers, a light green hover, and a green edge on
@@ -3664,7 +3668,8 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
 
 @media (max-width: 767.98px) {
   .agri-vinbox-search,
-  .agri-vinbox-status {
+  .agri-vinbox-status,
+  .agri-vinbox-barangay {
     flex: 1 1 100%;
     width: 100%;
     max-width: none;
@@ -4558,6 +4563,7 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   margin: 12px -16px 0;
   max-height: 560px;
   object-fit: cover;
+  background: var(--agri-card);
   border-top: 1px solid var(--agri-divider);
   border-bottom: 1px solid var(--agri-divider);
 }

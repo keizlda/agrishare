@@ -9,6 +9,15 @@ export const nameKey = (name) => String(name ?? "").toLowerCase().replace(/\s+/g
 
 export const cleanName = (name) => String(name ?? "").trim().replace(/\s+/g, " ");
 
+// Is a record in the chosen barangay? By its barangay id, or (records saved
+// before the barangays list) by its barangay text. "all" matches everything.
+export function inBarangay(barangays, chosenId, id, text) {
+  if (!chosenId || chosenId === "all") return true;
+  if (id) return String(id) === String(chosenId);
+  const chosen = barangays.find((b) => String(b.id) === String(chosenId));
+  return !!chosen && !!text && nameKey(chosen.name) === nameKey(text);
+}
+
 const NUMBER_WORDS = { one: "1", two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8", nine: "9", ten: "10", uno: "1", dos: "2", tres: "3", kwatro: "4", singko: "5" };
 // Words that don't tell two places (or associations) apart.
 const FILLER = new Set(["sitio", "so", "purok", "prk", "brgy", "barangay", "the", "of", "and", "association", "assoc", "assn", "inc", "farmers", "farmer", "farmer's", "farmers'"]);

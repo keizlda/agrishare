@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import BarangayFilter from "../components/lists/BarangayFilter.jsx";
+import { useBarangays } from "../hooks/useBarangays.js";
+import { inBarangay } from "../lib/listMatch.js";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, Inbox, Plus, Search, Send, ShieldAlert } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
@@ -75,6 +78,8 @@ const MAX_NOTES_LENGTH = 500;
 
 function FarmerRequestsView({ isMAO }) {
   const { data: requests, setData: setRequests, loading, error: loadError } = useSupabaseList(listRequests);
+  const barangays = useBarangays();
+  const [barangayFilter, setBarangayFilter] = useState("all");
   const [searchParams] = useSearchParams();
   const [filter, setFilter] = useState(() => initialFilter(searchParams));
   // "Filed by Farmers' Association President": requests recorded for a
@@ -91,8 +96,10 @@ function FarmerRequestsView({ isMAO }) {
   const [toast, setToast] = useState(null);
   const [filing, setFiling] = useState(false);
 
-  const searched = useMemo(() => requests.filter((r) => matchesSearch(r, search) && (!filedOnly || r.filedByFa)), [requests, search, filedOnly]);
-  const filedCount = useMemo(() => requests.filter((r) => matchesSearch(r, search) && r.filedByFa).length, [requests, search]);
+  // Search and barangay first; the status chips count within them.
+  const inScope = useMemo(() => requests.filter((r) => matchesSearch(r, search) && inBarangay(barangays, barangayFilter, r.barangayId, r.barangay)), [requests, search, barangays, barangayFilter]);
+  const searched = useMemo(() => inScope.filter((r) => !filedOnly || r.filedByFa), [inScope, filedOnly]);
+  const filedCount = useMemo(() => inScope.filter((r) => r.filedByFa).length, [inScope]);
   const filtered = useMemo(() => (filter === "all" ? searched : searched.filter((r) => statusKey(r) === filter)), [searched, filter]);
   const counts = useMemo(() => {
     const c = { all: searched.length };
@@ -179,6 +186,7 @@ function FarmerRequestsView({ isMAO }) {
               <Search size={15} />
               <input className="form-control" placeholder="Search farmer, RSBSA no. or commodity" aria-label="Search requests" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
+            <BarangayFilter barangays={barangays} value={barangayFilter} onChange={setBarangayFilter} />
           </div>
           <div className="agri-filter-chips">
             {/* The status chips are tabs; "Filed by…" is a toggle next to them. */}

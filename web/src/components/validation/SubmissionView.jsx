@@ -225,7 +225,7 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
                 <div className="agri-timeline-title">Waiting for the MAO Admin to {words.waiting}</div>
               </li>
             ) : (
-              <li className={`agri-timeline-step ${item.group === "declined" ? "rejected" : "done"}`}>
+              <li className={`agri-timeline-step ${item.group === "rejected" ? "rejected" : "done"}`}>
                 <span className="agri-timeline-dot" aria-hidden="true" />
                 <div className="agri-timeline-title">{item.status}</div>
                 <div className="agri-timeline-meta">by {reviewerOf(item)} · {reviewedAtOf(item) ? formatDateTime(reviewedAtOf(item)) : "date not recorded"}</div>

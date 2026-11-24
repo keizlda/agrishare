@@ -27,7 +27,7 @@ const SELECT = `
   harvest_date, photo_path, latitude, longitude, gps_accuracy_meters, photo_captured_at, distribution_claim_id, request_id,
   remarks, status, review_remarks, reviewed_at, submitted_by, resubmitted_at, created_at, updated_at,
   commodities ( name ),
-  farmers ( farmer_id, rsbsa_no, first_name, surname, profile_id, addresses ( barangay, street ), farm_parcels ( farm_size_hectares ), profiles!profile_id ( avatar_url ) ),
+  farmers ( farmer_id, rsbsa_no, first_name, surname, profile_id, addresses ( barangay, barangay_id, street ), farm_parcels ( farm_size_hectares ), profiles!profile_id ( avatar_url ) ),
   reviewer:profiles!reviewed_by ( full_name ),
   submitter:profiles!submitted_by ( full_name, role )
 `;
@@ -53,7 +53,8 @@ function mapHarvest(row) {
     lastName: f?.surname ?? "",
     avatarUrl: f?.profiles?.avatar_url ?? null,
     rsbsaNo: f?.rsbsa_no ?? "",
-    barangay: f?.addresses?.[0]?.barangay ?? "Langapud",
+    barangay: f?.addresses?.[0]?.barangay ?? "",
+    barangayId: f?.addresses?.[0]?.barangay_id ?? null,
     sitioPurok: f?.addresses?.[0]?.street ?? "",
     farmSize,
     harvestMonth: harvestMonth(row.harvest_date),

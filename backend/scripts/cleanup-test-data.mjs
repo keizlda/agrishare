@@ -193,7 +193,7 @@ async function main() {
   for (const id of typesStillUsed) log(`Keeping type ${ledger.commodityTypes.find((t) => t.commodity_type_id === id).name}: real records use it now.`);
 
   // Files: ledger paths + anything else the seeded accounts uploaded.
-  const files = { avatars: new Set(), "crop-validation-photos": new Set(), "association-attachments": new Set(), "harvest-photos": new Set() };
+  const files = { avatars: new Set(), "crop-validation-photos": new Set(), "association-attachments": new Set(), "harvest-photos": new Set(), "announcement-images": new Set() };
   ledger.storage.forEach((s) => files[s.bucket]?.add(s.path));
   harvestRows.filter((h) => h.photo_path).forEach((h) => files["harvest-photos"].add(h.photo_path));
   for (const [bucket, folders] of [["avatars", profileIds], ["crop-validation-photos", farmerIds.map(String)], ["association-attachments", profileIds], ["harvest-photos", farmerIds.map(String)]]) {

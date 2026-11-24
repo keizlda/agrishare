@@ -12,13 +12,15 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { KINDS, STATUS_FILTERS, TYPE_TABS, applyFilters, filterQuery, loadInbox, readFilters } from "../lib/validationInbox.js";
+import BarangayFilter from "../components/lists/BarangayFilter.jsx";
+import { useBarangays } from "../hooks/useBarangays.js";
 import { formatDate } from "../lib/dates.js";
 import { rowLinkProps } from "../lib/rowLink.js";
 
 const EMPTY = {
   pending: ["No pending submissions", "Everything has been reviewed."],
-  approved: ["No validated or verified submissions", "Submissions the MAO Admin approves appear here."],
-  declined: ["No rejected or returned submissions", "Submissions sent back to farmers appear here."],
+  approved: ["No approved submissions", "Validated proof of planting and verified harvest reports appear here."],
+  rejected: ["No rejected submissions", "Rejected proof of planting and returned harvest reports appear here."],
   all: ["No submissions yet", "Proof of planting and harvest reports from farmers appear here."],
 };
 
@@ -43,7 +45,8 @@ export default function Validation() {
     if (kind) setLastOpened(`${kind}-${id}`);
   }, [kind, id]);
 
-  const filtered = useMemo(() => applyFilters(items, filters), [items, filters.type, filters.status, filters.q]); // eslint-disable-line react-hooks/exhaustive-deps
+  const barangays = useBarangays();
+  const filtered = useMemo(() => applyFilters(items, filters, barangays), [items, filters.type, filters.status, filters.q, filters.barangay, barangays]); // eslint-disable-line react-hooks/exhaustive-deps
   const pendingCounts = useMemo(() => {
     const c = { all: 0, planting: 0, harvest: 0 };
     for (const i of items) if (i.group === "pending") { c.all++; c[i.kind]++; }
@@ -91,6 +94,7 @@ export default function Validation() {
   return (
     <div className="agri-fill-root">
       <InboxList
+          barangays={barangays}
         filters={filters}
         filtered={filtered}
         pendingCounts={pendingCounts}
@@ -106,13 +110,13 @@ export default function Validation() {
   );
 }
 
-function InboxList({ filters, filtered, pendingCounts, loading, loadError, onFilters, onPage, onOpen, lastOpened }) {
+function InboxList({ filters, filtered, barangays, pendingCounts, loading, loadError, onFilters, onPage, onOpen, lastOpened }) {
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const page = Math.min(filters.page, totalPages);
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
-  const [title, hint] = filters.q ? [`No submissions match “${filters.q}”`, "Try another name or RSBSA no., or change the filters."] : EMPTY[filters.status];
+  const [title, hint] = filters.q || filters.barangay !== "all" ? [filters.q ? `No submissions match “${filters.q}”` : "No submissions in this barangay", "Try another name, RSBSA no. or barangay, or change the filters."] : EMPTY[filters.status];
 
   return (
     <div className="agri-card agri-fill-card agri-vinbox">
@@ -141,6 +145,7 @@ function InboxList({ filters, filtered, pendingCounts, loading, loadError, onFil
         <select className="form-select agri-vinbox-status" aria-label="Filter by status" value={filters.status} onChange={(e) => onFilters({ status: e.target.value })}>
           {STATUS_FILTERS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
+        <BarangayFilter className="agri-vinbox-barangay" barangays={barangays} value={filters.barangay} onChange={(v) => onFilters({ barangay: v })} />
       </div>
 
       <div className="agri-table-wrap agri-vinbox-list" ref={tableRef}>

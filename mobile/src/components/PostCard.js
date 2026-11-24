@@ -151,7 +151,7 @@ function PostPhoto({ path }) {
 
   if (failed) return null;
   return url ? (
-    <Image source={{ uri: url }} style={[styles.photo, { aspectRatio: ratio }]} resizeMode="cover" accessibilityLabel="Photo" />
+    <Image source={{ uri: url }} style={[styles.photo, { aspectRatio: ratio }]} resizeMode="cover" accessibilityLabel="Photo" onError={() => setFailed(true)} />
   ) : (
     <View style={[styles.photo, styles.photoLoading, { aspectRatio: ratio }]}>
       <ActivityIndicator color={colors.primary} />
@@ -162,15 +162,17 @@ function PostPhoto({ path }) {
 // A small square of the post's photo (Home's Announcements card).
 export function PostThumb({ path, size = 40 }) {
   const [url, setUrl] = useState(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    getAnnouncementImageUrl(path).then((u) => !cancelled && setUrl(u)).catch(() => {});
+    getAnnouncementImageUrl(path).then((u) => !cancelled && setUrl(u)).catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
   }, [path]);
+  if (failed) return null;
   return url ? (
-    <Image source={{ uri: url }} style={[styles.thumb, { width: size, height: size }]} resizeMode="cover" accessibilityLabel="Photo" />
+    <Image source={{ uri: url }} style={[styles.thumb, { width: size, height: size }]} resizeMode="cover" accessibilityLabel="Photo" onError={() => setFailed(true)} />
   ) : (
     <View style={[styles.thumb, styles.photoLoading, { width: size, height: size }]} />
   );

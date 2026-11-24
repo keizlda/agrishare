@@ -121,8 +121,8 @@ export default function PostCard({ post, barangays, menu, onOpen }) {
         </>
       )}
 
-      {post.imagePath && (
-        photo ? <img src={photo} alt="Photo in this post" className="agri-post-image" /> : <div className="agri-post-image loading" aria-label="Loading photo" />
+      {!photo.failed && (
+        photo.url ? <img src={photo.url} alt="Photo in this post" className="agri-post-image" onError={photo.onError} /> : <div className="agri-post-image loading" aria-label="Loading photo" />
       )}
 
       <footer className="agri-post-foot">

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, ChevronDown, Pencil, Plus, Printer, Trash2, Truck, Users, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, Pencil, Plus, Printer, Search, Trash2, Truck, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import TableFooter from "../components/ui/TableFooter.jsx";
@@ -28,7 +28,10 @@ import {
   updateDistributionStatus,
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
-import { formatDate, todayIso } from "../lib/dates.js";
+import { formatDate, formatDateLong, formatDateNumeric, todayIso } from "../lib/dates.js";
+import BarangayFilter from "../components/lists/BarangayFilter.jsx";
+import { useBarangays } from "../hooks/useBarangays.js";
+import { inBarangay } from "../lib/listMatch.js";
 import { formatItemsTotal, formatQuantity, isSplitQuantity, isWholeUnit, splitEqually } from "../lib/quantity.js";
 import { computeAllocation, describeCalculation, formatHectares, formatKg, formatRate } from "../lib/allocation.js";
 import { friendlyError } from "../lib/friendlyError.js";
@@ -60,6 +63,7 @@ function redistributeQuantities(rows, totalQuantity, unit) {
 const STATUS_HELP = "Completed once the items are released and beneficiaries have signed. Setting it back to Ongoing clears the completion date.";
 
 const EMPTY_FORM = {
+  barangay: "",
   commodityId: "",
   program: "",
   venue: "",
@@ -79,7 +83,9 @@ export default function Distributions() {
   const [statusFilter, setStatusFilter] = useState(() =>
     DISTRIBUTION_STATUSES.includes(searchParams.get("status")) ? searchParams.get("status") : "All",
   );
-  const [programFilter, setProgramFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const [barangayFilter, setBarangayFilter] = useState("all");
+  const barangays = useBarangays();
   const [selectedId, setSelectedId] = useState(null);
   const [modal, setModal] = useState(null); // null | { mode: "add" } | { mode: "edit", distribution }
   const [toast, setToast] = useState(null);
@@ -118,28 +124,20 @@ export default function Distributions() {
     };
   }, [selectedId]);
 
-  // De-duplicated case-insensitively — "RCEF Seed Distribution" and "rcef
-  // seed distribution" are the same program, and only need one filter option
-  // between them (whichever casing was seen first).
-  const programOptions = useMemo(() => {
-    const seen = new Map();
-    for (const d of distributions) {
-      const trimmed = (d.program || "").trim();
-      if (!trimmed || seen.has(trimmed.toLowerCase())) continue;
-      seen.set(trimmed.toLowerCase(), trimmed);
-    }
-    return [...seen.values()].sort((a, b) => a.localeCompare(b));
-  }, [distributions]);
-
-  const filtered = useMemo(
-    () =>
-      distributions.filter(
-        (d) =>
-          (statusFilter === "All" || d.status === statusFilter) &&
-          (programFilter === "All" || (d.program || "").trim().toLowerCase() === programFilter.trim().toLowerCase()),
-      ),
-    [distributions, statusFilter, programFilter],
-  );
+  // Search: program name, commodity, venue, or date (as shown, e.g.
+  // "Nov 18, 2026", or "November 18", "11/18/2026", "2026-11-18").
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const text = (d) =>
+      [d.program, d.cropType, ...d.items.map((i) => i.name), d.venue, formatDate(d.date), formatDateLong(d.date), formatDateNumeric(d.date), d.date]
+        .filter(Boolean).join(" \n").toLowerCase();
+    return distributions.filter(
+      (d) =>
+        (statusFilter === "All" || d.status === statusFilter) &&
+        inBarangay(barangays, barangayFilter, null, d.barangay) &&
+        (!q || text(d).includes(q)),
+    );
+  }, [distributions, statusFilter, barangayFilter, barangays, search]);
 
   // Rows per page = however many fit in the full-height table area (min 5).
   const tableRef = useRef(null);
@@ -192,15 +190,17 @@ export default function Distributions() {
               </button>
             )}
 
-            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "160px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <div className="agri-toolbar-search">
+              <Search size={15} />
+              <input className="form-control" placeholder="Program, commodity, venue, date" title="Search by program, commodity, venue or date" aria-label="Search distributions" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+
+            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "128px" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status">
               <option value="All">All Status</option>
               {DISTRIBUTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
 
-            <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "200px" }} value={programFilter} onChange={(e) => setProgramFilter(e.target.value)}>
-              <option value="All">All Programs</option>
-              {programOptions.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
+            <BarangayFilter barangays={barangays} value={barangayFilter} onChange={setBarangayFilter} />
           </div>
 
           <div className="agri-table-wrap" ref={tableRef}>
@@ -242,7 +242,7 @@ export default function Distributions() {
               <EmptyState
                 icon={Truck}
                 title="No distributions found"
-                hint={statusFilter !== "All" || programFilter !== "All" ? "No distributions match these filters. Try a different status or program." : "Record a distribution to see it listed here."}
+                hint={statusFilter !== "All" || barangayFilter !== "all" || search.trim() ? "No distributions match. Try a different search, status or barangay." : "Record a distribution to see it listed here."}
               />
             )}
           </div>
@@ -368,6 +368,7 @@ export default function Distributions() {
           mode={modal.mode}
           distribution={modal.distribution}
           commodities={commodities}
+          barangays={barangays}
           onCommoditiesChange={setCommodities}
           onClose={() => setModal(null)}
           onSaved={modal.mode === "edit" ? handleUpdated : handleCreated}
@@ -586,7 +587,7 @@ function quantityState(row, rateNow) {
   return { state: unchanged ? "saved" : "adjusted", computed, rate, size };
 }
 
-function DistributionModal({ mode, distribution, commodities, onCommoditiesChange, onClose, onSaved }) {
+function DistributionModal({ mode, distribution, commodities, barangays = [], onCommoditiesChange, onClose, onSaved }) {
   const editing = mode === "edit";
   const primaryItem = distribution?.items?.[0];
 
@@ -901,11 +902,11 @@ function DistributionModal({ mode, distribution, commodities, onCommoditiesChang
     if (!form.commodityId) return "Choose a commodity (or add one with “+ Add new commodity”).";
     if (!form.program.trim()) return "Program name is required.";
     if (!form.venue.trim()) return "Venue is required.";
+    if (!form.barangay.trim()) return "Choose the barangay.";
     if (editing) {
       const today = todayIso();
       const [y, m, d] = today.split("-");
       if (!form.date) return "Enter the distribution date as MM/DD/YYYY.";
-      if (!form.barangay.trim()) return "Barangay is required.";
       if (form.status === "Completed" && form.date > today) return "A completed distribution can't have a future date.";
       if (form.date > `${Number(y) + 1}-${m}-${d}`) return "Enter a date within the next year.";
     }
@@ -994,6 +995,7 @@ function DistributionModal({ mode, distribution, commodities, onCommoditiesChang
         : await createDistribution({
             program,
             venue: form.venue,
+            barangay: form.barangay,
             beneficiaries: String(taggedBeneficiaries.length),
             commodityId: form.commodityId,
             quantity,
@@ -1035,18 +1037,23 @@ function DistributionModal({ mode, distribution, commodities, onCommoditiesChang
           )}
 
           <div className="agri-detail-section-title" style={{ marginTop: 0 }}>Distribution</div>
-          {editing && (
-            <div className="row g-3 mb-3">
+          <div className="row g-3 mb-3">
+            {editing && (
               <div className="col-12 col-sm-6">
                 <label className="agri-form-label">Date</label>
                 <DateInput required value={form.date} onChange={(v) => update("date", v)} aria-label="Distribution date" />
               </div>
-              <div className="col-12 col-sm-6">
-                <label className="agri-form-label">Barangay</label>
-                <input required className="form-control" value={form.barangay} onChange={(e) => update("barangay", e.target.value)} />
-              </div>
+            )}
+            <div className="col-12 col-sm-6">
+              <label className="agri-form-label" htmlFor="distribution-barangay">Barangay</label>
+              {/* From the barangays list; an older name not on it stays until another is chosen. */}
+              <select id="distribution-barangay" required className="form-select" value={form.barangay} onChange={(e) => update("barangay", e.target.value)}>
+                <option value="" disabled>Select barangay</option>
+                {form.barangay && !barangays.some((b) => b.name === form.barangay) && <option value={form.barangay}>{form.barangay}</option>}
+                {barangays.filter((b) => b.isActive || b.name === form.barangay).map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
+              </select>
             </div>
-          )}
+          </div>
           <div className="row g-3 mb-3">
             <div className={editing ? "col-12 col-sm-7" : "col-12"}>
               <label className="agri-form-label" htmlFor="distribution-commodity">Commodity</label>

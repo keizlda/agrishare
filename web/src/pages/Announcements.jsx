@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Megaphone, Pencil, Pin, PinOff, Plus, Search, Send, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Megaphone, Pencil, Pin, PinOff, Search, Send, Trash2 } from "lucide-react";
 import Toast from "../components/ui/Toast.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
@@ -13,13 +13,11 @@ import { friendlyError } from "../lib/friendlyError.js";
 import { formatDate, formatDateLong, formatDateNumeric, formatTime } from "../lib/dates.js";
 import maoSeal from "../assets/mao-seal.png";
 import { deleteAnnouncement, forwardAnnouncementToFarmers, listAnnouncements, setAnnouncementPinned } from "../lib/api/announcements.js";
-import { listEntries } from "../lib/api/lists.js";
+import BarangayFilter from "../components/lists/BarangayFilter.jsx";
+import { useBarangays } from "../hooks/useBarangays.js";
 
-// Pinned posts stay on top; then by when they were posted.
-function sortPosts(list, order = "newest") {
-  const dir = order === "oldest" ? 1 : -1;
-  return [...list].sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || dir * (new Date(a.postedAt) - new Date(b.postedAt)));
-}
+// Pinned posts on top, then newest first (by when they were posted).
+const sortPosts = (list) => [...list].sort((a, b) => Number(b.isPinned) - Number(a.isPinned) || new Date(b.postedAt) - new Date(a.postedAt));
 
 // What the search box looks through: the title, details, venue, and the
 // post's dates the way they're shown or typed ("Oct 23, 2026", "October
@@ -29,17 +27,17 @@ function searchText(a) {
   return [a.title, a.body, a.venue, ...dates(a.date), a.time && formatTime(a.time), ...dates(a.postedAt)].filter(Boolean).join(" \n").toLowerCase();
 }
 
-// Announcements as a feed of posts. The MAO Admin creates posts and has
-// Edit / Pin / Delete on each (⋯); the Farmers' Association President reads
-// the posts meant for them and can forward one to farmers. Clicking a post
-// opens it in full.
+// Announcements as a feed of posts. The MAO Admin creates posts from the
+// "What do you want to announce?" box at the top of the feed and has Edit /
+// Pin / Delete on each (⋯); the Farmers' Association President reads the
+// posts meant for them and can forward one to farmers. Clicking a post opens
+// it in full.
 export default function Announcements() {
   const { user } = useAuth();
   const isMAO = user?.role !== "FA President";
   const { data: announcements, setData: setAnnouncements, loading, error: loadError } = useSupabaseList(listAnnouncements);
-  const [barangays, setBarangays] = useState([]);
+  const barangays = useBarangays();
   const [search, setSearch] = useState("");
-  const [order, setOrder] = useState("newest");
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [modal, setModal] = useState(null); // null | { announcement? }
   const [open, setOpen] = useState(null); // the post shown in full
@@ -47,16 +45,12 @@ export default function Announcements() {
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState(null);
 
-  useEffect(() => {
-    listEntries("barangays").then(setBarangays).catch(() => {});
-  }, []);
-
   const posts = useMemo(() => {
     const q = search.trim().toLowerCase();
     const brgy = barangayFilter === "all" ? null : Number(barangayFilter);
     const shown = announcements.filter((a) => (!q || searchText(a).includes(q)) && (brgy == null || a.allBarangays || a.barangayIds.includes(brgy)));
-    return sortPosts(shown, order);
-  }, [announcements, search, barangayFilter, order]);
+    return sortPosts(shown);
+  }, [announcements, search, barangayFilter]);
   const filtering = !!search.trim() || barangayFilter !== "all";
 
   function handleSaved(saved, { editing }) {
@@ -116,31 +110,17 @@ export default function Announcements() {
         )}
 
         <div className="agri-toolbar">
-          {isMAO && (
-            <button className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setModal({})}>
-              <Plus size={16} /> Create post
-            </button>
-          )}
           <div className="agri-toolbar-search">
             <Search size={15} />
             <input className="form-control" placeholder="Search title, details, venue or date" aria-label="Search posts" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "150px" }} value={order} onChange={(e) => setOrder(e.target.value)} aria-label="Sort posts">
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-          </select>
-          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "180px" }} value={barangayFilter} onChange={(e) => setBarangayFilter(e.target.value)} aria-label="Filter by barangay">
-            <option value="all">All barangays</option>
-            {barangays.map((b) => (
-              <option key={b.id} value={String(b.id)}>{b.name}{b.isActive ? "" : " (deactivated)"}</option>
-            ))}
-          </select>
+          <BarangayFilter barangays={barangays} value={barangayFilter} onChange={setBarangayFilter} />
         </div>
 
         <div className="agri-post-feed">
           <div className="agri-post-feed-inner">
             {isMAO && (
-              <button type="button" className="agri-card agri-post-composer" onClick={() => setModal({})}>
+              <button type="button" className="agri-card agri-post-composer" onClick={() => setModal({})} aria-label="Create post">
                 <img src={maoSeal} alt="" className="agri-post-avatar" />
                 <span>What do you want to announce?</span>
               </button>

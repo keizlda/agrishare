@@ -313,12 +313,13 @@ async function readDistribution(eventId) {
   return mapDistribution(data, summaries.get(eventId));
 }
 
-export async function createDistribution({ program, venue, beneficiaries, commodityId, quantity, allocationKg = null, fundingSource, status, taggedBeneficiaries = [] }) {
+export async function createDistribution({ program, venue, barangay, beneficiaries, commodityId, quantity, allocationKg = null, fundingSource, status, taggedBeneficiaries = [] }) {
   const { data: eventId, error } = await supabase.rpc("save_distribution", {
     p_event_id: null,
     p_event: {
       program_name: program,
       venue,
+      barangay,
       funding_source: fundingSource || null,
       status: labelToDbStatus(status || "Ongoing"),
       event_date: todayIso(),
