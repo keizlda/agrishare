@@ -454,6 +454,13 @@ textarea:focus-visible,
   gap: 8px 16px;
 }
 
+.agri-dash-welcome-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
 .agri-dash-greeting {
   margin: 0;
   font-size: 1.25rem;
@@ -1015,6 +1022,41 @@ textarea:focus-visible,
   flex: 0 1 auto;
   width: var(--agri-filter-width, 160px);
   min-width: 0;
+}
+
+/* A Farmers' Association President's barangay, in place of the filter. */
+.agri-barangay-fixed.agri-barangay-fixed {
+  width: auto;
+  max-width: 340px;
+  flex: none;
+}
+.agri-barangay-fixed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--agri-divider);
+  border-radius: var(--bs-border-radius, 8px);
+  background: var(--agri-primary-soft);
+  color: var(--agri-primary-dark);
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.agri-row-sub {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--agri-text-muted);
+}
+.agri-other-barangay {
+  background: var(--agri-orange-bg);
+  color: var(--agri-orange-text);
+  border-color: transparent;
+}
+.agri-barangay-fixed-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .agri-toolbar-dates {
@@ -3909,7 +3951,7 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
 }
 
 /* ---- Managed lists (sitios/puroks, farmers' associations, crops) ---- */
-/* Fixed values on the farmer form (Barangay Langapud only): gray text. */
+/* Fixed values on the farmer form (municipality, province): gray text. */
 .agri-fixed-value {
   min-height: 38px;
   display: flex;
@@ -3983,10 +4025,51 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
 .agri-settings-scroll {
   min-height: 0;
 }
+.agri-lists-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.agri-lists-scope {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--agri-text-secondary);
+}
+.agri-lists-scope .form-select {
+  width: 240px;
+}
 .agri-lists-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+}
+/* Settings → Farmers' Association Presidents */
+.agri-fa-accounts {
+  padding: 16px;
+}
+.agri-fa-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.agri-fa-cred {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--agri-border);
+  font-size: 0.88rem;
+}
+.agri-fa-password {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
 }
 @media (min-width: 861px) {
   .agri-lists-grid {
@@ -4067,6 +4150,9 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   .agri-app-fill .agri-settings-scroll {
     flex: 1;
     overflow-y: auto;
+  }
+  .agri-app-fill .agri-lists-wrap {
+    flex: 1;
   }
   .agri-app-fill .agri-lists-grid {
     flex: 1;

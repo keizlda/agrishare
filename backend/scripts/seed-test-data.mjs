@@ -209,9 +209,10 @@ async function main() {
   }
 
   // ---------- Barangays (the list the migration seeds; never added here) ----------
-  const barangayRows = await must(sb.from("barangays").select("id, name"), "barangays");
+  const barangayRows = await must(sb.from("barangays").select("id, name, former_names"), "barangays");
+  const brgyKey = (v) => String(v ?? "").toLowerCase().replace(/\s+/g, "");
   const barangayId = (name) => {
-    const hit = barangayRows.find((b) => b.name.toLowerCase().replace(/\s+/g, "") === String(name).toLowerCase().replace(/\s+/g, ""));
+    const hit = barangayRows.find((b) => brgyKey(b.name) === brgyKey(name)) ?? barangayRows.find((b) => (b.former_names ?? []).some((f) => brgyKey(f) === brgyKey(name)));
     if (!hit) throw new StopError(`Barangay "${name}" isn't on the barangays list.`);
     return hit.id;
   };
@@ -226,8 +227,8 @@ async function main() {
     if (!faUser && !DRY) {
       const { data: created, error } = await sb.auth.admin.createUser({
         email: fa.email, password: fa.password, email_confirm: true,
-        user_metadata: { role: "fa_president", full_name: fa.name },
-        app_metadata: { seed_batch: BATCH },
+        user_metadata: { full_name: fa.name },
+        app_metadata: { seed_batch: BATCH, role: "fa_president", barangay_id: barangayId(fa.barangay) },
       });
       if (error) throw new Error(`create FA President: ${error.message}`);
       id = created.user.id;
@@ -323,12 +324,15 @@ async function main() {
   const listKey = (v) => String(v ?? "").toLowerCase().replace(/\s+/g, "");
   const listIds = { sitios: new Map(), associations: new Map(), crop_types: new Map() };
   const LIST_LEDGER = { sitios: "sitios", associations: "associations", crop_types: "cropTypes" };
-  async function listEntry(table, name) {
+  // Sitios/puroks and associations belong to a barangay (crops don't).
+  async function listEntry(table, name, barangay) {
     if (!name) return null;
-    const k = listKey(name);
+    const perBarangay = table !== "crop_types";
+    const bid = perBarangay ? barangayId(barangay ?? "Langapod") : null;
+    const k = `${bid ?? ""}|${listKey(name)}`;
     if (listIds[table].has(k)) return listIds[table].get(k);
-    const rows = await must(sb.from(table).select("id, name"), table);
-    const hit = rows.find((r) => listKey(r.name) === k);
+    const rows = await must(sb.from(table).select(perBarangay ? "id, name, barangay_id" : "id, name"), table);
+    const hit = rows.find((r) => listKey(r.name) === listKey(name) && (!perBarangay || r.barangay_id === bid));
     if (hit) {
       listIds[table].set(k, hit.id);
       return hit.id;
@@ -338,14 +342,37 @@ async function main() {
       listIds[table].set(k, null);
       return null;
     }
-    const row = await must(sb.from(table).insert({ name }).select("id, name").single(), `add ${table} ${name}`);
+    const row = await must(sb.from(table).insert({ name, ...(perBarangay ? { barangay_id: bid } : {}) }).select("id, name").single(), `add ${table} ${name}`);
     remember(ledger[LIST_LEDGER[table]], { id: row.id, name: row.name }, "id");
     bump(table);
     saveLedger(ledger);
     listIds[table].set(k, row.id);
     return row.id;
   }
-  for (const a of data.associations ?? []) await listEntry("associations", a.name);
+  // Test records written before Langapud's official name (Langapod): the
+  // seeded associations, distribution venues and posts say Langapod now
+  // (records of this seed only).
+  if (!DRY) {
+    const fix = (v) => (typeof v === "string" && v.includes("Langapud") ? v.replaceAll("Langapud", "Langapod") : null);
+    for (const a of ledger.associations) {
+      const row = await maybeOne(sb.from("associations").select("id, name").eq("id", a.id), "association name");
+      if (row && fix(row.name)) { await must(sb.from("associations").update({ name: fix(row.name) }).eq("id", row.id), "rename association"); a.name = fix(row.name); bump("associations (renamed to Langapod)"); }
+    }
+    for (const e of ledger.events) {
+      const row = await maybeOne(sb.from("distribution_events").select("event_id, venue").eq("event_id", e.event_id), "event venue");
+      if (row && fix(row.venue)) { await must(sb.from("distribution_events").update({ venue: fix(row.venue) }).eq("event_id", row.event_id), "event venue"); bump("distribution venues (Langapod)"); }
+    }
+    for (const x of ledger.announcements) {
+      const row = await maybeOne(sb.from("announcements").select("announcement_id, venue, body").eq("announcement_id", x.announcement_id), "post venue");
+      if (row && (fix(row.venue) || fix(row.body))) {
+        await must(sb.from("announcements").update({ venue: fix(row.venue) ?? row.venue, body: fix(row.body) ?? row.body }).eq("announcement_id", row.announcement_id), "post venue");
+        bump("posts (Langapod)");
+      }
+    }
+    saveLedger(ledger);
+  }
+
+  for (const a of data.associations ?? []) await listEntry("associations", a.name, a.barangay);
 
   // ---------- Farmers + addresses + parcels + crops + login accounts ----------
   for (const f of data.farmers) {
@@ -363,7 +390,7 @@ async function main() {
       row = await must(sb.from("farmers").insert({
         rsbsa_no: f.rsbsa_number, surname: f.last_name, first_name: f.first_name, middle_name: f.middle_name || null,
         sex: f.sex.toLowerCase(), birth_date: f.birth_date, contact_no: f.contact_number, status: lower(f.status),
-        association_id: await listEntry("associations", f.farmers_association),
+        association_id: await listEntry("associations", f.farmers_association, f.barangay),
       }).select("farmer_id, profile_id").single(), `insert farmer ${f.rsbsa_number}`);
       remember(ledger.farmers, { farmer_id: row.farmer_id, rsbsa_no: f.rsbsa_number }, "farmer_id");
       bump("farmers");
@@ -375,12 +402,12 @@ async function main() {
     if (!DRY) {
       const addr = await must(sb.from("addresses").select("address_id").eq("farmer_id", row.farmer_id), "addresses");
       if (!addr.length) {
-        const a = await must(sb.from("addresses").insert({ farmer_id: row.farmer_id, street: f.sitio_purok || null, sitio_id: await listEntry("sitios", f.sitio_purok), barangay: f.barangay, barangay_id: barangayId(f.barangay), municipality: f.municipality, province: f.province }).select("address_id").single(), "insert address");
+        const a = await must(sb.from("addresses").insert({ farmer_id: row.farmer_id, street: f.sitio_purok || null, sitio_id: await listEntry("sitios", f.sitio_purok, f.barangay), barangay: f.barangay, barangay_id: barangayId(f.barangay), municipality: f.municipality, province: f.province }).select("address_id").single(), "insert address");
         remember(ledger.addresses, a.address_id); bump("addresses");
       }
       let parcel = await maybeOne(sb.from("farm_parcels").select("parcel_id").eq("farmer_id", row.farmer_id), "farm parcel");
       if (!parcel) {
-        parcel = await must(sb.from("farm_parcels").insert({ farmer_id: row.farmer_id, farm_location: f.farm_location, sitio_id: await listEntry("sitios", f.farm_location), farm_size_hectares: f.farm_size_ha, ownership_type: f.ownership || null, is_pcic_insured: f.pcic_insured }).select("parcel_id").single(), "insert parcel");
+        parcel = await must(sb.from("farm_parcels").insert({ farmer_id: row.farmer_id, farm_location: f.farm_location, sitio_id: await listEntry("sitios", f.farm_location, f.barangay), farm_size_hectares: f.farm_size_ha, ownership_type: f.ownership || null, is_pcic_insured: f.pcic_insured }).select("parcel_id").single(), "insert parcel");
         remember(ledger.farmParcels, parcel.parcel_id); bump("farm_parcels");
       }
       const crop = await must(sb.from("crops").select("crop_id").eq("parcel_id", parcel.parcel_id), "crops");
@@ -399,7 +426,7 @@ async function main() {
       if (!user) {
         const { data: created, error } = await sb.auth.admin.createUser({
           email, password: f.password, email_confirm: true,
-          user_metadata: { role: "farmer", full_name: `${f.first_name} ${f.last_name}`, contact_no: f.contact_number ?? null },
+          user_metadata: { full_name: `${f.first_name} ${f.last_name}`, contact_no: f.contact_number ?? null },
           app_metadata: { seed_batch: BATCH },
         });
         if (error) throw new Error(`create login ${email}: ${error.message}`);
@@ -442,10 +469,10 @@ async function main() {
     }
     // Sitio/purok, farm location, crop and farmers' association from the
     // lists (seeded farmers only; a value already linked is left as it is).
-    const sitioId = await listEntry("sitios", f.sitio_purok);
-    const farmSitioId = await listEntry("sitios", f.farm_location);
+    const sitioId = await listEntry("sitios", f.sitio_purok, f.barangay);
+    const farmSitioId = await listEntry("sitios", f.farm_location, f.barangay);
     const cropTypeId = await listEntry("crop_types", f.commodity);
-    const associationId = await listEntry("associations", f.farmers_association);
+    const associationId = await listEntry("associations", f.farmers_association, f.barangay);
     const linked = await must(sb.from("addresses").update({ sitio_id: sitioId }).eq("farmer_id", fr.id).is("sitio_id", null).select("address_id"), `sitio of ${f.login_id}`);
     if (linked.length) bump("addresses (sitio/purok linked)");
     const parcels = await must(sb.from("farm_parcels").select("parcel_id, sitio_id").eq("farmer_id", fr.id), `parcels of ${f.login_id}`);

@@ -8,7 +8,8 @@ import { captureRef } from "react-native-view-shot";
 import { colors, radius, sizes } from "../theme";
 import { formatDateTime } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
-import { FAR_THRESHOLD_KM, LANGAPUD_REF, accuracyRating, haversineKm, mapEmbedHtml, withTimeout } from "../lib/geotag";
+import { FAR_THRESHOLD_KM, accuracyRating, distanceFromCenter, mapEmbedHtml, withTimeout } from "../lib/geotag";
+import { useAuth } from "../context/AuthContext";
 
 // GPS location + a camera photo stamped with that location, the same capture
 // as proof of planting: capture the location first, then take the photo;
@@ -19,6 +20,7 @@ import { FAR_THRESHOLD_KM, LANGAPUD_REF, accuracyRating, haversineKm, mapEmbedHt
 // onLocation({ latitude, longitude, accuracy }) fires as soon as the GPS
 // location is captured, so it can be saved even without a photo.
 export default function GeotagPhotoCapture({ stampTitle, rsbsaNo, upload, onChange, onLocation, purpose = "this report", disabled }) {
+  const { farmer } = useAuth();
   const [location, setLocation] = useState(null);
   const [locating, setLocating] = useState(false);
   const [stampJob, setStampJob] = useState(null);
@@ -58,7 +60,7 @@ export default function GeotagPhotoCapture({ stampTitle, rsbsaNo, upload, onChan
         longitude,
         accuracy: position.coords.accuracy,
         placeLabel,
-        distanceKm: haversineKm(latitude, longitude, LANGAPUD_REF.lat, LANGAPUD_REF.lng),
+        distanceKm: distanceFromCenter(farmer?.barangayCenter, latitude, longitude),
         capturedAt: formatDateTime(new Date(position.timestamp)),
       });
     } catch (err) {
@@ -156,7 +158,7 @@ export default function GeotagPhotoCapture({ stampTitle, rsbsaNo, upload, onChan
           {location.distanceKm > FAR_THRESHOLD_KM && (
             <View style={styles.warn}>
               <Ionicons name="warning" size={14} color={colors.orange} />
-              <Text style={styles.warnText}>You're about {location.distanceKm.toFixed(1)} km from Barangay Langapud. Capture this at your farm if you can.</Text>
+              <Text style={styles.warnText}>You're about {location.distanceKm.toFixed(1)} km from Barangay {farmer?.barangay}. Capture this at your farm if you can.</Text>
             </View>
           )}
         </>

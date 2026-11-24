@@ -138,6 +138,67 @@ Updated November 23, 2026 (see the updates below).
   a different account, this tab follows instead of acting as the wrong
   account.
 
+## On `develop` (not on the live site yet): all 25 barangays; each Farmers' Association President sees only their barangay
+
+**Design changes (for the paper):** the system supports all 25 barangays of
+Labangan, and each Farmers' Association President can only access data from
+their own barangay.
+
+- **Official barangay list.** The barangays list holds exactly the 25
+  official barangays of Labangan (Bagalupa … Upper Sang-an). "Langapud" is
+  renamed **Langapod** on the same record (its old name is kept, so records
+  typed "Langapud" still belong to Langapod). Lagalipan and the "Dev
+  Barangay" test entries are gone; no records were linked to them. The MAO
+  Admin keeps Settings → Lists → Barangays.
+- **One barangay per Farmers' Association President.** In Settings →
+  Farmers' Association Presidents the MAO Admin creates the account (name,
+  email, contact number and barangay, all required; a temporary password is
+  shown once) and can move it to another barangay (with a confirmation;
+  recorded in the Activity Log).
+- **Farmers' Association President: own barangay only.** Farmers (list,
+  search, profile), Validation, Distributions (list, details, beneficiaries,
+  printed reports), Requests (view, recommend, file — the farmer search finds
+  only their barangay's farmers), Announcements, Dashboard and Reports show
+  only their barangay. Instead of the barangay filter they see a fixed
+  "Barangay [name]" label. The database enforces it on every table and photo
+  folder: reading or changing another barangay's record directly returns
+  nothing or is refused.
+- **MAO Admin: barangay filter** (default "All barangays") on Dashboard,
+  Farmers, Validation, Distributions, Requests, Announcements, Reports and
+  Activity Log.
+- **Farmers:** Barangay is required and comes first in the address; the
+  sitio/purok, farm location and farmers' association lists show the chosen
+  barangay's entries (each barangay has its own lists). Duplicate RSBSA
+  numbers are still checked across all barangays.
+- **Distributions:** Barangay is required; "Add all eligible farmers" adds
+  only that barangay's farmers (a seed program counts as "in use" per
+  barangay, so farmers enrolled in Langapod don't hide Bokong's growers);
+  tagging a farmer from another barangay is allowed but shows "From
+  Barangay X, not Y". The list has a Barangay column.
+- **Requests and Validation:** each row shows the farmer's barangay.
+- **Reports:** every report type follows the barangay filter. The header
+  reads "BARANGAY [NAME]" or "ALL BARANGAYS"; "All barangays" adds a
+  Barangay column and a By Barangay subtotal table.
+- **Farmer app:** the profile shows the farmer's barangay; farmers see only
+  posts for their barangay (or all barangays) and only their own
+  distributions. The proof-of-planting distance check uses the farmer's
+  barangay center when one is on file.
+- **Security fix:** an account's role now comes only from server-set data;
+  an account that signs itself up asking to be MAO Admin becomes a farmer.
+
+Migrations (agrishare-dev only): `20261125000000_barangay_scope.sql`,
+`20261125000100_role_from_app_metadata.sql`,
+`20261125000200_eligible_enrollment_by_barangay.sql`; function
+`manage-fa-account`.
+
+| Check (localhost + agrishare-dev) | Result |
+| --- | --- |
+| Database rules on a local copy built like live (every role, every table and photo folder, renames, accounts, eligibility) | 92/92 |
+| Direct database calls as each account (FA Presidents of Langapod and Bokong, farmers of two barangays, self sign-up) | 10/10 |
+| Web as MAO Admin, a new Combo FA President, and the Langapod and Bokong FA Presidents, 1366×768 and 1920×1080 (pages, filters, printed reports, screen fit) | 49/49 |
+| Farmer app (000201 Langapod, 000227 Bokong), 360 px: profile, posts, My Distributions | 8/8 |
+| Web lint and production build; farmer app bundle | pass |
+
 ## On `develop` (not on the live site yet): filters and test data in more barangays
 
 - **Announcements:** the "What do you want to announce?" box opens Create

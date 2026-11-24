@@ -9,6 +9,8 @@ import { formatDateTime } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
 import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useCardLabels } from "../hooks/useCardLabels.js";
+import { useBarangays } from "../hooks/useBarangays.js";
+import BarangayFilter from "../components/lists/BarangayFilter.jsx";
 
 const ACTION_PILL = { insert: "Published", update: "Ongoing", delete: "Rejected" };
 
@@ -17,6 +19,8 @@ export default function ActivityLog() {
   const [dateTo, setDateTo] = useState("");
   const [action, setAction] = useState("All");
   const [entityType, setEntityType] = useState("All");
+  const [barangay, setBarangay] = useState("all");
+  const barangays = useBarangays();
 
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
@@ -37,7 +41,7 @@ export default function ActivityLog() {
     let cancelled = false;
     setLoading(true);
     setError("");
-    listAuditLogs({ dateFrom, dateTo, action, entityType, page, pageSize })
+    listAuditLogs({ dateFrom, dateTo, action, entityType, barangay, page, pageSize })
       .then(({ rows: r, total: t }) => {
         if (cancelled) return;
         setRows(r);
@@ -52,7 +56,7 @@ export default function ActivityLog() {
     return () => {
       cancelled = true;
     };
-  }, [dateFrom, dateTo, action, entityType, page, pageSize]);
+  }, [dateFrom, dateTo, action, entityType, page, pageSize, barangay]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const filtersActive = dateFrom || dateTo || action !== "All" || entityType !== "All";
@@ -62,6 +66,7 @@ export default function ActivityLog() {
     setDateTo("");
     setAction("All");
     setEntityType("All");
+    setBarangay("all");
     setPage(1);
   }
 
@@ -85,6 +90,7 @@ export default function ActivityLog() {
             <option value="All">All Entity Types</option>
             {ENTITY_TYPES.map((t) => <option key={t} value={t}>{ENTITY_LABELS[t]}</option>)}
           </select>
+          <BarangayFilter barangays={barangays} value={barangay} onChange={(v) => { setBarangay(v); setPage(1); }} />
         </div>
 
         <div className="agri-table-wrap" ref={tableRef}>

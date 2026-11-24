@@ -1,12 +1,12 @@
 {
-  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Sitios/puroks, farmers' associations and crops come from the managed lists (Nov 24, 2026): test farmers use list entries; the two test associations are added to the list if missing. Announcements (Nov 24, 2026): a title, optional date, time and venue, details, and who can see it — farmers and/or Farmers' Association Presidents, in all barangays or chosen ones. AgriShare covers the barangays of Labangan: farmers belong to their address's barangay and each Farmers' Association President to a barangay; the second test FA President and farmer 000226 are in Bagalupa, a third FA President and farmers 000227–000232 are in Bokong, Combo and New Labangan (with a distribution, requests, proof of planting and harvest reports each), and posts go to single barangays, two barangays and all barangays, so the barangay filters can be tested. The all-barangays post is for Farmers' Association Presidents only, so seeding it on live doesn't notify every real farmer. Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
+  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Sitios/puroks and farmers' associations come from the managed lists of each farmer's barangay (crops from the crop list) (Nov 24, 2026): test farmers use list entries; the two test associations are added to the list if missing. Announcements (Nov 24, 2026): a title, optional date, time and venue, details, and who can see it — farmers and/or Farmers' Association Presidents, in all barangays or chosen ones. AgriShare covers the barangays of Labangan: farmers belong to their address's barangay and each Farmers' Association President to a barangay; the second test FA President and farmer 000226 are in Bagalupa, a third FA President and farmers 000227–000232 are in Bokong, Combo and New Labangan (with a distribution, requests, proof of planting and harvest reports each), and posts go to single barangays, two barangays and all barangays, so the barangay filters can be tested. The all-barangays post is for Farmers' Association Presidents only, so seeding it on live doesn't notify every real farmer. Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them. Barangays use the MAO's official list (Langapud is Langapod). Each Farmers' Association President account has a barangay and sees only that barangay's records.",
   "accounts": {
     "fa_president": {
       "name": "Pedro Lagunay",
       "email": "fapresident@agrishare.test",
       "password": "password123",
       "role": "fa_president",
-      "barangay": "Langapud"
+      "barangay": "Langapod"
     },
     "farmers": "Created from 'farmers' below: email {login_id}@farmers.agrishare.ph, password password123",
     "farmers_note": "Seeded farmer accounts keep their password from this file; the default-password reminder is turned off for them (evaluator accounts).",
@@ -46,10 +46,12 @@
   ],
   "associations": [
     {
-      "name": "Langapud Rice Farmers Association"
+      "name": "Langapod Rice Farmers Association",
+      "barangay": "Langapod"
     },
     {
-      "name": "Langapud Corn and Vegetable Growers Association"
+      "name": "Langapod Corn and Vegetable Growers Association",
+      "barangay": "Langapod"
     }
   ],
   "farmers": [
@@ -63,7 +65,7 @@
       "birth_date": "1968-03-14",
       "contact_number": "09526018159",
       "sitio_purok": "Purok 1",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -74,7 +76,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Hybrid",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000202",
@@ -86,7 +88,7 @@
       "birth_date": "1972-07-22",
       "contact_number": "09016613186",
       "sitio_purok": "Purok 1",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -97,7 +99,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Inbred (RCEF)",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000203",
@@ -109,7 +111,7 @@
       "birth_date": "1980-11-05",
       "contact_number": "09390996030",
       "sitio_purok": "Purok 2",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Corn",
@@ -120,7 +122,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Corn Seeds",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000204",
@@ -132,7 +134,7 @@
       "birth_date": "1965-01-30",
       "contact_number": "09628194821",
       "sitio_purok": "Purok 2",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -143,7 +145,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Inbred (RCEF)",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000205",
@@ -155,7 +157,7 @@
       "birth_date": "1959-09-18",
       "contact_number": "09181909378",
       "sitio_purok": "Purok 3",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -178,7 +180,7 @@
       "birth_date": "1984-04-09",
       "contact_number": "09797543231",
       "sitio_purok": "Purok 3",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Vegetables",
@@ -188,7 +190,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000207",
@@ -200,7 +202,7 @@
       "birth_date": "1970-12-02",
       "contact_number": "09574911862",
       "sitio_purok": "Purok 4",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Corn",
@@ -211,7 +213,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Corn Seeds",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000208",
@@ -223,7 +225,7 @@
       "birth_date": "1976-06-27",
       "contact_number": "09760189555",
       "sitio_purok": "Purok 4",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -234,7 +236,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Hybrid",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000209",
@@ -246,7 +248,7 @@
       "birth_date": "1962-08-11",
       "contact_number": "09114710497",
       "sitio_purok": "Purok 5",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -257,7 +259,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Inbred (RCEF)",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000210",
@@ -269,7 +271,7 @@
       "birth_date": "1988-02-16",
       "contact_number": "09507529170",
       "sitio_purok": "Purok 5",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Vegetables",
@@ -279,7 +281,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000211",
@@ -291,7 +293,7 @@
       "birth_date": "1979-10-03",
       "contact_number": "09236671276",
       "sitio_purok": "Sitio Canitoan",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Corn",
@@ -302,7 +304,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Corn Seeds",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000212",
@@ -314,7 +316,7 @@
       "birth_date": "1967-05-25",
       "contact_number": "09684656321",
       "sitio_purok": "Sitio Canitoan",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -325,7 +327,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Hybrid",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000213",
@@ -337,7 +339,7 @@
       "birth_date": "1974-03-08",
       "contact_number": "09330792440",
       "sitio_purok": "Sitio Balulang",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -348,7 +350,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Inbred (RCEF)",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000214",
@@ -360,7 +362,7 @@
       "birth_date": "1981-09-14",
       "contact_number": "09859952890",
       "sitio_purok": "Sitio Balulang",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Vegetables",
@@ -370,7 +372,7 @@
       "pcic_insured": false,
       "status": "Active",
       "password": "password123",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000215",
@@ -382,7 +384,7 @@
       "birth_date": "1958-11-29",
       "contact_number": "09666176031",
       "sitio_purok": "Sitio Macabalan",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -405,7 +407,7 @@
       "birth_date": "1990-07-07",
       "contact_number": "09215901092",
       "sitio_purok": "Sitio Macabalan",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Corn",
@@ -416,7 +418,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Corn Seeds",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000217",
@@ -428,7 +430,7 @@
       "birth_date": "1971-01-19",
       "contact_number": "09901396245",
       "sitio_purok": "Purok 1",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -439,7 +441,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Inbred (RCEF)",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000218",
@@ -451,7 +453,7 @@
       "birth_date": "1963-04-12",
       "contact_number": "09117777412",
       "sitio_purok": "Purok 2",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -462,7 +464,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Hybrid",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000219",
@@ -474,7 +476,7 @@
       "birth_date": "1985-08-21",
       "contact_number": "09472803852",
       "sitio_purok": "Purok 3",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Corn",
@@ -485,7 +487,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Corn Seeds",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000220",
@@ -497,7 +499,7 @@
       "birth_date": "1977-12-15",
       "contact_number": "09148525388",
       "sitio_purok": "Purok 4",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Vegetables",
@@ -507,7 +509,7 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000221",
@@ -519,7 +521,7 @@
       "birth_date": "1969-06-02",
       "contact_number": "09933633875",
       "sitio_purok": "Purok 5",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -530,7 +532,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Inbred (RCEF)",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000222",
@@ -542,7 +544,7 @@
       "birth_date": "1993-03-28",
       "contact_number": "09474395755",
       "sitio_purok": "Sitio Canitoan",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -553,7 +555,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Hybrid",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000223",
@@ -565,7 +567,7 @@
       "birth_date": "1960-10-10",
       "contact_number": "09137353799",
       "sitio_purok": "Sitio Balulang",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Corn",
@@ -588,7 +590,7 @@
       "birth_date": "1975-02-04",
       "contact_number": "09511637265",
       "sitio_purok": "Sitio Macabalan",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
@@ -599,7 +601,7 @@
       "status": "Active",
       "password": "password123",
       "seed_program": "Rice Seeds – Inbred (RCEF)",
-      "farmers_association": "Langapud Rice Farmers Association"
+      "farmers_association": "Langapod Rice Farmers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000225",
@@ -611,7 +613,7 @@
       "birth_date": "1982-05-17",
       "contact_number": "09761222029",
       "sitio_purok": "Purok 3",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Vegetables",
@@ -621,7 +623,7 @@
       "pcic_insured": true,
       "status": "Active",
       "password": "password123",
-      "farmers_association": "Langapud Corn and Vegetable Growers Association"
+      "farmers_association": "Langapod Corn and Vegetable Growers Association"
     },
     {
       "rsbsa_number": "09-73-00-000-000226",
@@ -843,8 +845,8 @@
       "program_name": "RCEF Seed Distribution - Dry Season",
       "crop_type": "Rice",
       "commodity": "Rice Seeds (NSIC Rc222)",
-      "venue": "Langapud Barangay Hall",
-      "barangay": "Langapud",
+      "venue": "Langapod Barangay Hall",
+      "barangay": "Langapod",
       "funding_source": "DA-RCEF",
       "status": "Completed",
       "total_quantity": 160,
@@ -896,8 +898,8 @@
       "program_name": "Corn Program Seed Assistance",
       "crop_type": "Corn",
       "commodity": "Corn Seeds",
-      "venue": "Langapud Barangay Hall",
-      "barangay": "Langapud",
+      "venue": "Langapod Barangay Hall",
+      "barangay": "Langapod",
       "funding_source": "DA Corn Program",
       "status": "Completed",
       "total_quantity": 90,
@@ -934,8 +936,8 @@
       "program_name": "HVCDP Vegetable Seed Distribution",
       "crop_type": "Vegetables",
       "commodity": "Vegetable Seeds",
-      "venue": "Langapud Covered Court",
-      "barangay": "Langapud",
+      "venue": "Langapod Covered Court",
+      "barangay": "Langapod",
       "funding_source": "DA-HVCDP",
       "status": "Completed",
       "total_quantity": 10,
@@ -972,8 +974,8 @@
       "program_name": "Organic Fertilizer Assistance",
       "crop_type": "Fertilizer",
       "commodity": "Organic Fertilizer",
-      "venue": "Langapud Barangay Hall",
-      "barangay": "Langapud",
+      "venue": "Langapod Barangay Hall",
+      "barangay": "Langapod",
       "funding_source": "LGU Labangan",
       "status": "Completed",
       "total_quantity": 450,
@@ -1031,7 +1033,7 @@
       "crop_type": "Farm Tools",
       "commodity": "Farm Tools Set",
       "venue": "MAO Labangan Office",
-      "barangay": "Langapud",
+      "barangay": "Langapod",
       "funding_source": "LGU Labangan",
       "status": "Completed",
       "total_quantity": 10,
@@ -1093,8 +1095,8 @@
       "program_name": "RCEF Seed Distribution - Wet Season",
       "crop_type": "Rice",
       "commodity": "Rice Seeds (NSIC Rc222)",
-      "venue": "Langapud Barangay Hall",
-      "barangay": "Langapud",
+      "venue": "Langapod Barangay Hall",
+      "barangay": "Langapod",
       "funding_source": "DA-RCEF",
       "status": "Completed",
       "total_quantity": 260,
@@ -1171,8 +1173,8 @@
       "program_name": "Urea Fertilizer Assistance",
       "crop_type": "Fertilizer",
       "commodity": "Urea Fertilizer (46-0-0)",
-      "venue": "Langapud Covered Court",
-      "barangay": "Langapud",
+      "venue": "Langapod Covered Court",
+      "barangay": "Langapod",
       "funding_source": "DA Rice Program",
       "status": "Ongoing",
       "total_quantity": 175,
@@ -1219,8 +1221,8 @@
       "program_name": "RCEF Seed Distribution - Allocation by Farm Size",
       "crop_type": "Rice",
       "commodity": "Rice Seeds – Inbred (RCEF)",
-      "venue": "Langapud Barangay Hall",
-      "barangay": "Langapud",
+      "venue": "Langapod Barangay Hall",
+      "barangay": "Langapod",
       "funding_source": "DA-RCEF",
       "status": "Ongoing",
       "allocation": "farm_size",
@@ -1264,8 +1266,8 @@
       "program_name": "RCEF Seed Distribution - Wet Season Replanting",
       "crop_type": "Rice",
       "commodity": "Rice Seeds – Inbred (RCEF)",
-      "venue": "Langapud Barangay Hall",
-      "barangay": "Langapud",
+      "venue": "Langapod Barangay Hall",
+      "barangay": "Langapod",
       "funding_source": "DA-RCEF",
       "status": "Ongoing",
       "allocation": "farm_size",
@@ -1310,8 +1312,8 @@
       "program_name": "RCEF Seed Distribution - Wet Season Replanting (Rice Seeds – Hybrid)",
       "crop_type": "Rice",
       "commodity": "Rice Seeds – Hybrid",
-      "venue": "Langapud Barangay Hall",
-      "barangay": "Langapud",
+      "venue": "Langapod Barangay Hall",
+      "barangay": "Langapod",
       "funding_source": "DA-RCEF",
       "status": "Ongoing",
       "allocation": "farm_size",
@@ -1817,10 +1819,10 @@
       "details": "Please arrive early. Distribution is first come, first served per purok.\n\nType of assistance: Rice Seeds (NSIC Rc222)\nRequirements: RSBSA stub and one valid ID",
       "date": "2026-10-02",
       "time": "08:00",
-      "venue": "Langapud Barangay Hall",
+      "venue": "Langapod Barangay Hall",
       "audience": "everyone",
       "barangays": [
-        "Langapud"
+        "Langapod"
       ],
       "status": "Published",
       "pinned": false
@@ -1830,10 +1832,10 @@
       "details": "Only tagged beneficiaries will receive fertilizer. Check the app if you are included.\n\nType of assistance: Urea Fertilizer (46-0-0)\nRequirements: RSBSA stub, valid ID, and validated proof of planting",
       "date": "2026-10-23",
       "time": "09:00",
-      "venue": "Langapud Covered Court",
+      "venue": "Langapod Covered Court",
       "audience": "everyone",
       "barangays": [
-        "Langapud"
+        "Langapod"
       ],
       "status": "Published",
       "pinned": true
@@ -1843,7 +1845,7 @@
       "details": "Upload a geotagged photo of your planted crop through the AgriShare app before October 31, 2026.",
       "audience": "farmers",
       "barangays": [
-        "Langapud"
+        "Langapod"
       ],
       "status": "Published",
       "pinned": false
@@ -1853,7 +1855,7 @@
       "details": "Coordination meeting on November 5, 2026, 2:00 PM at the MAO Labangan Office.",
       "audience": "fa_president",
       "barangays": [
-        "Langapud"
+        "Langapod"
       ],
       "status": "Draft",
       "pinned": false

@@ -14,6 +14,9 @@ import { friendlyError } from "../lib/friendlyError.js";
 import { acknowledgementLabel, dateReceived, isCompleted } from "../lib/distributionStatus.js";
 import { formatDate, formatDateNumeric } from "../lib/dates.js";
 import { formatItemsTotal, formatQuantity } from "../lib/quantity.js";
+import { listEntries } from "../lib/api/lists.js";
+import { entryForText, inBarangay } from "../lib/listMatch.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 // Reports whose tables have 10 or more columns print landscape.
 const WIDE_REPORTS = ["Beneficiary List", "Harvest Report", "List of Farmers"];
@@ -25,7 +28,9 @@ export default function PrintReport() {
   const dateTo = searchParams.get("dateTo") || "";
   const status = searchParams.get("status") || "All Status";
   const commodity = searchParams.get("commodity") || "All Commodities";
-  const barangay = searchParams.get("barangay") || "All Barangays";
+  // A Farmers' Association President's reports are their barangay's.
+  const { user } = useAuth();
+  const barangay = user?.role === "FA President" && user.barangayName ? user.barangayName : searchParams.get("barangay") || "All Barangays";
   const sex = searchParams.get("sex") || "All";
   const association = searchParams.get("association") || "All";
 
@@ -37,9 +42,9 @@ export default function PrintReport() {
     // per commodity, so a since-deleted commodity must still get its row —
     // AccomplishmentReport's "types available" count filters back down to
     // active ones itself.
-    Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true }), listBeneficiaryReport(), listSubmissions(), listRequests(), listHarvestReports()])
-      .then(([farmers, distributions, commodities, beneficiaryClaims, submissions, requests, harvests]) =>
-        setData({ farmers, distributions, commodities, beneficiaryClaims, submissions, requests, harvests }),
+    Promise.all([listFarmers(), listDistributions(), listCommodities({ includeDeleted: true }), listBeneficiaryReport(), listSubmissions(), listRequests(), listHarvestReports(), listEntries("barangays")])
+      .then(([farmers, distributions, commodities, beneficiaryClaims, submissions, requests, harvests, barangays]) =>
+        setData({ farmers, distributions, commodities, beneficiaryClaims, submissions, requests, harvests, barangays }),
       )
       .catch((err) => setError(friendlyError(err, "Couldn't load this report.")));
   }, []);
@@ -66,10 +71,10 @@ export default function PrintReport() {
   if (farmerList && sex !== "All") subtitleParts.push(`Sex: ${sex}`);
   if (farmerList && association !== "All") subtitleParts.push(association === "None" ? "No farmers' association" : `Association: ${association}`);
 
-  const filters = { barangay, commodity, dateFrom, dateTo, status, sex, association };
+  const filters = { barangay, commodity, dateFrom, dateTo, status, sex, association, barangays: data.barangays };
 
   return (
-    <PrintLayout title={reportType} subtitle={subtitleParts.join(" · ") || undefined} backTo="/reports" landscape={WIDE_REPORTS.includes(reportType)}>
+    <PrintLayout title={reportType} subtitle={subtitleParts.join(" · ") || undefined} backTo="/reports" landscape={WIDE_REPORTS.includes(reportType)} barangayLine={barangay === "All Barangays" ? "ALL BARANGAYS" : `Barangay ${barangay}`}>
       {reportType === "Beneficiary List" && (
         <BeneficiaryList claims={data.beneficiaryClaims} distributions={data.distributions} filters={filters} />
       )}
@@ -89,18 +94,71 @@ export default function PrintReport() {
 // different programs.
 const ciEquals = (a, b) => (a || "").trim().toLowerCase() === (b || "").trim().toLowerCase();
 
-function filterClaims(claims, { barangay, commodity, dateFrom, dateTo, status }) {
+// Is a record (its barangay text, or id) in the report's barangay? Former
+// names count ("Langapud" is Langapod).
+const allBarangays = (f) => f.barangay === "All Barangays";
+function inReportBarangay(f, text, id = null) {
+  if (allBarangays(f)) return true;
+  const chosen = entryForText(f.barangays ?? [], f.barangay);
+  return chosen ? inBarangay(f.barangays, String(chosen.id), id, text) : ciEquals(text, f.barangay);
+}
+// A record's barangay under its current name.
+const barangayOf = (f, text) => entryForText(f.barangays ?? [], text)?.name ?? (text || "—");
+
+// "By barangay" subtotals, shown when the report covers all barangays.
+// columns: [{ label, value(list) , num }].
+function ByBarangay({ filters, items, textOf, columns }) {
+  if (!allBarangays(filters) || items.length === 0) return null;
+  const groups = new Map();
+  for (const it of items) {
+    const name = barangayOf(filters, textOf(it));
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(it);
+  }
+  const rows = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  return (
+    <>
+      <div className="pr-section-label" style={{ marginTop: 18 }}>By Barangay</div>
+      <table className="pr-items-table">
+        <thead>
+          <tr>
+            <th>Barangay</th>
+            {columns.map((c) => <th key={c.label} className={c.num ? "pr-num" : undefined}>{c.label}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([name, list]) => (
+            <tr key={name}>
+              <td>{name}</td>
+              {columns.map((c) => <td key={c.label} className={c.num ? "pr-num" : undefined}>{c.value(list)}</td>)}
+            </tr>
+          ))}
+          <tr className="pr-items-total">
+            <td>All barangays</td>
+            {columns.map((c) => <td key={c.label} className={c.num ? "pr-num" : undefined}>{c.value(items)}</td>)}
+          </tr>
+        </tbody>
+      </table>
+    </>
+  );
+}
+const count = (list) => list.length.toLocaleString();
+const kgOf = (list) => formatKg(list.filter((c) => c.unit === "kg").reduce((s, c) => s + c.quantity, 0));
+
+function filterClaims(claims, filters) {
+  const { commodity, dateFrom, dateTo, status } = filters;
   return claims
-    .filter((c) => barangay === "All Barangays" || ciEquals(c.barangay, barangay))
+    .filter((c) => inReportBarangay(filters, c.barangay, c.barangayId))
     .filter((c) => commodity === "All Commodities" || ciEquals(c.commodity, commodity))
     .filter((c) => status === "All Status" || c.status === status)
     .filter((c) => !dateFrom || (c.eventDate ?? "") >= dateFrom)
     .filter((c) => !dateTo || (c.eventDate ?? "") <= dateTo);
 }
 
-function filterDistributions(distributions, { barangay, commodity, dateFrom, dateTo, status }) {
+function filterDistributions(distributions, filters) {
+  const { commodity, dateFrom, dateTo, status } = filters;
   return distributions
-    .filter((d) => barangay === "All Barangays" || ciEquals(d.barangay, barangay))
+    .filter((d) => inReportBarangay(filters, d.barangay, d.barangayId))
     .filter((d) => !commodity || commodity === "All Commodities" || d.items.some((i) => ciEquals(i.name, commodity)))
     .filter((d) => status === "All Status" || d.status === status)
     .filter((d) => !dateFrom || (d.date ?? "") >= dateFrom)
@@ -156,7 +214,7 @@ function BeneficiaryList({ claims, distributions, filters }) {
             <tr key={c.claimId}>
               <td>{c.rsbsaNo}</td>
               <td>{c.firstName} {c.lastName}</td>
-              <td>{c.barangay}</td>
+              <td>{barangayOf(filters, c.barangay)}</td>
               <td>{c.commodity}</td>
               <td className="pr-num">{c.farmSize > 0 ? c.farmSize.toFixed(2) : "—"}</td>
               <td className="pr-num">{qty(c.quantity, c.unit)}</td>
@@ -191,6 +249,7 @@ function BeneficiaryList({ claims, distributions, filters }) {
       {rows.length === 0 && untaggedRows.length === 0 && (
         <div className="pr-empty" style={{ marginTop: 12 }}>No beneficiaries match these filters.</div>
       )}
+      <ByBarangay filters={filters} items={rows} textOf={(c) => c.barangay} columns={[{ label: "Beneficiaries", value: count, num: true }, { label: "Quantity (kg)", value: kgOf, num: true }]} />
     </div>
   );
 }
@@ -218,7 +277,7 @@ function DistributionSummary({ distributions, filters }) {
               <td>{d.id}</td>
               <td>{formatDateNumeric(d.date)}</td>
               <td>{d.program}</td>
-              <td>{d.barangay}</td>
+              <td>{barangayOf(filters, d.barangay)}</td>
               <td className="pr-num">{d.taggedBeneficiaryCount > 0 ? d.taggedBeneficiaryCount : `${d.beneficiaries} (not tagged)`}</td>
               <td className="pr-num pr-col-pad-left">{formatItemsTotal(d.items)}</td>
               <td className="pr-col-pad-left">{d.status}</td>
@@ -227,6 +286,16 @@ function DistributionSummary({ distributions, filters }) {
         </tbody>
       </table>
       {rows.length === 0 && <div className="pr-empty" style={{ marginTop: 12 }}>No matching distributions.</div>}
+      <ByBarangay
+        filters={filters}
+        items={rows}
+        textOf={(d) => d.barangay}
+        columns={[
+          { label: "Distributions", value: count, num: true },
+          { label: "Beneficiaries", value: (l) => l.reduce((s, d) => s + (d.taggedBeneficiaryCount > 0 ? d.taggedBeneficiaryCount : d.beneficiaries || 0), 0).toLocaleString(), num: true },
+          { label: "Quantity", value: (l) => formatItemsTotal(l.flatMap((d) => d.items)), num: true },
+        ]}
+      />
     </div>
   );
 }
@@ -243,6 +312,7 @@ function AttendanceSheet({ claims, filters }) {
           <tr>
             <th>RSBSA No.</th>
             <th>Farmer Name</th>
+            <th>Barangay</th>
             <th>Commodity</th>
             <th className="pr-num pr-col-pad-left">Qty</th>
             <th className="pr-col-pad-left">Signature</th>
@@ -253,6 +323,7 @@ function AttendanceSheet({ claims, filters }) {
             <tr key={c.claimId}>
               <td>{c.rsbsaNo}</td>
               <td>{c.firstName} {c.lastName}</td>
+              <td>{barangayOf(filters, c.barangay)}</td>
               <td>{c.commodity}</td>
               <td className="pr-num pr-col-pad-left">{c.quantity.toLocaleString(undefined, { maximumFractionDigits: 2 })} {c.unit}</td>
               <td className="pr-col-pad-left">&nbsp;</td>
@@ -261,6 +332,7 @@ function AttendanceSheet({ claims, filters }) {
         </tbody>
       </table>
       {rows.length === 0 && <div className="pr-empty" style={{ marginTop: 12 }}>No tagged beneficiaries match these filters.</div>}
+      <ByBarangay filters={filters} items={rows} textOf={(c) => c.barangay} columns={[{ label: "Beneficiaries", value: count, num: true }]} />
     </div>
   );
 }
@@ -292,6 +364,12 @@ function LiquidationReport({ commodities, distributions, filters }) {
           ))}
         </tbody>
       </table>
+      <ByBarangay
+        filters={filters}
+        items={scoped}
+        textOf={(d) => d.barangay}
+        columns={[{ label: "Completed Distributions", value: count, num: true }, { label: "Total Distributed", value: (l) => formatItemsTotal(l.flatMap((d) => d.items)), num: true }]}
+      />
     </div>
   );
 }
@@ -303,6 +381,10 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
   // Only Completed distributions count as accomplished.
   const completed = filterDistributions(distributions, filters).filter(isCompleted);
   const totalQty = formatItemsTotal(completed.flatMap((d) => d.items));
+  // The farmers, submissions and requests of the report's barangay.
+  farmers = farmers.filter((f) => inReportBarangay(filters, f.barangay, f.barangayId));
+  submissions = submissions.filter((s) => inReportBarangay(filters, s.farmer?.barangay, s.farmer?.barangayId));
+  requests = requests.filter((r) => inReportBarangay(filters, r.barangay, r.barangayId));
   const active = farmers.filter((f) => f.status === "Active").length;
   // Validation is per proof-of-planting submission, not per farmer.
   const validatedSubmissions = submissions.filter((s) => s.status === "Validated").length;
@@ -321,6 +403,20 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
         <KV label="Harvest Verified by the MAO" value={harvestSummary(filterHarvests(harvests, { ...filters, status: "Verified", commodity: "All Commodities" }))} />
       </div>
       <FarmerRequestCounts requests={requests} filters={filters} />
+      {allBarangays(filters) && (
+        <ByBarangay
+          filters={filters}
+          items={[...farmers.map((f) => ({ kind: "farmer", b: f.barangay, f })), ...submissions.map((s) => ({ kind: "planting", b: s.farmer?.barangay, s })), ...completed.map((d) => ({ kind: "distribution", b: d.barangay, d })), ...filterHarvests(harvests, { ...filters, status: "All Status", commodity: "All Commodities" }).map((h) => ({ kind: "harvest", b: h.barangay, h }))]}
+          textOf={(x) => x.b}
+          columns={[
+            { label: "Farmers", value: (l) => l.filter((x) => x.kind === "farmer").length.toLocaleString(), num: true },
+            { label: "Active", value: (l) => l.filter((x) => x.kind === "farmer" && x.f.status === "Active").length.toLocaleString(), num: true },
+            { label: "Planting Validated", value: (l) => `${l.filter((x) => x.kind === "planting" && x.s.status === "Validated").length} of ${l.filter((x) => x.kind === "planting").length}`, num: true },
+            { label: "Completed Distributions", value: (l) => l.filter((x) => x.kind === "distribution").length.toLocaleString(), num: true },
+            { label: "Harvest Reported (kg)", value: (l) => formatKg(l.filter((x) => x.kind === "harvest").reduce((s, x) => s + (Number(x.h.yieldKg) || 0), 0)), num: true },
+          ]}
+        />
+      )}
     </div>
   );
 }
@@ -388,9 +484,10 @@ function ageOn(birthDate, today = new Date()) {
 }
 const masterName = (f) => `${f.lastName}, ${f.firstName}${f.middleName ? ` ${f.middleName.trim()[0]}.` : ""}`;
 
-function FarmerList({ farmers, filters: { barangay, status, commodity, sex, association, dateFrom, dateTo } }) {
+function FarmerList({ farmers, filters }) {
+  const { status, commodity, sex, association, dateFrom, dateTo } = filters;
   const rows = farmers
-    .filter((f) => barangay === "All Barangays" || ciEquals(f.barangay, barangay))
+    .filter((f) => inReportBarangay(filters, f.barangay, f.barangayId))
     .filter((f) => status === "All Status" || f.status === status)
     .filter((f) => commodity === "All Commodities" || ciEquals(f.commodity, commodity))
     .filter((f) => sex === "All" || f.sex === sex)
@@ -447,7 +544,7 @@ function FarmerList({ farmers, filters: { barangay, status, commodity, sex, asso
               <td className="pr-num">{ageOn(f.birthDate) ?? "—"}</td>
               <td>{f.contactNo || "—"}</td>
               <td>{f.sitioPurok || "—"}</td>
-              <td>{f.barangay}</td>
+              <td>{barangayOf(filters, f.barangay)}</td>
               <td>{f.commodity || "—"}</td>
               <td className="pr-num">{f.farmSize > 0 ? Number(f.farmSize).toFixed(2) : "—"}</td>
               <td>{f.seedProgram || "—"}</td>
@@ -465,6 +562,16 @@ function FarmerList({ farmers, filters: { barangay, status, commodity, sex, asso
         <KV label="Active / Inactive" value={`${active.toLocaleString()} / ${(rows.length - active).toLocaleString()}`} />
         <KV label="Total Farm Area" value={`${area.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha`} />
       </div>
+      <ByBarangay
+        filters={filters}
+        items={rows}
+        textOf={(f) => f.barangay}
+        columns={[
+          { label: "Farmers", value: count, num: true },
+          { label: "Male / Female", value: (l) => `${l.filter((f) => f.sex === "Male").length} / ${l.filter((f) => f.sex !== "Male").length}`, num: true },
+          { label: "Farm Area (ha)", value: (l) => l.reduce((s, f) => s + (Number(f.farmSize) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), num: true },
+        ]}
+      />
     </div>
   );
 }
@@ -472,9 +579,10 @@ function FarmerList({ farmers, filters: { barangay, status, commodity, sex, asso
 
 // Harvest reports in the report's filters: harvest date range, barangay,
 // crop (commodity) and status (Submitted / Verified / Returned).
-function filterHarvests(harvests, { barangay, commodity, dateFrom, dateTo, status }) {
+function filterHarvests(harvests, filters) {
+  const { commodity, dateFrom, dateTo, status } = filters;
   return harvests
-    .filter((h) => barangay === "All Barangays" || ciEquals(h.barangay, barangay))
+    .filter((h) => inReportBarangay(filters, h.barangay, h.barangayId))
     .filter((h) => commodity === "All Commodities" || ciEquals(h.commodityName, commodity))
     .filter((h) => status === "All Status" || h.status === status)
     .filter((h) => !dateFrom || (h.harvestDate ?? "") >= dateFrom)
@@ -535,7 +643,7 @@ function HarvestReport({ harvests, filters }) {
             <tr key={h.id}>
               <td>{h.rsbsaNo}</td>
               <td>{h.farmerName}</td>
-              <td>{h.barangay}</td>
+              <td>{barangayOf(filters, h.barangay)}</td>
               <td>{h.crop}</td>
               <td className="pr-num">{fmt2(h.areaHa)}</td>
               <td className="pr-num">{fmt2(h.yieldKg)}</td>
@@ -557,6 +665,16 @@ function HarvestReport({ harvests, filters }) {
       </table>
       {rows.length === 0 && <div className="pr-empty" style={{ marginTop: 12 }}>No harvest reports match these filters.</div>}
 
+      <ByBarangay
+        filters={filters}
+        items={rows}
+        textOf={(h) => h.barangay}
+        columns={[
+          { label: "Reports", value: count, num: true },
+          { label: "Area (ha)", value: (l) => fmt2(harvestTotals(l).ha), num: true },
+          { label: "Harvest (kg)", value: (l) => fmt2(harvestTotals(l).kg), num: true },
+        ]}
+      />
       {byCrop.length > 1 && (
         <>
           <div className="pr-section-label" style={{ marginTop: 18 }}>By Crop</div>

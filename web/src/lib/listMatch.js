@@ -15,7 +15,7 @@ export function inBarangay(barangays, chosenId, id, text) {
   if (!chosenId || chosenId === "all") return true;
   if (id) return String(id) === String(chosenId);
   const chosen = barangays.find((b) => String(b.id) === String(chosenId));
-  return !!chosen && !!text && nameKey(chosen.name) === nameKey(text);
+  return !!chosen && !!text && [chosen.name, ...(chosen.formerNames ?? [])].some((n) => nameKey(n) === nameKey(text));
 }
 
 const NUMBER_WORDS = { one: "1", two: "2", three: "3", four: "4", five: "5", six: "6", seven: "7", eight: "8", nine: "9", ten: "10", uno: "1", dos: "2", tres: "3", kwatro: "4", singko: "5" };
@@ -71,8 +71,11 @@ export function findSimilar(entries, name, exceptId = null) {
 
 // The list entry an older free-text value stands for (same ignoring case
 // and spaces), for records saved before the lists existed.
+// The entry a saved text stands for: the same name, or (barangays) a former
+// name ("Langapud" is Langapod).
 export function entryForText(entries, text) {
-  return findSame(entries, text);
+  const k = nameKey(text);
+  return findSame(entries, text) ?? (k ? entries.find((e) => (e.formerNames ?? []).some((n) => nameKey(n) === k)) ?? null : null);
 }
 
 export const MAX_LIST_NAME = 80;

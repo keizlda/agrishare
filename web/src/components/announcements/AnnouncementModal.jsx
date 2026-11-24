@@ -285,7 +285,7 @@ export default function AnnouncementModal({ announcement, barangays: barangaysPr
 
             <div className="agri-post-field">
               <label className="agri-form-label" htmlFor="post-venue">Venue <Opt /></label>
-              <input id="post-venue" className="form-control" value={venue} placeholder="e.g. Langapud Barangay Hall" maxLength={200} onChange={(e) => setVenue(e.target.value)} disabled={saving} />
+              <input id="post-venue" className="form-control" value={venue} placeholder="e.g. Langapod Barangay Hall" maxLength={200} onChange={(e) => setVenue(e.target.value)} disabled={saving} />
             </div>
 
             <div className="agri-post-field">

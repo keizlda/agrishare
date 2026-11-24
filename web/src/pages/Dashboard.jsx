@@ -35,6 +35,9 @@ import Toast from "../components/ui/Toast.jsx";
 import { friendlyError } from "../lib/friendlyError.js";
 import MiniStat from "../components/ui/MiniStat.jsx";
 import AnnouncementModal from "../components/announcements/AnnouncementModal.jsx";
+import BarangayFilter from "../components/lists/BarangayFilter.jsx";
+import { useBarangays } from "../hooks/useBarangays.js";
+import { inBarangay } from "../lib/listMatch.js";
 
 // Proof-of-planting submission statuses (validation never applies to a
 // farmer as a person — a farmer is only Active or Inactive).
@@ -64,12 +67,22 @@ const FILL_QUERY = "(min-width: 1280px) and (min-height: 620px), (min-width: 102
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [farmers, setFarmers] = useState([]);
-  const [distributions, setDistributions] = useState([]);
+  const [allFarmers, setFarmers] = useState([]);
+  const [allDistributions, setDistributions] = useState([]);
   const [commodities, setCommodities] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [harvests, setHarvests] = useState([]);
+  const [allSubmissions, setSubmissions] = useState([]);
+  const [allRequests, setRequests] = useState([]);
+  const [allHarvests, setHarvests] = useState([]);
+  // Every card, chip and chart follows the barangay (a Farmers' Association
+  // President's own barangay: the database only returns its records).
+  const barangays = useBarangays();
+  const [barangay, setBarangay] = useState("all");
+  const inScope = (id, text) => inBarangay(barangays, barangay, id, text);
+  const farmers = allFarmers.filter((f) => inScope(f.barangayId, f.barangay));
+  const distributions = allDistributions.filter((d) => inScope(d.barangayId, d.barangay));
+  const submissions = allSubmissions.filter((s) => inScope(s.farmer?.barangayId, s.farmer?.barangay));
+  const requests = allRequests.filter((r) => inScope(r.barangayId, r.barangay));
+  const harvests = allHarvests.filter((h) => inScope(h.barangayId, h.barangay));
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [toast, setToast] = useState(null);
   // First load failure, shown above the cards (the figures would otherwise
@@ -141,9 +154,12 @@ export default function Dashboard() {
           <div className="agri-pill red" style={{ display: "block", padding: "8px 12px" }} role="alert">{loadError}</div>
         )}
         <div className="agri-dash-welcome">
-          <h1 className="agri-dash-greeting">
-            {greetingFor(new Date())}, {user?.name ?? "Admin"}
-          </h1>
+          <div className="agri-dash-welcome-row">
+            <h1 className="agri-dash-greeting">
+              {greetingFor(new Date())}, {user?.name ?? "Admin"}
+            </h1>
+            <BarangayFilter barangays={barangays} value={barangay} onChange={setBarangay} />
+          </div>
           {chips.length > 0 && (
             <div className="agri-dash-chips">
               {chips.map((c) => (

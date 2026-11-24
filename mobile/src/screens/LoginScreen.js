@@ -140,7 +140,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <Text style={styles.footnote}>
-            For registered farmers of Barangay Langapud. Contact your Farmers' Association President if you need help logging in.
+            For registered farmers of Labangan. Contact your Farmers' Association President if you need help logging in.
           </Text>
         </View>
       </KeyboardAvoidingView>

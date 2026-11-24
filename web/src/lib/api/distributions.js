@@ -4,7 +4,7 @@ import { todayIso } from "../dates.js";
 import { farmSummary } from "./farmers.js";
 
 const SELECT = `
-  event_id, program_name, event_date, venue, barangay, funding_source, status, completed_at, remarks, beneficiaries_count, allocation_kg,
+  event_id, program_name, event_date, venue, barangay, barangay_id, funding_source, status, completed_at, remarks, beneficiaries_count, allocation_kg,
   distribution_event_items ( event_item_id, commodity_id, quantity_allocated, commodities ( name, category, unit ) )
 `;
 
@@ -24,6 +24,7 @@ function mapDistribution(row, summary) {
     date: row.event_date,
     cropType: row.distribution_event_items?.[0]?.commodities?.category ?? "",
     barangay: row.barangay,
+    barangayId: row.barangay_id ?? null,
     beneficiaries: row.beneficiaries_count,
     taggedBeneficiaryCount: taggedCount,
     // Ongoing or Completed. Each farmer's acknowledgement follows from it
@@ -98,7 +99,7 @@ function mapBeneficiary(row) {
     firstName: row.farmers?.first_name ?? "",
     lastName: row.farmers?.surname ?? "",
     rsbsaNo: row.farmers?.rsbsa_no ?? "",
-    barangay: address?.barangay ?? "Langapud",
+    barangay: address?.barangay ?? "",
     sitioPurok: address?.street ?? "",
     cropType: current.cropType,
     farmSize: row.farm_size_hectares != null ? Number(row.farm_size_hectares) : current.farmSize,
@@ -213,7 +214,7 @@ function mapBeneficiaryReportRow(row) {
     firstName: row.farmers?.first_name ?? "",
     lastName: row.farmers?.surname ?? "",
     rsbsaNo: row.farmers?.rsbsa_no ?? "",
-    barangay: row.farmers?.addresses?.[0]?.barangay ?? "Langapud",
+    barangay: row.farmers?.addresses?.[0]?.barangay ?? "",
     commodity: row.commodities?.name ?? "",
     unit: row.commodities?.unit ?? "kg",
     farmSize: row.farm_size_hectares != null ? Number(row.farm_size_hectares) : farmSummary(row.farmers?.farm_parcels).farmSize,
@@ -251,12 +252,14 @@ export async function checkDuplicateDistribution({ farmerId, commodityId, progra
 // category), each with their farm data and — when a program is given — the
 // same-commodity/program/year distribution they already got.
 // MAO Admin only (the database returns nothing to anyone else).
-export async function listEligibleFarmers({ commodityId, programName, year, excludeEventId }) {
+// barangayId: only that barangay's farmers (the distribution's barangay).
+export async function listEligibleFarmers({ commodityId, programName, year, excludeEventId, barangayId = null }) {
   const { data, error } = await supabase.rpc("distribution_eligible_farmers", {
     p_commodity_id: commodityId,
     p_program_name: programName || null,
     p_year: year,
     p_exclude_event_id: excludeEventId ?? null,
+    p_barangay_id: barangayId ? Number(barangayId) : null,
   });
   if (error) throw error;
   return (data ?? []).map((r) => ({
@@ -264,7 +267,7 @@ export async function listEligibleFarmers({ commodityId, programName, year, excl
     rsbsaNo: r.rsbsa_no,
     firstName: r.first_name,
     lastName: r.surname,
-    barangay: r.barangay ?? "Langapud",
+    barangay: r.barangay ?? "",
     sitioPurok: r.sitio_purok ?? "",
     cropType: r.crop_type ?? "",
     farmSize: Number(r.farm_size_hectares) || 0,

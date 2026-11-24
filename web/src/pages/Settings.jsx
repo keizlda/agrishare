@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, KeyRound, ListChecks, Save, SlidersHorizontal } from "lucide-react";
+import { Eye, EyeOff, KeyRound, ListChecks, Save, SlidersHorizontal, UserCog } from "lucide-react";
 import Toast from "../components/ui/Toast.jsx";
 import ManagedLists from "../components/lists/ManagedLists.jsx";
+import FaPresidents from "../components/accounts/FaPresidents.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { supabase } from "../lib/supabaseClient.js";
 import { getOrgSettings, updateOrgSettings } from "../lib/api/orgSettings.js";
@@ -11,10 +12,11 @@ import { friendlyError } from "../lib/friendlyError.js";
 export default function Settings() {
   const { user } = useAuth();
   const isMAO = user?.role !== "FA President";
-  // MAO Admin: General (organization, password) and Lists (sitios/puroks,
-  // farmers' associations, crops). ?tab=lists opens the second.
+  // MAO Admin: General (organization, password), Lists (barangays,
+  // sitios/puroks, farmers' associations, crops) and the Farmers'
+  // Association President accounts. ?tab=lists / ?tab=fa open the others.
   const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") === "lists" ? "lists" : "general";
+  const tab = ["lists", "fa"].includes(params.get("tab")) ? params.get("tab") : "general";
 
   // General Information is org-wide config (MAO-only); Change Password is
   // per-user, so FA President reaches this same page for just that.
@@ -35,9 +37,14 @@ export default function Settings() {
         <button type="button" role="tab" aria-selected={tab === "lists"} className={`agri-tab${tab === "lists" ? " active" : ""}`} onClick={() => setParams({ tab: "lists" }, { replace: true })}>
           <ListChecks size={14} /> Lists
         </button>
+        <button type="button" role="tab" aria-selected={tab === "fa"} className={`agri-tab${tab === "fa" ? " active" : ""}`} onClick={() => setParams({ tab: "fa" }, { replace: true })}>
+          <UserCog size={14} /> Farmers&apos; Association Presidents
+        </button>
       </div>
       {tab === "lists" ? (
         <ManagedLists />
+      ) : tab === "fa" ? (
+        <FaPresidents />
       ) : (
         <div className="agri-settings-scroll">
           <div className="agri-settings-grid">

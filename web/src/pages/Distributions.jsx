@@ -31,7 +31,7 @@ import { listCommodities } from "../lib/api/commodities.js";
 import { formatDate, formatDateLong, formatDateNumeric, todayIso } from "../lib/dates.js";
 import BarangayFilter from "../components/lists/BarangayFilter.jsx";
 import { useBarangays } from "../hooks/useBarangays.js";
-import { inBarangay } from "../lib/listMatch.js";
+import { entryForText, inBarangay } from "../lib/listMatch.js";
 import { formatItemsTotal, formatQuantity, isSplitQuantity, isWholeUnit, splitEqually } from "../lib/quantity.js";
 import { computeAllocation, describeCalculation, formatHectares, formatKg, formatRate } from "../lib/allocation.js";
 import { friendlyError } from "../lib/friendlyError.js";
@@ -134,7 +134,7 @@ export default function Distributions() {
     return distributions.filter(
       (d) =>
         (statusFilter === "All" || d.status === statusFilter) &&
-        inBarangay(barangays, barangayFilter, null, d.barangay) &&
+        inBarangay(barangays, barangayFilter, d.barangayId, d.barangay) &&
         (!q || text(d).includes(q)),
     );
   }, [distributions, statusFilter, barangayFilter, barangays, search]);
@@ -206,7 +206,7 @@ export default function Distributions() {
           <div className="agri-table-wrap" ref={tableRef}>
             <table className="agri-table agri-table-cards">
               <thead>
-                <tr><th>Date</th><th>Crop Type</th><th>Program</th><th>Beneficiaries</th><th>Quantity</th><th>Status</th></tr>
+                <tr><th>Date</th><th>Barangay</th><th>Crop Type</th><th>Program</th><th>Beneficiaries</th><th>Quantity</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {pageItems.map((d) => (
@@ -218,6 +218,7 @@ export default function Distributions() {
                     }, { selected: d.id === selectedId })}
                   >
                     <td>{formatDate(d.date)}</td>
+                    <td>{d.barangay}</td>
                     <td>{d.cropType}</td>
                     <td className="agri-cell-truncate" title={d.program || undefined}>
                       {d.program ? <span className="agri-row-title">{d.program}</span> : <span className="agri-muted">—</span>}
@@ -234,7 +235,7 @@ export default function Distributions() {
                   </tr>
                 ))}
                 {loading && (
-                  <tr><td colSpan={6} className="agri-muted text-center py-4">Loading distributions…</td></tr>
+                  <tr><td colSpan={7} className="agri-muted text-center py-4">Loading distributions…</td></tr>
                 )}
               </tbody>
             </table>
@@ -845,9 +846,18 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
   // Adds every Active farmer enrolled in this commodity (or, when nobody
   // is, whose crop matches its category), each at farm size × rate; skips
   // repeat distributions and stops at the allocation.
+  // The distribution's barangay (a list entry), and tagged farmers who live
+  // in another one (allowed, with a warning).
+  const formBarangay = entryForText(barangays, form.barangay);
+  const fromOtherBarangay = (row) => !!formBarangay && !!row.barangay && !inBarangay(barangays, String(formBarangay.id), null, row.barangay);
+
   async function addAllEligible() {
     if (addingEligibleRef.current || !commodity) return;
     const program = form.program.trim();
+    if (!formBarangay) {
+      setEligibleResult({ tone: "error", text: "Choose the barangay first, so only its farmers are added." });
+      return;
+    }
     if (!program) {
       setEligibleResult({ tone: "error", text: "Enter the program name first, so farmers who already received this commodity under it are skipped." });
       return;
@@ -856,7 +866,7 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
     setAddingEligible(true);
     setEligibleResult(null);
     try {
-      const eligible = await listEligibleFarmers({ commodityId: commodity.id, programName: program, year: distributionYear(), excludeEventId: editing ? distribution.id : undefined });
+      const eligible = await listEligibleFarmers({ commodityId: commodity.id, programName: program, year: distributionYear(), excludeEventId: editing ? distribution.id : undefined, barangayId: formBarangay.id });
       const tagged = new Set(rows.map((r) => r.farmerId));
       const already = eligible.filter((f) => tagged.has(f.id));
       const repeats = eligible.filter((f) => !tagged.has(f.id) && f.duplicate);
@@ -874,7 +884,7 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
       }
       setForm((f) => withNewRows(f, toAdd));
       if (eligible.length === 0) {
-        setEligibleResult({ tone: "info", text: `No Active farmers enrolled in ${commodity.name} or with a ${commodity.category || "matching"} crop were found.` });
+        setEligibleResult({ tone: "info", text: `No Active farmers of Barangay ${formBarangay.name} enrolled in ${commodity.name} or with a ${commodity.category || "matching"} crop were found.` });
       } else {
         const name = (f) => `${f.firstName} ${f.lastName}`;
         const parts = [`Added ${toAdd.length} ${farmersWord(toAdd.length)}.`];
@@ -1198,6 +1208,11 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
                                 <br />
                                 {[row.sitioPurok, row.barangay].filter(Boolean).join(", ")}
                               </div>
+                              {fromOtherBarangay(row) && (
+                                <span className="agri-enrolled-chip agri-other-barangay" title="Tagged anyway: this farmer lives in another barangay">
+                                  From Barangay {row.barangay}, not {formBarangay.name}
+                                </span>
+                              )}
                               <div className="agri-beneficiary-meta agri-beneficiary-farm-inline">{formatHectares(size ?? row.currentFarmSize)}</div>
                               {elsewhere && <span className="agri-enrolled-chip" title="This farmer's Seed program is a different commodity">Enrolled in {elsewhere}</span>}
                               {row.duplicate && (

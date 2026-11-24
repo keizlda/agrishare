@@ -223,6 +223,7 @@ function FarmerRequestsView({ isMAO }) {
                         <FarmerAvatar url={r.avatarUrl} firstName={r.farmerFirstName} lastName={r.farmerLastName} size={28} />
                         <span>
                           <span className="agri-row-title">{r.farmerName}</span>
+                          {r.barangay && <span className="agri-row-sub">Barangay {r.barangay}</span>}
                           {r.filedByFa && <span className="agri-filed-tag" style={{ display: "block", width: "fit-content" }}>Filed by Farmers' Association President</span>}
                         </span>
                       </span>
@@ -262,7 +263,7 @@ function FarmerRequestsView({ isMAO }) {
                   <div className="agri-detail-label">Farmer</div>
                   {selected.farmerName}
                   <div className="agri-muted" style={{ fontSize: "0.78rem" }}>RSBSA No. {selected.rsbsaNo || "—"}</div>
-                  <div className="agri-muted" style={{ fontSize: "0.78rem" }}>{[selected.sitioPurok, selected.barangay].filter(Boolean).join(", ")}</div>
+                  <div className="agri-muted" style={{ fontSize: "0.78rem" }}>{[selected.sitioPurok, selected.barangay && `Barangay ${selected.barangay}`].filter(Boolean).join(", ")}</div>
                   {selected.filedByFa && <span className="agri-filed-tag">Filed by Farmers' Association President</span>}
                   {selected.recommended && <span className="agri-filed-tag" style={{ marginLeft: 4 }}>Recommended by Farmers' Association President</span>}
                 </div>

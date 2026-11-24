@@ -15,6 +15,7 @@ export const ENTITY_TYPES = [
   "associations",
   "crop_types",
   "barangays",
+  "profiles",
 ];
 
 export const ENTITY_LABELS = {
@@ -30,6 +31,7 @@ export const ENTITY_LABELS = {
   associations: "Farmers' Associations",
   crop_types: "Crops",
   barangays: "Barangays",
+  profiles: "Accounts",
 };
 
 export const ACTION_TYPES = ["insert", "update", "delete"];
@@ -63,7 +65,8 @@ const PAGE_SIZE = 25;
 // entityType/action: "All" or one of the *_TYPES above.
 const startOfManilaDay = (day) => new Date(`${day}T00:00:00+08:00`);
 
-export async function listAuditLogs({ dateFrom, dateTo, action = "All", entityType = "All", page = 1, pageSize = PAGE_SIZE } = {}) {
+// barangay: "all" or a barangay id (the entries about that barangay).
+export async function listAuditLogs({ dateFrom, dateTo, action = "All", entityType = "All", barangay = "all", page = 1, pageSize = PAGE_SIZE } = {}) {
   let query = supabase.from("audit_logs").select(SELECT, { count: "exact" }).order("created_at", { ascending: false });
 
   if (dateFrom) query = query.gte("created_at", startOfManilaDay(dateFrom).toISOString());
@@ -74,6 +77,7 @@ export async function listAuditLogs({ dateFrom, dateTo, action = "All", entityTy
   }
   if (action !== "All") query = query.eq("action", action);
   if (entityType !== "All") query = query.eq("table_name", entityType);
+  if (barangay && barangay !== "all") query = query.eq("barangay_id", Number(barangay));
 
   const from = (page - 1) * pageSize;
   const { data, error, count } = await query.range(from, from + pageSize - 1);

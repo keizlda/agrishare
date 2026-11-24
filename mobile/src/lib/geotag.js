@@ -2,12 +2,16 @@
 // the barangay reference point, distance, accuracy wording, the map embed,
 // and a timeout for location extras that can stall.
 
-// Barangay Langapud's approximate center — the schema has no per-parcel GPS
-// coordinates, so this is the only geographic anchor available to flag a
-// capture that's obviously nowhere near the declared parcel. Mirrors the
-// reference point and threshold the web review screen uses.
-export const LANGAPUD_REF = { lat: 7.8333, lng: 123.6333 };
+// The farmer's barangay's approximate center (from the barangays list, when
+// the MAO has one on file) — the schema has no per-parcel GPS coordinates,
+// so it's the only anchor available to flag a capture that's obviously
+// nowhere near the declared parcel. Same threshold as the web review screen.
 export const FAR_THRESHOLD_KM = 5;
+
+// Distance from the barangay's center, or null when none is on file.
+export function distanceFromCenter(center, lat, lng) {
+  return center ? haversineKm(lat, lng, center.lat, center.lng) : null;
+}
 
 export function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371;

@@ -31,7 +31,7 @@ export default function App() {
           path="/print/distributions/:id"
           element={<RequireRole roles={["MAO Admin", "FA President"]}><PrintDistribution /></RequireRole>}
         />
-        <Route path="/print/reports" element={<RequireRole roles={["MAO Admin"]}><PrintReport /></RequireRole>} />
+        <Route path="/print/reports" element={<RequireRole roles={["MAO Admin", "FA President"]}><PrintReport /></RequireRole>} />
 
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />

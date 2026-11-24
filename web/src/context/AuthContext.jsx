@@ -21,7 +21,7 @@ const ROLE_DISPLAY = {
 
 const ROLE_PROFILES = {
   "MAO Admin": { office: "Municipality of Agriculture Office - Labangan" },
-  "FA President": { office: "Farmers' Association - Barangay Langapud" },
+  "FA President": { office: "Farmers' Association" },
 };
 
 const NO_ACCESS = "This account does not have access to the AgriShare web console.";
@@ -55,7 +55,7 @@ function readSwitchNotice() {
 async function loadProfile(authUser) {
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("role, full_name, contact_no")
+    .select("role, full_name, contact_no, barangay_id, barangays!profiles_barangay_id_fkey ( name )")
     .eq("id", authUser.id)
     .single();
   if (error) throw error;
@@ -72,7 +72,11 @@ async function loadProfile(authUser) {
     name: profile.full_name,
     role,
     roleLabel: ROLE_DISPLAY[role] ?? role,
-    office: ROLE_PROFILES[role]?.office ?? "",
+    // A Farmers' Association President's barangay: everything they see is
+    // that barangay's (the database enforces it).
+    barangayId: profile.barangay_id ?? null,
+    barangayName: profile.barangays?.name ?? "",
+    office: role === "FA President" && profile.barangays?.name ? `Farmers' Association - Barangay ${profile.barangays.name}` : ROLE_PROFILES[role]?.office ?? "",
   };
 }
 

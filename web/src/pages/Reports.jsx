@@ -8,6 +8,8 @@ import { formatDate, formatDateTime } from "../lib/dates.js";
 import { reportTypes } from "../data/mockData.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { listAllEntries } from "../lib/api/lists.js";
+import { MapPin } from "lucide-react";
+import { useAuth } from "../context/AuthContext.jsx";
 
 // Distribution reports filter by the distribution's status; the Harvest
 // Report by the harvest report's.
@@ -34,7 +36,10 @@ export default function Reports() {
   const [dateTo, setDateTo] = useState("");
   const [status, setStatus] = useState("All Status");
   const [commodity, setCommodity] = useState("All Commodities");
-  const [barangay, setBarangay] = useState("All Barangays");
+  // A Farmers' Association President's reports are always their barangay's.
+  const { user } = useAuth();
+  const isFA = user?.role === "FA President";
+  const [barangay, setBarangay] = useState(isFA && user.barangayName ? user.barangayName : "All Barangays");
   const [sex, setSex] = useState("All");
   const [association, setAssociation] = useState("All");
   const [lists, setLists] = useState({ sitios: [], associations: [], crops: [], barangays: [] });
@@ -144,10 +149,14 @@ export default function Reports() {
               {rangeError && <div className="mb-3" style={{ color: "var(--agri-red)", fontSize: "0.78rem" }} role="alert">{rangeError}</div>}
 
               <label className="agri-form-label">Barangay</label>
-              <select className="form-select mb-3" value={barangay} onChange={(e) => setBarangay(e.target.value)}>
+              {isFA ? (
+                <div className="mb-3"><span className="agri-barangay-fixed"><MapPin size={14} aria-hidden="true" /> Barangay {user.barangayName}</span></div>
+              ) : (
+              <select className="form-select mb-3" value={barangay} onChange={(e) => setBarangay(e.target.value)} aria-label="Barangay">
                 <option>All Barangays</option>
                 {lists.barangays.map((b) => <option key={b.id} value={b.name}>{b.name}{b.isActive ? "" : " (deactivated)"}</option>)}
               </select>
+              )}
 
               {farmerList && (
                 <>

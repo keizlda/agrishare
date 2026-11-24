@@ -34,14 +34,15 @@ if (admins.length) {
 } else {
   const { error } = await sb.auth.admin.createUser({
     email: ADMIN.email, password: ADMIN.password, email_confirm: true,
-    user_metadata: { role: "mao_admin", full_name: ADMIN.name },
+    user_metadata: { full_name: ADMIN.name },
+    app_metadata: { role: "mao_admin" },
   });
   if (error) throw new Error(`create MAO Admin: ${error.message}`);
   console.log(`MAO Admin: created ${ADMIN.email}`);
 }
 
 // ---- stand-ins for the existing farmers (by RSBSA number)
-const langapud = (await must(sb.from("barangays").select("id").eq("name", "Langapud"), "Langapud"))[0]?.id;
+const langapud = (await must(sb.from("barangays").select("id").eq("name", "Langapod"), "Langapod"))[0]?.id;
 const FARM_HA = { "09-73-00-000-000537": 65, "09-73-00-000-000612": 4, "09-73-00-000-000389": 12 };
 for (const [i, e] of data.existing_farmers_used.entries()) {
   const ha = FARM_HA[e.rsbsa_number] ?? 5;
@@ -57,7 +58,7 @@ for (const [i, e] of data.existing_farmers_used.entries()) {
     rsbsa_no: e.rsbsa_number, first_name: "Sample", surname: `Farmer ${digits}`, sex: i % 2 ? "male" : "female",
     birth_date: "1980-01-01", status: "active",
   }).select("farmer_id").single(), `stand-in ${digits}`));
-  await must(sb.from("addresses").insert({ farmer_id: farmer.farmer_id, street: "Purok 2", barangay: "Langapud", barangay_id: langapud, municipality: "Labangan", province: "Zamboanga del Sur" }), "stand-in address");
+  await must(sb.from("addresses").insert({ farmer_id: farmer.farmer_id, street: "Purok 2", barangay: "Langapod", barangay_id: langapud, municipality: "Labangan", province: "Zamboanga del Sur" }), "stand-in address");
   const parcel = await must(sb.from("farm_parcels").insert({ farmer_id: farmer.farmer_id, farm_location: "Purok 2", farm_size_hectares: ha, ownership_type: "Owner" }).select("parcel_id").single(), "stand-in parcel");
   await must(sb.from("crops").insert({ parcel_id: parcel.parcel_id, crop_type: "Rice", area_planted: ha }), "stand-in crop");
   console.log(`Stand-in ${e.rsbsa_number}: created (Sample Farmer ${digits}, ${ha} ha)`);

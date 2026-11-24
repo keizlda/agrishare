@@ -4,7 +4,7 @@ import { dbStatusToLabel } from "../status";
 const SELECT = `
   farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status, seed_program_id, org_affiliation,
   seed_program:commodities!seed_program_id ( name ),
-  addresses ( barangay, street ),
+  addresses ( barangay, street, barangays ( name, center_lat, center_lng ) ),
   farm_parcels ( farm_size_hectares, crops ( crop_type ) ),
   profiles!profile_id ( avatar_url, must_change_password )
 `;
@@ -20,7 +20,10 @@ function mapFarmer(row) {
     firstName: row.first_name,
     lastName: row.surname,
     rsbsaNo: row.rsbsa_no,
-    barangay: address?.barangay ?? "Langapud",
+    barangay: address?.barangays?.name ?? address?.barangay ?? "",
+    // The barangay's approximate center, when the MAO has one on file (for
+    // the "far from your barangay" check on geotagged photos).
+    barangayCenter: address?.barangays?.center_lat != null ? { lat: Number(address.barangays.center_lat), lng: Number(address.barangays.center_lng) } : null,
     // Sitio/purok and farmers' association (names from the MAO's lists).
     sitioPurok: address?.street ?? "",
     association: row.org_affiliation ?? "",

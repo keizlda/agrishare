@@ -7,7 +7,7 @@ export const currentFarmer = {
   firstName: "Juan",
   lastName: "Dela Cruz",
   rsbsaNo: "1234-5678-9101-1121",
-  barangay: "Langapud",
+  barangay: "Langapod",
   contactNo: "0917 129 4567",
   farmSize: "1.50 ha",
   primaryCommodity: "Rice",

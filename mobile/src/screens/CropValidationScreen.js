@@ -14,7 +14,7 @@ import { listMyDistributions } from "../lib/api/distributions";
 import { formatDate, formatDateLong, formatDateTime, maskTypedDate, todayIso, typedToIso } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
 import { backToValidation, setFlash } from "../lib/flash";
-import { FAR_THRESHOLD_KM, LANGAPUD_REF, accuracyRating, compassLabel, haversineKm, mapEmbedHtml, withTimeout } from "../lib/geotag";
+import { FAR_THRESHOLD_KM, accuracyRating, compassLabel, distanceFromCenter, mapEmbedHtml, withTimeout } from "../lib/geotag";
 
 const CROP_TYPES = ["Rice", "Corn", "Vegetables", "Other"];
 
@@ -120,7 +120,7 @@ export default function CropValidationScreen({ navigation, route }) {
         accuracy: position.coords.accuracy,
         placeLabel,
         bearing,
-        distanceKm: haversineKm(latitude, longitude, LANGAPUD_REF.lat, LANGAPUD_REF.lng),
+        distanceKm: distanceFromCenter(farmer?.barangayCenter, latitude, longitude),
         capturedAt: formatDateTime(new Date(position.timestamp)),
       });
     } catch (err) {
@@ -243,8 +243,8 @@ export default function CropValidationScreen({ navigation, route }) {
     }
     if (location.distanceKm > FAR_THRESHOLD_KM) {
       Alert.alert(
-        "Far from Barangay Langapud",
-        `Your captured location is about ${location.distanceKm.toFixed(1)} km from Barangay Langapud. Make sure you're at your registered farm before submitting.`,
+        `Far from Barangay ${farmer?.barangay ?? ""}`,
+        `Your captured location is about ${location.distanceKm.toFixed(1)} km from Barangay ${farmer?.barangay ?? ""}. Make sure you're at your registered farm before submitting.`,
         [
           { text: "Cancel", style: "cancel" },
           { text: "Submit Anyway", style: "destructive", onPress: performSubmit },
@@ -353,7 +353,7 @@ export default function CropValidationScreen({ navigation, route }) {
           />
           <InfoRow
             label="From Barangay"
-            value={location ? `${location.distanceKm.toFixed(1)} km` : "—"}
+            value={location?.distanceKm != null ? `${location.distanceKm.toFixed(1)} km` : "—"}
             small
             last
             warn={location && location.distanceKm > FAR_THRESHOLD_KM}
@@ -364,7 +364,7 @@ export default function CropValidationScreen({ navigation, route }) {
           <View style={styles.warningBanner}>
             <Ionicons name="warning" size={16} color={colors.orange} />
             <Text style={styles.warningText}>
-              You're ~{location.distanceKm.toFixed(1)} km from Barangay Langapud. Make sure you're at your registered
+              You're ~{location.distanceKm.toFixed(1)} km from Barangay {farmer?.barangay}. Make sure you're at your registered
               farm before submitting — exact parcel coordinates aren't on file, so this compares against the
               barangay's approximate center.
             </Text>

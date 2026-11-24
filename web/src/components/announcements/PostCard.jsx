@@ -27,7 +27,7 @@ export function PostEventRow({ post }) {
   );
 }
 
-// "Farmers / Farmers' Association Presidents · Langapud, Bagalupa" (or
+// "Farmers / Farmers' Association Presidents · Langapod, Bagalupa" (or
 // "· All barangays"). `limit`: how many barangay names before "+N more".
 export function PostAudience({ post, barangays, limit = Infinity }) {
   const names = barangayNames(post, barangays);

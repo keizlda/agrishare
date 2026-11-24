@@ -14,10 +14,26 @@ export const LISTS = {
 };
 const KINDS = Object.keys(LISTS);
 
-const mapEntry = (row) => ({ id: row.id, name: row.name, isActive: row.is_active, createdAt: row.created_at });
+// Sitios/puroks and associations belong to a barangay; a barangay keeps its
+// former names (so older text still matches) and, when known, a center.
+const SELECT = {
+  sitios: "id, name, is_active, created_at, barangay_id",
+  associations: "id, name, is_active, created_at, barangay_id",
+  crop_types: "id, name, is_active, created_at",
+  barangays: "id, name, is_active, created_at, former_names, center_lat, center_lng",
+};
+const mapEntry = (row) => ({
+  id: row.id,
+  name: row.name,
+  isActive: row.is_active,
+  createdAt: row.created_at,
+  barangayId: row.barangay_id ?? null,
+  formerNames: row.former_names ?? [],
+  center: row.center_lat != null && row.center_lng != null ? { lat: Number(row.center_lat), lng: Number(row.center_lng) } : null,
+});
 
 export async function listEntries(kind) {
-  const { data, error } = await supabase.from(LISTS[kind].table).select("id, name, is_active, created_at").order("name");
+  const { data, error } = await supabase.from(LISTS[kind].table).select(SELECT[LISTS[kind].table]).order("name");
   if (error) throw error;
   return data.map(mapEntry);
 }
@@ -28,14 +44,16 @@ export async function listAllEntries() {
   return Object.fromEntries(KINDS.map((k, i) => [k, lists[i]]));
 }
 
-export async function addEntry(kind, name) {
-  const { data, error } = await supabase.from(LISTS[kind].table).insert({ name }).select("id, name, is_active, created_at").single();
+// barangayId: the barangay a new sitio/purok or association belongs to.
+export async function addEntry(kind, name, barangayId = null) {
+  const table = LISTS[kind].table;
+  const { data, error } = await supabase.from(table).insert({ name, ...(barangayId ? { barangay_id: Number(barangayId) } : {}) }).select(SELECT[table]).single();
   if (error) throw error;
   return mapEntry(data);
 }
 
 async function updateEntry(kind, id, fields) {
-  const { data, error } = await supabase.from(LISTS[kind].table).update(fields).eq("id", id).select("id, name, is_active, created_at").maybeSingle();
+  const { data, error } = await supabase.from(LISTS[kind].table).update(fields).eq("id", id).select(SELECT[LISTS[kind].table]).maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Only the MAO Admin can change this list.");
   return mapEntry(data);

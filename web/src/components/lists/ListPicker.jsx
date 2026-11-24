@@ -30,6 +30,7 @@ export default function ListPicker({
   legacyText = "",
   placeholder,
   ariaLabel,
+  barangayId = null,
 }) {
   const meta = LISTS[kind];
   const selected = entries.find((e) => String(e.id) === String(value)) ?? null;
@@ -144,7 +145,7 @@ export default function ListPicker({
     setBusy(true);
     setAddError("");
     try {
-      const saved = await addEntry(kind, check.name);
+      const saved = await addEntry(kind, check.name, barangayId);
       setAdding(null);
       setSimilar(null);
       onAdded(saved);

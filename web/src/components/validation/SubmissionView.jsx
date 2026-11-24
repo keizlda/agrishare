@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useBarangays } from "../../hooks/useBarangays.js";
+import { inBarangay } from "../../lib/listMatch.js";
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Image as ImageIcon, Inbox, Pencil, ShieldAlert, Trash2, Undo2, X, XCircle } from "lucide-react";
 import Pill from "../ui/Pill.jsx";
 import FarmerAvatar from "../ui/FarmerAvatar.jsx";
@@ -14,12 +16,11 @@ import { formatHectares, formatKg } from "../../lib/allocation.js";
 import { formatDate, formatDateTime } from "../../lib/dates.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
-// Barangay Langapud's approximate center: the only geographic anchor on file
-// (there are no per-parcel coordinates), used to flag a photo taken far away.
-const LANGAPUD_REF = { lat: 7.8333, lng: 123.6333 };
-function distanceKm(lat, lng) {
+// The farmer's barangay's approximate center, when one is on file (there are
+// no per-parcel coordinates): used to flag a photo taken far away.
+function distanceKm(lat, lng, ref) {
   const rad = (d) => (d * Math.PI) / 180;
-  const a = Math.sin(rad(lat - LANGAPUD_REF.lat) / 2) ** 2 + Math.cos(rad(LANGAPUD_REF.lat)) * Math.cos(rad(lat)) * Math.sin(rad(lng - LANGAPUD_REF.lng) / 2) ** 2;
+  const a = Math.sin(rad(lat - ref.lat) / 2) ** 2 + Math.cos(rad(ref.lat)) * Math.cos(rad(lat)) * Math.sin(rad(lng - ref.lng) / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 const fmt = (n, d = 2) => (n == null ? null : Number(n).toLocaleString(undefined, { maximumFractionDigits: d }));
@@ -30,6 +31,7 @@ const MAX_REMARKS = 500;
 // the farmer, the details, photo and map, the timeline, and — for the MAO
 // Admin while Pending — the decision bar.
 export default function SubmissionView({ item, loading, loadError, list, user, isMAO, onBack, onOpen, onChanged, onRemoved, onToast }) {
+  const barangays = useBarangays();
   const [photoUrl, setPhotoUrl] = useState(null);
   const [lightbox, setLightbox] = useState(false);
   const [remarks, setRemarks] = useState("");
@@ -100,7 +102,8 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
   const canRemove = !planting && (isMAO || (ownFiling && raw.statusKey !== "verified"));
   const lat = raw.latitude;
   const lng = raw.longitude;
-  const km = lat != null && lng != null ? distanceKm(lat, lng) : null;
+  const farmerBarangay = barangays.find((b) => inBarangay(barangays, String(b.id), item.barangayId, item.barangay));
+  const km = lat != null && lng != null && farmerBarangay?.center ? distanceKm(lat, lng, farmerBarangay.center) : null;
 
   // The next pending submission after this one in the current list (or
   // before it), from the list as it was before this decision.
@@ -187,7 +190,7 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
             <KindTag kind={item.kind} />
           </div>
           <div className="agri-muted agri-vi-meta">
-            RSBSA {item.rsbsaNo || "—"} · {item.barangay || "Langapud"} · Farm size {formatHectares(item.farmSize)}
+            RSBSA {item.rsbsaNo || "—"} · Barangay {item.barangay || "—"} · Farm size {formatHectares(item.farmSize)}
           </div>
           <div className="agri-muted agri-vi-meta">Submitted {formatDate(item.date)} by {item.submittedBy} ({item.submittedRole})</div>
         </div>
@@ -251,7 +254,8 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
             <>
               <iframe title="Location" className="agri-vi-map" src={`https://www.google.com/maps?q=${lat},${lng}&z=15&output=embed`} loading="lazy" />
               <div className="agri-muted agri-vi-meta">
-                {lat.toFixed(6)}, {lng.toFixed(6)} · ~{km.toFixed(1)} km from Barangay Langapud
+                {lat.toFixed(6)}, {lng.toFixed(6)}
+                {km != null && <> · ~{km.toFixed(1)} km from Barangay {farmerBarangay.name}</>}
                 {km > 5 && <span style={{ color: "var(--agri-orange-text)", fontWeight: 600 }}> — far from the barangay, worth a closer look</span>}
               </div>
             </>

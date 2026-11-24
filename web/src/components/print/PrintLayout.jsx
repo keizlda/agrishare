@@ -35,7 +35,8 @@ function readPaper() {
 // green rule); the report title appears once, on page 1. There is no page
 // footer. `backTo`: where Back goes when the page wasn't opened in its own
 // tab. `landscape`: wide tables (10+ columns) print across the page.
-export default function PrintLayout({ title, subtitle, backTo = "/", landscape = false, children }) {
+// barangayLine: "Barangay Langapod" or "ALL BARANGAYS" under the office.
+export default function PrintLayout({ title, subtitle, backTo = "/", landscape = false, barangayLine = "", children }) {
   const [paperKey, setPaperKey] = useState(readPaper);
   const paperSize = PAPERS[paperKey];
   const paper = landscape ? { ...paperSize, width: paperSize.height, height: paperSize.width } : paperSize;
@@ -182,7 +183,7 @@ export default function PrintLayout({ title, subtitle, backTo = "/", landscape =
               <div className="pr-header-line">Republic of the Philippines</div>
               <div className="pr-header-line">Municipality of Labangan, Zamboanga del Sur</div>
               <div className="pr-header-office">MUNICIPAL AGRICULTURE OFFICE</div>
-              <div className="pr-header-line">Barangay Langapud</div>
+              {barangayLine && <div className="pr-header-line">{barangayLine}</div>}
             </div>
           </div>
           <hr className="pr-rule" />

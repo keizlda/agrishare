@@ -42,7 +42,7 @@ export default function PrintDistribution() {
   const totalQty = d.items.reduce((sum, i) => sum + i.quantity, 0);
 
   return (
-    <PrintLayout title="Distribution Report" subtitle={`Distribution No. ${d.id} · ${eventDateLong}`} backTo="/distributions">
+    <PrintLayout title="Distribution Report" subtitle={`Distribution No. ${d.id} · ${eventDateLong}`} backTo="/distributions" barangayLine={d.barangay ? `Barangay ${d.barangay}` : ""}>
       <div className="pr-section">
         <div className="pr-section-label">Distribution Details</div>
         <div className="pr-kv-grid">

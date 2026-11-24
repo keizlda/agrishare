@@ -7,7 +7,7 @@ Supabase backend for the Municipal Agriculture Office of Labangan.
 | --- | --- |
 | `web/` | React + Vite web system (live at https://agrishare.vercel.app) |
 | `mobile/` | Expo farmer app (updates over the air on the EAS `production` channel) |
-| `backend/supabase/` | Database migrations and the `manage-farmer-account` function |
+| `backend/supabase/` | Database migrations and the `manage-farmer-account` and `manage-fa-account` functions |
 | `backend/scripts/` | Test data, cleanup and database query scripts |
 
 ## Branches: what is live and what is local
@@ -41,10 +41,29 @@ Development accounts (agrishare-dev only; password `password123`):
 | Role | Sign in with |
 | --- | --- |
 | MAO Admin | `admin@agrishare.test` |
-| Farmers' Association President, Langapud | `fapresident@agrishare.test` |
+| Farmers' Association President, Langapod | `fapresident@agrishare.test` |
 | Farmers' Association President, Bagalupa | `fapresident.bagalupa@agrishare.test` |
 | Farmers' Association President, Bokong | `fapresident.bokong@agrishare.test` |
-| Farmers (mobile), by barangay | Langapud `000201`, Bagalupa `000226`, Bokong `000227`–`000228`, Combo `000229`–`000230`, New Labangan `000231`–`000232` |
+| Farmers (mobile), by barangay | Langapod `000201`–`000225`, Bagalupa `000226`, Bokong `000227`–`000228`, Combo `000229`–`000230`, New Labangan `000231`–`000232` |
+
+### Barangays and accounts
+
+- The `barangays` table holds the 25 official barangays of Labangan
+  (Settings > Lists). A renamed barangay keeps its old names in
+  `former_names` (Langapud → Langapod), so records typed with the old name
+  still match it.
+- Each Farmers' Association President belongs to exactly one barangay and
+  sees only that barangay's data. The database enforces this (row-level
+  security on every table and photo bucket), not just the screens.
+- The MAO Admin creates Farmers' Association President accounts and assigns
+  or changes their barangay in Settings > Farmers' Association Presidents
+  (the `manage-fa-account` function makes the account and a temporary
+  password).
+- An account's role comes only from its **app_metadata** (which only the
+  server can set), never from sign-up data. An account made by hand in the
+  Supabase dashboard needs `app_metadata.role` (`mao_admin` or
+  `fa_president`) and, for a Farmers' Association President,
+  `app_metadata.barangay_id`; without a role it is a farmer.
 
 Database work on the development database:
 
@@ -77,6 +96,11 @@ Only when the owner says "deploy to live". Tokens come from the gitignored
    npx supabase@3.2.0 db push --remote=bofvqdywhyrlbzatvxve --password "" --dry-run
    npx supabase@3.2.0 db push --remote=bofvqdywhyrlbzatvxve --password "" --yes
    ```
+   Then deploy any new or changed functions (the barangay release adds
+   `manage-fa-account`):
+   ```bash
+   npx supabase@3.2.0 functions deploy manage-fa-account --remote=bofvqdywhyrlbzatvxve --use-api --yes
+   ```
 3. **Test data on live (if the release adds any):** `node backend/scripts/seed-test-data.mjs`.
 4. **Web** (from `release/live`; Vercel builds it with its Production environment variables):
    ```bash
@@ -91,6 +115,20 @@ Only when the owner says "deploy to live". Tokens come from the gitignored
    ```
 6. **Check:** open every page on https://agrishare.vercel.app with the test
    accounts and the farmer app with a test farmer.
+
+### A new APK link (no live change)
+
+EAS keeps a build's APK for about two weeks. For a fresh download link of
+the app exactly as it is live, build from `release/live` (in a separate
+worktree, so `develop` isn't packaged) with the `preview` profile. It uses
+the live keys and the `production` update channel. A build doesn't publish
+anything; installed phones are not affected.
+
+```bash
+git worktree add --detach ../agrishare-live release/live
+cd ../agrishare-live/mobile && npm ci
+npx eas-cli build --platform android --profile preview --non-interactive --no-wait
+```
 
 Rolling the web back: `npx vercel promote <older-deployment-url>` (or
 `vercel alias set` to it). Every production deployment stays listed in

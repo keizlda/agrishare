@@ -104,12 +104,15 @@ function resolveEntry(entries, id, text) {
   return match ? { id: String(match.id), legacy: "" } : { id: "", legacy: text ?? "" };
 }
 
+// Sitios/puroks and associations of one barangay.
+const ofBarangay = (entries, barangayId) => entries.filter((e) => barangayId && String(e.barangayId) === String(barangayId));
+
 function farmerToForm(f, lists) {
-  const sitio = resolveEntry(lists.sitios, f.sitioId, f.sitioPurok);
   const brgy = resolveEntry(lists.barangays, f.barangayId, f.barangay);
-  const farm = resolveEntry(lists.sitios, f.farmSitioId, f.farmLocation);
+  const sitio = resolveEntry(ofBarangay(lists.sitios, brgy.id), f.sitioId, f.sitioPurok);
+  const farm = resolveEntry(ofBarangay(lists.sitios, brgy.id), f.farmSitioId, f.farmLocation);
   const crop = resolveEntry(lists.crops, f.cropTypeId, f.commodity);
-  const assoc = resolveEntry(lists.associations, f.associationId, f.orgAffiliation);
+  const assoc = resolveEntry(ofBarangay(lists.associations, brgy.id), f.associationId, f.orgAffiliation);
   return {
     rsbsaNo: f.rsbsaNo ?? "",
     firstName: f.firstName ?? "",
@@ -644,9 +647,10 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
   useEffect(() => {
     setForm((f) => {
       const next = { ...f };
-      for (const [idKey, legacyKey, kind] of [["sitioId", "sitioLegacy", "sitios"], ["barangayId", "barangayLegacy", "barangays"], ["farmSitioId", "farmLocationLegacy", "sitios"], ["cropTypeId", "cropLegacy", "crops"], ["associationId", "orgLegacy", "associations"]]) {
+      for (const [idKey, legacyKey, kind] of [["barangayId", "barangayLegacy", "barangays"], ["sitioId", "sitioLegacy", "sitios"], ["farmSitioId", "farmLocationLegacy", "sitios"], ["cropTypeId", "cropLegacy", "crops"], ["associationId", "orgLegacy", "associations"]]) {
         if (!next[idKey] && next[legacyKey]) {
-          const match = entryForText(lists[kind], next[legacyKey]);
+          const pool = kind === "sitios" || kind === "associations" ? ofBarangay(lists[kind], next.barangayId) : lists[kind];
+          const match = entryForText(pool, next[legacyKey]);
           if (match) Object.assign(next, { [idKey]: String(match.id), [legacyKey]: "" });
         }
       }
@@ -657,6 +661,19 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
   const cropOptions = useMemo(() => lists.crops.filter((c) => c.isActive || String(c.id) === form.cropTypeId), [lists.crops, form.cropTypeId]);
   // Barangay: the active barangays, plus the farmer's own if deactivated.
   const barangayOptions = useMemo(() => lists.barangays.filter((b) => b.isActive || String(b.id) === form.barangayId), [lists.barangays, form.barangayId]);
+  // Sitios/puroks and associations: the chosen barangay's lists.
+  const sitioEntries = useMemo(() => ofBarangay(lists.sitios, form.barangayId), [lists.sitios, form.barangayId]);
+  const associationEntries = useMemo(() => ofBarangay(lists.associations, form.barangayId), [lists.associations, form.barangayId]);
+  // Another barangay: its sitio/purok, farm location and association are
+  // chosen again from that barangay's lists.
+  function pickBarangay(value) {
+    setForm((f) => {
+      const keep = (id, entries) => (id && ofBarangay(entries, value).some((e) => String(e.id) === id) ? id : "");
+      return { ...f, barangayId: value, barangayLegacy: "", sitioId: keep(f.sitioId, lists.sitios), farmSitioId: keep(f.farmSitioId, lists.sitios), associationId: keep(f.associationId, lists.associations) };
+    });
+    setErrors((e) => (e.barangayId ? { ...e, barangayId: undefined } : e));
+  }
+  const needBarangay = form.barangayId ? undefined : "Choose the barangay first";
   const cropName = lists.crops.find((c) => String(c.id) === form.cropTypeId)?.name ?? form.cropLegacy;
   // Seed program: any active commodity with a kg/ha rate (the farmer's own
   // crop first), plus the saved one if it was since made inactive.
@@ -863,24 +880,27 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
             </Section>
 
             <Section title="Address">
+              <Field label="Barangay" col={6} required error={errors.barangayId}>
+                <select className={`form-select${errors.barangayId ? " is-invalid" : ""}`} value={form.barangayId} onChange={(e) => pickBarangay(e.target.value)} aria-label="Barangay">
+                  <option value="" disabled>{form.barangayLegacy ? `${form.barangayLegacy} (not on the list)` : "Select barangay"}</option>
+                  {barangayOptions.map((b) => <option key={b.id} value={String(b.id)}>{b.name}{b.isActive ? "" : " (deactivated)"}</option>)}
+                </select>
+              </Field>
               <Field label="Sitio / Purok" col={6} required error={errors.sitioId} htmlFor="farmer-sitio">
                 <ListPicker
                   id="farmer-sitio"
                   kind="sitios"
-                  entries={lists.sitios}
+                  entries={sitioEntries}
                   value={form.sitioId}
                   legacyText={form.sitioLegacy}
                   onChange={pickFrom("sitioId", "sitioLegacy")}
                   onAdded={(entry) => onListAdded("sitios", entry)}
                   canAdd
                   invalid={!!errors.sitioId}
+                  disabled={!form.barangayId}
+                  placeholder={needBarangay}
+                  barangayId={form.barangayId}
                 />
-              </Field>
-              <Field label="Barangay" col={6} required error={errors.barangayId}>
-                <select className={`form-select${errors.barangayId ? " is-invalid" : ""}`} value={form.barangayId} onChange={(e) => pickFrom("barangayId", "barangayLegacy")(e.target.value)} aria-label="Barangay">
-                  <option value="" disabled>{form.barangayLegacy ? `${form.barangayLegacy} (not on the list)` : "Select barangay"}</option>
-                  {barangayOptions.map((b) => <option key={b.id} value={String(b.id)}>{b.name}{b.isActive ? "" : " (deactivated)"}</option>)}
-                </select>
               </Field>
               {/* Municipality and province are always these: fixed, not inputs. */}
               <Field label="Municipality" col={6}>
@@ -911,13 +931,16 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
                 <ListPicker
                   id="farmer-farm-location"
                   kind="sitios"
-                  entries={lists.sitios}
+                  entries={sitioEntries}
                   value={form.farmSitioId}
                   legacyText={form.farmLocationLegacy}
                   onChange={pickFrom("farmSitioId", "farmLocationLegacy")}
                   onAdded={(entry) => onListAdded("sitios", entry)}
                   canAdd
                   optional
+                  disabled={!form.barangayId}
+                  placeholder={needBarangay}
+                  barangayId={form.barangayId}
                   ariaLabel="Farm location (sitio/purok)"
                 />
               </Field>
@@ -941,13 +964,16 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
                 <ListPicker
                   id="farmer-association"
                   kind="associations"
-                  entries={lists.associations}
+                  entries={associationEntries}
                   value={form.associationId}
                   legacyText={form.orgLegacy}
                   onChange={pickFrom("associationId", "orgLegacy")}
                   onAdded={(entry) => onListAdded("associations", entry)}
                   canAdd
                   optional
+                  disabled={!form.barangayId}
+                  placeholder={needBarangay}
+                  barangayId={form.barangayId}
                   ariaLabel="Farmers' association"
                 />
               </Field>

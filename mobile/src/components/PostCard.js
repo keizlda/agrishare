@@ -18,7 +18,7 @@ function estimateLines(text, width) {
   return String(text ?? "").split("\n").reduce((n, para) => n + Math.max(1, Math.ceil(para.length / perLine)), 0);
 }
 
-// "Farmers · Langapud, Bagalupa" (or "· All barangays").
+// "Farmers · Langapod, Bagalupa" (or "· All barangays").
 export function audienceText(post, limit = Infinity) {
   const names = post.barangayNames ?? [];
   const where = post.allBarangays ? "All barangays" : names.length > limit ? `${names.slice(0, limit).join(", ")} +${names.length - limit} more` : names.join(", ");

@@ -155,7 +155,7 @@ function InboxList({ filters, filtered, barangays, pendingCounts, loading, loadE
             {pageItems.map((i) => {
               const pending = i.group === "pending";
               const submitted = `Submitted ${formatDate(i.date)}`;
-              const detail = [i.rsbsaNo, i.summary, submitted].filter(Boolean).join(" · ");
+              const detail = [i.barangay && `Brgy. ${i.barangay}`, i.rsbsaNo, i.summary, submitted].filter(Boolean).join(" · ");
               const label = `${i.farmerName}, ${KINDS[i.kind]}, ${detail}, ${i.status}${pending ? ", pending" : ""}`;
               return (
                 <tr

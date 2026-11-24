@@ -7,6 +7,8 @@ import { MAX_LIST_NAME, checkName, cleanName } from "../../lib/listMatch.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
 const KINDS = ["sitios", "associations", "crops", "barangays"];
+// Sitios/puroks and farmers' associations belong to a barangay.
+const PER_BARANGAY = new Set(["sitios", "associations"]);
 const sortByName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name));
 const PLACEHOLDERS = {
   sitios: "New sitio/purok, e.g. Purok 6",
@@ -25,6 +27,7 @@ export default function ManagedLists() {
   const [usage, setUsage] = useState({ sitios: {}, associations: {}, crops: {}, barangays: {} });
   const [loadError, setLoadError] = useState("");
   const [toast, setToast] = useState(null);
+  const [barangayId, setBarangayId] = useState("all");
 
   useEffect(() => {
     Promise.all([listAllEntries(), listUsage().catch(() => null)])
@@ -39,14 +42,30 @@ export default function ManagedLists() {
   const remove = (kind, id) => setLists((l) => ({ ...l, [kind]: l[kind].filter((e) => e.id !== id) }));
 
   if (loadError) return <div className="agri-pill red" style={{ display: "block", padding: "8px 12px" }}>{loadError}</div>;
+  const barangayName = (id) => lists?.barangays.find((b) => b.id === id)?.name ?? "—";
+  const scoped = (kind) => {
+    const all = lists?.[kind] ?? null;
+    if (!all || !PER_BARANGAY.has(kind) || barangayId === "all") return all;
+    return all.filter((e) => String(e.barangayId) === barangayId);
+  };
 
   return (
+    <div className="agri-lists-wrap">
+      <div className="agri-lists-scope">
+        <label htmlFor="lists-barangay">Sitios / puroks and farmers&apos; associations of</label>
+        <select id="lists-barangay" className="form-select form-select-sm" value={barangayId} onChange={(e) => setBarangayId(e.target.value)}>
+          <option value="all">All barangays</option>
+          {(lists?.barangays ?? []).map((b) => <option key={b.id} value={String(b.id)}>{b.name}</option>)}
+        </select>
+      </div>
     <div className="agri-lists-grid">
       {KINDS.map((kind) => (
         <ListCard
           key={kind}
           kind={kind}
-          entries={lists?.[kind] ?? null}
+          entries={scoped(kind)}
+          barangayId={PER_BARANGAY.has(kind) ? barangayId : null}
+          barangayName={barangayName}
           usage={usage[kind]}
           onSaved={(entry, message) => {
             replace(kind, entry);
@@ -60,10 +79,15 @@ export default function ManagedLists() {
       ))}
       {toast && <Toast message={toast.message} tone={toast.tone} onDone={() => setToast(null)} />}
     </div>
+    </div>
   );
 }
 
-function ListCard({ kind, entries, usage, onSaved, onDeleted }) {
+// barangayId: for sitios/associations, the barangay shown ("all" lists every
+// barangay's entries with their barangay, and adding needs one chosen).
+function ListCard({ kind, entries, barangayId, barangayName, usage, onSaved, onDeleted }) {
+  const perBarangay = barangayId != null;
+  const mustChoose = perBarangay && barangayId === "all";
   const meta = LISTS[kind];
   const [newName, setNewName] = useState("");
   const [addNote, setAddNote] = useState(null); // { tone, text, similar?, same? }
@@ -87,7 +111,7 @@ function ListCard({ kind, entries, usage, onSaved, onDeleted }) {
     }
     setBusy(true);
     try {
-      const saved = await addEntry(kind, check.name);
+      const saved = await addEntry(kind, check.name, perBarangay ? barangayId : null);
       setNewName("");
       setAddNote(null);
       onSaved(saved, `“${saved.name}” added.`);
@@ -173,15 +197,15 @@ function ListCard({ kind, entries, usage, onSaved, onDeleted }) {
           className={`form-control form-control-sm${addNote?.tone === "error" ? " is-invalid" : ""}`}
           value={newName}
           maxLength={MAX_LIST_NAME + 20}
-          placeholder={PLACEHOLDERS[kind]}
+          placeholder={mustChoose ? "Choose a barangay above to add" : PLACEHOLDERS[kind]}
           aria-label={`New ${meta.noun}`}
           onChange={(e) => {
             setNewName(e.target.value);
             setAddNote(null);
           }}
-          disabled={!entries || busy}
+          disabled={!entries || busy || mustChoose}
         />
-        <button type="submit" className="btn btn-sm btn-agri-primary d-flex align-items-center gap-1" disabled={!entries || busy}>
+        <button type="submit" className="btn btn-sm btn-agri-primary d-flex align-items-center gap-1" disabled={!entries || busy || mustChoose}>
           <Plus size={14} /> Add
         </button>
       </form>
@@ -239,6 +263,7 @@ function ListCard({ kind, entries, usage, onSaved, onDeleted }) {
                   <div className="agri-list-row-main">
                     <span className="agri-list-row-name">{entry.name}</span>
                     <span className="agri-list-row-meta">
+                      {mustChoose && <span className="agri-pill gray">{barangayName(entry.barangayId)}</span>}
                       {uses ? `${uses} farmer${uses === 1 ? "" : "s"}` : "Not used"}
                       {!entry.isActive && <span className="agri-pill gray">Deactivated</span>}
                     </span>
