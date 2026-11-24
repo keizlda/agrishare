@@ -75,10 +75,10 @@ async function main() {
     if (farmerErr) throw new Error(`insert farmer ${f.rsbsaNo} failed: ${farmerErr.message}`);
     farmerIdByRsbsa[f.rsbsaNo] = farmerRow.farmer_id;
 
-    await supabase.from("addresses").insert({ farmer_id: farmerRow.farmer_id, barangay: "Langapud", municipality: "Labangan", province: "Zamboanga del Sur" });
+    await supabase.from("addresses").insert({ farmer_id: farmerRow.farmer_id, barangay: "Langapod", municipality: "Labangan", province: "Zamboanga del Sur" });
     const { data: parcel } = await supabase
       .from("farm_parcels")
-      .insert({ farmer_id: farmerRow.farmer_id, farm_location: "Langapud", farm_size_hectares: f.farmSize })
+      .insert({ farmer_id: farmerRow.farmer_id, farm_location: "Langapod", farm_size_hectares: f.farmSize })
       .select("parcel_id")
       .single();
     if (parcel) {
