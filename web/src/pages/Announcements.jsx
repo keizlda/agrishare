@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Megaphone, Pencil, Pin, PinOff, Search, Send, Trash2 } from "lucide-react";
 import Toast from "../components/ui/Toast.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
@@ -53,25 +53,9 @@ export default function Announcements() {
   }, [announcements, search, barangayFilter]);
   const filtering = !!search.trim() || barangayFilter !== "all";
 
-  // A new post goes below the pinned posts, which can be a long way down:
-  // clear the search and filter so it's in the feed, then scroll to it and
-  // highlight it for a moment.
-  const [justPosted, setJustPosted] = useState(null);
-  useEffect(() => {
-    if (justPosted == null) return undefined;
-    document.querySelector(`[data-post-id="${justPosted}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    const timer = setTimeout(() => setJustPosted(null), 2600);
-    return () => clearTimeout(timer);
-  }, [justPosted]);
-
   function handleSaved(saved, { editing }) {
     setAnnouncements((prev) => (editing ? prev.map((a) => (a.id === saved.id ? saved : a)) : [saved, ...prev]));
     setModal(null);
-    if (!editing) {
-      setSearch("");
-      setBarangayFilter("all");
-    }
-    setJustPosted(saved.id);
     setToast({ tone: "success", message: editing ? "Post updated." : "Posted." });
   }
 
@@ -142,7 +126,7 @@ export default function Announcements() {
               </button>
             )}
             {loading && <div className="agri-muted text-center py-4">Loading posts…</div>}
-            {posts.map((a) => <PostCard key={a.id} post={a} barangays={barangays} menu={menuFor(a)} onOpen={setOpen} isNew={a.id === justPosted} />)}
+            {posts.map((a) => <PostCard key={a.id} post={a} barangays={barangays} menu={menuFor(a)} onOpen={setOpen} />)}
             {!loading && posts.length === 0 && (
               <EmptyState
                 icon={Megaphone}

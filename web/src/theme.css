@@ -4502,25 +4502,6 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   position: relative; /* keeps its screen-reader-only labels inside the feed */
   padding: 14px 16px;
 }
-/* Just posted or edited: a green ring that fades. */
-.agri-post-feed .agri-card.agri-post-new {
-  animation: agri-post-new 2.6s ease-out;
-}
-@keyframes agri-post-new {
-  0%,
-  45% {
-    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.55), 0 3px 12px rgba(31, 42, 34, 0.07);
-  }
-  100% {
-    box-shadow: 0 1px 2px rgba(31, 42, 34, 0.06), 0 3px 12px rgba(31, 42, 34, 0.07);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .agri-post-feed .agri-card.agri-post-new {
-    animation: none;
-    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.55);
-  }
-}
 /* The whole card opens the post. */
 .agri-post-clickable {
   cursor: pointer;
