@@ -45,7 +45,7 @@ export function PostAudience({ post, barangays, limit = Infinity }) {
 // ("See more" after about 4 lines), the photo, and who can see it.
 // Clicking anywhere on it opens the post in full (`onOpen`); `menu`: the
 // ⋯ actions (MAO Admin: Edit, Pin / Unpin, Delete; FA President: forward).
-export default function PostCard({ post, barangays, menu, onOpen }) {
+export default function PostCard({ post, barangays, menu, onOpen, isNew = false }) {
   const [overflows, setOverflows] = useState(false);
   const photo = usePostPhoto(post.imagePath);
   const textRef = useRef(null);
@@ -72,7 +72,8 @@ export default function PostCard({ post, barangays, menu, onOpen }) {
 
   return (
     <article
-      className={`agri-card agri-post agri-post-clickable${post.isDraft ? " draft" : ""}`}
+      className={`agri-card agri-post agri-post-clickable${post.isDraft ? " draft" : ""}${isNew ? " agri-post-new" : ""}`}
+      data-post-id={post.id}
       aria-label={`Post: ${post.title}`}
       tabIndex={0}
       onClick={() => onOpen(post)}
