@@ -138,7 +138,7 @@ Updated November 23, 2026 (see the updates below).
   a different account, this tab follows instead of acting as the wrong
   account.
 
-## On `develop` (not on the live site yet): types of farmer, tagging by type, sitios by the Farmers' Association President
+## Live since November 25, 2026: types of farmer, tagging by type, sitios by the Farmers' Association President
 
 **Design changes (for the paper):** farmers are classified by one or more
 types of farmer instead of a single crop; beneficiaries are tagged by type of
@@ -215,7 +215,7 @@ number to be fixed first.
 | Direct database calls as each account (barangay scope) | 10/10 |
 | Web lint and production build; farmer app bundle | pass |
 
-## On `develop` (not on the live site yet): all 25 barangays; each Farmers' Association President sees only their barangay
+## Live since November 25, 2026: all 25 barangays; each Farmers' Association President sees only their barangay
 
 **Design changes (for the paper):** the system supports all 25 barangays of
 Labangan, and each Farmers' Association President can only access data from
@@ -276,7 +276,7 @@ Migrations (agrishare-dev only): `20261125000000_barangay_scope.sql`,
 | Farmer app (000201 Langapod, 000227 Bokong), 360 px: profile, posts, My Distributions | 8/8 |
 | Web lint and production build; farmer app bundle | pass |
 
-## On `develop` (not on the live site yet): filters and test data in more barangays
+## Live since November 25, 2026: filters and test data in more barangays
 
 - **Announcements:** the "What do you want to announce?" box opens Create
   post (no separate button); no sort (always newest first, pinned on top);
@@ -302,7 +302,7 @@ Migrations (agrishare-dev only): `20261125000000_barangay_scope.sql`,
 | --- | --- |
 | Announcements toolbar, newest first, composer, barangay filter, photos load, broken photo hidden; Farmers / Validation / Distributions / Requests filters by barangay (and status / search); New Distribution barangay dropdown; Reports List of Farmers by barangay; Lists with a real barangay name; Bokong FA President's posts | 48/48 |
 
-## On `develop` (not on the live site yet): who can see a post, and the barangays of Labangan
+## Live since November 25, 2026: who can see a post, and the barangays of Labangan
 
 Runs on localhost against the development database (agrishare-dev); it
 goes live only with "deploy to live" (README.md). Migration
