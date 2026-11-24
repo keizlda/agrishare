@@ -59,8 +59,16 @@ if (REMOVE) {
     const { error } = await sb.from("sitios").delete().eq("id", id);
     if (!error) sitiosGone++;
   }
-  console.log(`Removed ${ids.length} sample farmers and ${sitiosGone} sitios/puroks.`);
-  fs.writeFileSync(LEDGER, JSON.stringify({ farmers: [], sitios: [] }, null, 1));
+  // Pictures added to other farmers: taken off again.
+  for (const profileId of ledger.picturesFor ?? []) await sb.from("profiles").update({ avatar_url: null }).eq("id", profileId);
+  for (let i = 0; i < (ledger.avatars ?? []).length; i += 100) await sb.storage.from("avatars").remove(ledger.avatars.slice(i, i + 100));
+  let loginsGone = 0;
+  for (const id of ledger.authUsers ?? []) {
+    const { error } = await sb.auth.admin.deleteUser(id);
+    if (!error) loginsGone++;
+  }
+  console.log(`Removed ${ids.length} sample farmers, ${loginsGone} logins, ${(ledger.avatars ?? []).length} pictures and ${sitiosGone} sitios/puroks.`);
+  fs.writeFileSync(LEDGER, JSON.stringify({ farmers: [], sitios: [], authUsers: [], avatars: [], picturesFor: [] }, null, 1));
   process.exit(0);
 }
 
@@ -203,4 +211,108 @@ for (const b of barangays) {
   added += rows.length;
   console.log(`${b.name}: added ${rows.length} farmers (now ${have + need}+ Active)`);
 }
-console.log(`\n${DRY ? "Would add" : "Added"} ${added} sample farmers${sitiosAdded ? ` and ${sitiosAdded} sitios/puroks` : ""}. Ledger: ${LEDGER}`);
+console.log(`\n${DRY ? "Would add" : "Added"} ${added} sample farmers${sitiosAdded ? ` and ${sitiosAdded} sitios/puroks` : ""}.`);
+
+// ---------- Login accounts and profile pictures ----------
+// Every sample farmer gets a mobile login (login ID = last 6 digits of the
+// RSBSA number, password password123) and an illustrated profile picture,
+// like the test farmers. Other farmers with a login but no picture get one
+// too — never the stand-ins for Maui Pelaez, Claude Oclarit and Luna Cuizon.
+const PROTECTED = new Set(["09-73-00-000-000537", "09-73-00-000-000612", "09-73-00-000-000389"]);
+const EMAIL_DOMAIN = "farmers.agrishare.ph"; // same as manage-farmer-account
+const AVATAR_BG = "e3efe0,dff1ec,e3ecf8,fbefd9";
+const AVATAR_TTL_SECONDS = 60 * 60 * 24 * 365 * 5; // same as the farmer app
+ledger.authUsers ??= [];
+ledger.avatars ??= [];
+ledger.picturesFor ??= [];
+const { default: sharp } = await import("sharp");
+
+async function renderAvatar(seedText, first, last) {
+  try {
+    const res = await fetch(`https://api.dicebear.com/9.x/personas/svg?seed=${encodeURIComponent(seedText)}&size=512&backgroundColor=${AVATAR_BG}`, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const svg = Buffer.from(await res.arrayBuffer());
+    return await sharp(svg, { density: 144 }).resize(512, 512).flatten({ background: "#e3efe0" }).jpeg({ quality: 85 }).toBuffer();
+  } catch {
+    // Offline: an initials picture.
+    const bg = ["#4c9a5f", "#2a9d8f", "#4a7fc1", "#d99a2b"][seedText.length % 4];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" fill="${bg}"/><text x="256" y="256" dy="0.35em" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="200" font-weight="600" fill="#ffffff">${`${first[0]}${last[0]}`.toUpperCase()}</text></svg>`;
+    return sharp(Buffer.from(svg)).jpeg({ quality: 90 }).toBuffer();
+  }
+}
+
+// A few at a time.
+async function eachLimited(items, limit, fn) {
+  let i = 0;
+  await Promise.all(Array.from({ length: limit }, async () => {
+    while (i < items.length) await fn(items[i++]);
+  }));
+}
+
+const sampleIds = new Set(ledger.farmers);
+const everyone = [];
+for (let from = 0; ; from += 1000) {
+  const page = await must(sb.from("farmers").select("farmer_id, rsbsa_no, first_name, surname, contact_no, profile_id, profiles!profile_id ( avatar_url )").is("deleted_at", null).range(from, from + 999), "farmers");
+  everyone.push(...page);
+  if (page.length < 1000) break;
+}
+const needAccount = everyone.filter((f) => sampleIds.has(f.farmer_id) && !f.profile_id);
+const needPicture = everyone.filter((f) => !PROTECTED.has(f.rsbsa_no) && (sampleIds.has(f.farmer_id) || f.profile_id) && !f.profiles?.avatar_url);
+if (DRY) {
+  console.log(`Would add ${needAccount.length} logins and ${needPicture.length} profile pictures.`);
+  process.exit(0);
+}
+
+let accounts = 0;
+let pictures = 0;
+const problems = [];
+await eachLimited(needAccount, 6, async (f) => {
+  const loginId = f.rsbsa_no.replace(/\D/g, "").slice(-6);
+  const { data, error } = await sb.auth.admin.createUser({
+    email: `${loginId}@${EMAIL_DOMAIN}`,
+    password: "password123",
+    email_confirm: true,
+    user_metadata: { full_name: `${f.first_name} ${f.surname}`, contact_no: f.contact_no },
+    app_metadata: { sample_batch: "barangay-sample" },
+  });
+  if (error) {
+    problems.push(`${f.rsbsa_no}: ${error.message}`);
+    return;
+  }
+  ledger.authUsers.push(data.user.id);
+  await must(sb.from("farmers").update({ profile_id: data.user.id }).eq("farmer_id", f.farmer_id), `link login ${f.rsbsa_no}`);
+  await must(sb.from("profiles").update({ must_change_password: false }).eq("id", data.user.id), `reminder ${f.rsbsa_no}`);
+  f.profile_id = data.user.id;
+  accounts++;
+  if (accounts % 50 === 0) {
+    saveLedger();
+    console.log(`  ${accounts} logins…`);
+  }
+});
+saveLedger();
+
+await eachLimited(needPicture.filter((f) => f.profile_id), 6, async (f) => {
+  const buf = await renderAvatar(f.rsbsa_no, f.first_name, f.surname);
+  const objPath = `${f.profile_id}/avatar.jpg`; // same path as the farmer app
+  const { error: upErr } = await sb.storage.from("avatars").upload(objPath, buf, { contentType: "image/jpeg", upsert: true });
+  if (upErr) {
+    problems.push(`${f.rsbsa_no} picture: ${upErr.message}`);
+    return;
+  }
+  ledger.avatars.push(objPath);
+  if (!sampleIds.has(f.farmer_id)) ledger.picturesFor.push(f.profile_id);
+  const { data: signed, error: signErr } = await sb.storage.from("avatars").createSignedUrl(objPath, AVATAR_TTL_SECONDS);
+  if (signErr) {
+    problems.push(`${f.rsbsa_no} picture link: ${signErr.message}`);
+    return;
+  }
+  await must(sb.from("profiles").update({ avatar_url: signed.signedUrl }).eq("id", f.profile_id), `picture ${f.rsbsa_no}`);
+  pictures++;
+  if (pictures % 50 === 0) {
+    saveLedger();
+    console.log(`  ${pictures} pictures…`);
+  }
+});
+saveLedger();
+console.log(`Added ${accounts} logins and ${pictures} profile pictures.${problems.length ? `\nProblems (${problems.length}):\n  ${problems.slice(0, 10).join("\n  ")}` : ""}`);
+console.log(`Ledger: ${LEDGER}`);
