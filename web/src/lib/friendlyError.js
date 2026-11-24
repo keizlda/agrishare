@@ -61,6 +61,7 @@ function toMessage(err, fallback) {
 
   if (code === "23505" || /duplicate key value/i.test(message)) return "That record already exists.";
   if (code === "23503" || /foreign key constraint/i.test(message)) return "This can't be completed because other records still depend on it.";
+  if (/farmers_contact_no_format|profiles_fa_contact_no_format/.test(message)) return "The contact number must be 11 digits starting with 09. Fix it in Edit, then try again.";
   if (code === "23514" || /violates check constraint/i.test(message)) return "One of the values entered isn't valid.";
   if (code === "PGRST116" || /no rows|0 rows/i.test(message)) return "That record couldn't be found — it may have already been changed or removed.";
   if (code === "42501" || /permission denied|row-level security/i.test(message)) {

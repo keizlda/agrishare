@@ -4657,3 +4657,190 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   height: 220px;
   background: var(--agri-chip-bg);
 }
+
+/* ---------- Types of farmer (Nov 26, 2026) ---------- */
+/* Small chips: Farmers table, profile drawer, beneficiary rows. */
+.agri-type-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+}
+.agri-type-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  background: var(--agri-primary-light);
+  color: var(--agri-primary-dark);
+}
+.agri-type-chip.more {
+  background: var(--agri-chip-bg);
+  color: var(--agri-text-secondary);
+}
+/* Add/Edit Farmer: the checklist in two columns, examples in small gray. */
+.agri-type-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--agri-border);
+  border-radius: 8px;
+  background: #fff;
+}
+.agri-type-checklist.is-invalid {
+  border-color: var(--agri-red);
+}
+@media (max-width: 575.98px) {
+  .agri-type-checklist {
+    grid-template-columns: 1fr;
+  }
+}
+.agri-type-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+.agri-type-option .form-check-input {
+  margin-top: 2px;
+  flex: none;
+}
+.agri-type-option-text {
+  min-width: 0;
+}
+.agri-type-option-name {
+  font-weight: 600;
+  color: var(--agri-text);
+}
+.agri-type-option-examples {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--agri-text-muted);
+}
+/* Toolbar buttons kept together on the right. */
+.agri-toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+/* Manage sitios/puroks: the fixed barangay of a Farmers' Association President. */
+.agri-sitio-scope {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: var(--agri-primary-light);
+  color: var(--agri-primary-dark);
+}
+.agri-no-sitios .agri-link-btn {
+  margin-left: 6px;
+}
+.agri-list-row-examples {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--agri-text-muted);
+}
+
+/* ---------- Distribution form: tag by type of farmer ---------- */
+.agri-tag-step-label {
+  margin: 4px 0 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--agri-text-secondary);
+}
+.agri-type-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.agri-type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--agri-border-strong);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--agri-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.agri-type-tag:hover:not(:disabled) {
+  background: var(--agri-row-hover);
+}
+.agri-type-tag:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.agri-type-tag.suggested {
+  border-color: var(--agri-primary);
+  box-shadow: 0 0 0 2px var(--agri-primary-light);
+}
+.agri-type-tag.on {
+  border-color: var(--agri-primary-dark);
+  background: var(--agri-primary-dark);
+  color: #fff;
+}
+.agri-type-tag .spinner-border {
+  width: 12px;
+  height: 12px;
+  border-width: 2px;
+}
+.agri-type-tag-hint {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  background: var(--agri-primary-light);
+  color: var(--agri-primary-dark);
+}
+.agri-tag-note {
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  background: var(--agri-primary-soft);
+  color: var(--agri-text-secondary);
+}
+.agri-tag-note.warn {
+  background: var(--agri-orange-bg);
+  color: var(--agri-orange-text);
+}
+.agri-tag-note.error {
+  background: var(--agri-red-bg);
+  color: var(--agri-red);
+}
+/* The tagged list: one header row per group ("Rice farmer · 12 farmers"). */
+.agri-tag-group-row td {
+  padding: 6px 10px !important;
+  background: var(--agri-primary-soft) !important;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--agri-primary-dark);
+}
+.agri-tag-remove-cell {
+  width: 36px;
+  text-align: center;
+  vertical-align: middle;
+}
+.agri-alloc-warning {
+  margin-top: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--agri-red);
+}
+.agri-readonly-total {
+  background: var(--agri-primary-soft);
+  font-weight: 700;
+}

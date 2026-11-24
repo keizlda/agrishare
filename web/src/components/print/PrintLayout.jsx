@@ -7,26 +7,17 @@ import { buildPage, planPages } from "./paginate.js";
 const SEAL_LOAD_TIMEOUT_MS = 3000;
 const MM = 96 / 25.4; // CSS px per millimetre
 
-// Paper sizes. The margins are the printed page margins, kept inside each
-// sheet (the browser's own page margin is 0, so it prints no header/footer).
-const PAPERS = {
-  a4: { label: "A4", css: "A4", width: 210, height: 297 },
-  letter: { label: "Letter", css: "letter", width: 215.9, height: 279.4 },
-};
-const MARGIN = { top: 20, bottom: 20, left: 18, right: 18 };
-const PAPER_KEY = "agrishare_print_paper";
-
-function readPaper() {
-  try {
-    const saved = localStorage.getItem(PAPER_KEY);
-    return PAPERS[saved] ? saved : "a4";
-  } catch {
-    return "a4";
-  }
-}
+// One neutral page size that fits on both A4 (210 × 297 mm) and Letter
+// (215.9 × 279.4 mm): the narrower width and the shorter height. The paper
+// itself is chosen in the browser's print dialog (no fixed @page size), so
+// the printed pages come out right on either. The margins are the printed
+// page margins, kept inside each sheet (the browser's own page margin is 0,
+// so it prints no header/footer).
+const PAGE = { width: 210, height: 279.4 };
+const MARGIN = { top: 18, bottom: 18, left: 18, right: 18 };
 
 // Shared shell for every printable page (Distribution Report, Reports page
-// reports): a toolbar (Back/Close, paper size, Print / Save as PDF) above a
+// reports): a toolbar (Back/Close, Print / Save as PDF) above a
 // document viewer that shows each printed page as its own white sheet,
 // exactly where it will break when printed. Nothing prints automatically —
 // the print dialog opens only from "Print / Save as PDF".
@@ -37,9 +28,8 @@ function readPaper() {
 // tab. `landscape`: wide tables (10+ columns) print across the page.
 // barangayLine: "Barangay Langapod" or "ALL BARANGAYS" under the office.
 export default function PrintLayout({ title, subtitle, backTo = "/", landscape = false, barangayLine = "", children }) {
-  const [paperKey, setPaperKey] = useState(readPaper);
-  const paperSize = PAPERS[paperKey];
-  const paper = landscape ? { ...paperSize, width: paperSize.height, height: paperSize.width } : paperSize;
+  const paper = landscape ? { width: PAGE.height, height: PAGE.width } : PAGE;
+  const orientation = landscape ? "landscape" : "portrait";
   const [pageCount, setPageCount] = useState(0);
   const [scale, setScale] = useState(1);
   const measureRef = useRef(null);
@@ -51,17 +41,8 @@ export default function PrintLayout({ title, subtitle, backTo = "/", landscape =
   const contentWidth = (paper.width - MARGIN.left - MARGIN.right) * MM;
   const contentHeight = (paper.height - MARGIN.top - MARGIN.bottom) * MM;
 
-  function choosePaper(key) {
-    setPaperKey(key);
-    try {
-      localStorage.setItem(PAPER_KEY, key);
-    } catch {
-      // Private window: the choice just isn't remembered.
-    }
-  }
-
-  // Lay the report out once (hidden) at this paper's width and cut it into
-  // pages. Runs again when the paper size or the report changes.
+  // Lay the report out once (hidden) at the page width and cut it into
+  // pages. Runs again when the report changes.
   useLayoutEffect(() => {
     const root = measureRef.current;
     if (!root) return;
@@ -70,7 +51,7 @@ export default function PrintLayout({ title, subtitle, backTo = "/", landscape =
     const headerHeight = flow.getBoundingClientRect().top - header.getBoundingClientRect().top;
     plansRef.current = planPages(flow, contentHeight - headerHeight);
     setPageCount(plansRef.current.length);
-  }, [paperKey, contentHeight, contentWidth, title, subtitle, children]);
+  }, [orientation, contentHeight, contentWidth, title, subtitle, children]);
 
   // Fill each sheet with its page.
   useLayoutEffect(() => {
@@ -85,7 +66,7 @@ export default function PrintLayout({ title, subtitle, backTo = "/", landscape =
       head.replaceChildren(header.cloneNode(true));
       buildPage(body, flow, atoms);
     });
-  }, [pageCount, paperKey, title, subtitle, children]);
+  }, [pageCount, orientation, title, subtitle, children]);
 
   // Narrow windows: shrink the sheets to fit (screen only; print is 1:1).
   useEffect(() => {
@@ -129,8 +110,9 @@ export default function PrintLayout({ title, subtitle, backTo = "/", landscape =
   }, [backTo]);
 
   return (
-    <div className="pr-app" data-paper={paperKey}>
-      <style>{`@page { size: ${paper.css} ${landscape ? "landscape" : "portrait"}; margin: 0; }`}</style>
+    <div className="pr-app">
+      {/* Only the orientation: the paper size comes from the print dialog. */}
+      <style>{`@page { size: ${orientation}; margin: 0; }`}</style>
 
       <header className="pr-toolbar" aria-label="Print preview">
         <button type="button" className="btn btn-outline-secondary pr-toolbar-btn" onClick={leave}>
@@ -139,13 +121,6 @@ export default function PrintLayout({ title, subtitle, backTo = "/", landscape =
         <div className="pr-toolbar-title" title={title}>
           {title}
           <span className="pr-toolbar-pages">{pageCount ? ` · ${pageCount} ${pageCount === 1 ? "page" : "pages"}` : ""}</span>
-        </div>
-        <div className="pr-paper-switch" role="radiogroup" aria-label="Paper size">
-          {Object.entries(PAPERS).map(([key, p]) => (
-            <button key={key} type="button" role="radio" aria-checked={paperKey === key} className={paperKey === key ? "active" : ""} onClick={() => choosePaper(key)}>
-              {p.label}
-            </button>
-          ))}
         </div>
         <button type="button" className="btn btn-agri-primary pr-toolbar-btn" onClick={() => window.print()} disabled={!pageCount}>
           <Printer size={15} /> Print / Save as PDF
@@ -157,7 +132,7 @@ export default function PrintLayout({ title, subtitle, backTo = "/", landscape =
         <div className="pr-sheets" ref={sheetsRef} style={{ zoom: scale }}>
           {Array.from({ length: pageCount }, (_, i) => (
             <article
-              key={`${paperKey}-${i}`}
+              key={`${orientation}-${i}`}
               className="pr-sheet"
               aria-label={`Page ${i + 1} of ${pageCount}`}
               style={{

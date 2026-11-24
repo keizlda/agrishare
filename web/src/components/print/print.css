@@ -47,28 +47,6 @@
   font-weight: 400;
   color: #56645a;
 }
-.pr-paper-switch {
-  display: inline-flex;
-  border: 1px solid #c9d3cb;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.pr-paper-switch button {
-  border: none;
-  background: #ffffff;
-  color: #56645a;
-  font-size: 0.83rem;
-  font-weight: 600;
-  padding: 6px 14px;
-  cursor: pointer;
-}
-.pr-paper-switch button + button {
-  border-left: 1px solid #c9d3cb;
-}
-.pr-paper-switch button.active {
-  background: #e3f1e6;
-  color: #1e7233;
-}
 
 .pr-viewer {
   flex: 1;
@@ -87,7 +65,7 @@
   align-items: center;
   gap: 24px;
 }
-/* One printed page. Size and margins are set inline from the paper size. */
+/* One printed page: the neutral size that fits A4 and Letter (set inline). */
 .pr-sheet {
   box-sizing: border-box;
   flex: none;
@@ -490,7 +468,8 @@
   }
   .pr-sheet {
     box-shadow: none;
-    margin: 0;
+    /* Centered on the page: Letter is a little wider than the sheet. */
+    margin: 0 auto;
     break-after: page;
     page-break-after: always;
   }

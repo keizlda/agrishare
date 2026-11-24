@@ -96,6 +96,10 @@ Only when the owner says "deploy to live". Tokens come from the gitignored
    npx supabase@3.2.0 db push --remote=bofvqdywhyrlbzatvxve --password "" --dry-run
    npx supabase@3.2.0 db push --remote=bofvqdywhyrlbzatvxve --password "" --yes
    ```
+   Before the farmer-types migration (`20261126000000`), fix the live
+   farmers whose contact numbers have spaces (listed in
+   docs/testing/mao-presentation-report.md): after it, changing those
+   records asks for an 11-digit number first.
    Then deploy any new or changed functions (the barangay release adds
    `manage-fa-account`):
    ```bash

@@ -54,13 +54,15 @@ export default function RequestsScreen({ navigation, route }) {
     if (mine.status === "fulfilled") setRequests(mine.value);
     if (items.status === "fulfilled") {
       setCommodities(items.value);
-      // Starts on the farmer's Seed program when they have one.
-      const own = items.value.find((c) => c.id === farmer?.seedProgramId);
+      // Starts on a commodity for the farmer's type (Corn Seeds for a Corn
+      // farmer) when there is one.
+      const typeIds = new Set((farmer?.types ?? []).map((t) => t.id));
+      const own = items.value.find((c) => c.farmerTypeId != null && typeIds.has(c.farmerTypeId));
       setCommodity((c) => c || own?.name || items.value[0]?.name || "");
     }
     const failed = [mine, items].find((r) => r.status === "rejected");
     setLoadError(failed ? friendlyError(failed.reason, "Your requests couldn't be loaded. Please try again.") : "");
-  }, [farmer?.seedProgramId]);
+  }, [farmer?.types]);
 
   const selected = commodities.find((c) => c.name === commodity) ?? null;
   // One rate per commodity: suggested = farm size × the commodity's kg/ha rate.

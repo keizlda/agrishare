@@ -17,7 +17,7 @@ const twoDecimals = (text) => /^\d+(\.\d{1,2})?$/.test(text.trim());
 const isoToTyped = (iso) => (iso ? `${iso.slice(5, 7)}/${iso.slice(8, 10)}/${iso.slice(0, 4)}` : "");
 const fmt = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
-// Report Harvest (new) or Resubmit (route.params.report, a Returned report).
+// Report Harvest (new) or Resubmit (route.params.report, a Rejected report).
 // Kilograms only. The geotagged photo is optional but helps the MAO verify.
 export default function HarvestReportScreen({ navigation, route }) {
   const { farmer } = useAuth();
@@ -50,8 +50,9 @@ export default function HarvestReportScreen({ navigation, route }) {
         if (editing && !list.some((c) => c.id === editing.commodityId)) list.push({ id: editing.commodityId, name: editing.crop });
         setCrops(list);
         if (!editing) {
-          // Start from the farmer's Seed program.
-          const own = list.find((c) => c.id === farmer?.seedProgramId);
+          // Start from a crop for the farmer's type (Corn Seeds for a Corn farmer).
+          const typeIds = new Set((farmer?.types ?? []).map((t) => t.id));
+          const own = list.find((c) => c.farmerTypeId != null && typeIds.has(c.farmerTypeId));
           const first = own ?? (list.length === 1 ? list[0] : null);
           if (first) setCommodityId(first.id);
         }

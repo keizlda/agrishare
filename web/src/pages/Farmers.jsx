@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Copy, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
+import { Copy, KeyRound, MapPin, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
@@ -10,6 +10,8 @@ import RowActionsMenu from "../components/ui/RowActionsMenu.jsx";
 import DateInput from "../components/ui/DateInput.jsx";
 import FarmerProfileDrawer from "../components/farmers/FarmerProfileDrawer.jsx";
 import ListPicker from "../components/lists/ListPicker.jsx";
+import ManageSitiosModal from "../components/lists/ManageSitiosModal.jsx";
+import { TypeChecklist, TypeChips } from "../components/farmers/FarmerTypes.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSupabaseList } from "../hooks/useSupabaseList.js";
 import { usePagination } from "../hooks/usePagination.js";
@@ -17,14 +19,13 @@ import { useFitPageSize } from "../hooks/useFitPageSize.js";
 import { useCardLabels } from "../hooks/useCardLabels.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
-import { categoryOption, listCommodities } from "../lib/api/commodities.js";
 import { listAllEntries } from "../lib/api/lists.js";
 import BarangayFilter from "../components/lists/BarangayFilter.jsx";
 import { entryForText, inBarangay } from "../lib/listMatch.js";
 import { PLACE } from "../lib/place.js";
-import { formatRate } from "../lib/allocation.js";
 import { formatDate, todayIso } from "../lib/dates.js";
 import { friendlyError } from "../lib/friendlyError.js";
+import { CONTACT_ERROR, CONTACT_PLACEHOLDER, contactInput, isValidContact } from "../lib/contact.js";
 import { rowActionsCellProps, rowLinkProps } from "../lib/rowLink.js";
 import {
   checkLoginIdAvailable,
@@ -39,7 +40,7 @@ import {
   updateFarmer,
 } from "../lib/api/farmers.js";
 
-// Commodity/crop, sitio/purok and farmers' association come from lists in
+// Types of farmer, sitio/purok and farmers' association come from lists in
 // the database (Settings); these two are the RSBSA form's fixed choices.
 const OWNERSHIP_OPTIONS = ["Owner", "Tenant", "Lessee", "Farmworker"];
 const PCIC_OPTIONS = ["Yes", "No", "Not Applicable"];
@@ -69,8 +70,10 @@ function formatRsbsaNo(raw) {
 }
 
 // Nothing is pre-filled: every choice starts empty with a placeholder.
-// Sitio/purok, farm location, crop and association hold list ids; *Legacy
-// holds an older value that isn't on the list (shown until one is chosen).
+// Sitio/purok, farm location and association hold list ids; *Legacy holds
+// an older value that isn't on the list (shown until one is chosen).
+// typeIds: the chosen types of farmer. A new farmer is saved Active (the
+// status is only chosen in Edit).
 const EMPTY_FORM = {
   rsbsaNo: "",
   firstName: "",
@@ -83,9 +86,7 @@ const EMPTY_FORM = {
   sitioLegacy: "",
   barangayId: "",
   barangayLegacy: "",
-  cropTypeId: "",
-  cropLegacy: "",
-  seedProgramId: "",
+  typeIds: [],
   farmSize: "",
   farmSitioId: "",
   farmLocationLegacy: "",
@@ -111,7 +112,6 @@ function farmerToForm(f, lists) {
   const brgy = resolveEntry(lists.barangays, f.barangayId, f.barangay);
   const sitio = resolveEntry(ofBarangay(lists.sitios, brgy.id), f.sitioId, f.sitioPurok);
   const farm = resolveEntry(ofBarangay(lists.sitios, brgy.id), f.farmSitioId, f.farmLocation);
-  const crop = resolveEntry(lists.crops, f.cropTypeId, f.commodity);
   const assoc = resolveEntry(ofBarangay(lists.associations, brgy.id), f.associationId, f.orgAffiliation);
   return {
     rsbsaNo: f.rsbsaNo ?? "",
@@ -125,9 +125,7 @@ function farmerToForm(f, lists) {
     sitioLegacy: sitio.legacy,
     barangayId: brgy.id,
     barangayLegacy: brgy.legacy,
-    cropTypeId: crop.id,
-    cropLegacy: crop.legacy,
-    seedProgramId: f.seedProgramId ? String(f.seedProgramId) : "",
+    typeIds: (f.types ?? []).map((t) => String(t.id)),
     farmSize: f.farmSize ?? "",
     farmSitioId: farm.id,
     farmLocationLegacy: farm.legacy,
@@ -258,11 +256,11 @@ function cleanFarmerForm(form) {
     firstName: squeeze(form.firstName),
     middleName: squeeze(form.middleName),
     lastName: squeeze(form.lastName),
-    contactNo: form.contactNo.replace(/\s+/g, ""),
+    contactNo: form.contactNo.replace(/\D/g, ""),
   };
 }
 
-function validateFarmerForm(form) {
+function validateFarmerForm(form, { editing = false } = {}) {
   const errors = {};
   const trimmedRsbsa = form.rsbsaNo.trim();
   if (!trimmedRsbsa) {
@@ -285,12 +283,7 @@ function validateFarmerForm(form) {
     else if (age > MAX_AGE) errors.birthDate = `Enter a realistic birth date — that's over ${MAX_AGE} years old.`;
   }
 
-  const cleanedContact = form.contactNo.replace(/\s+/g, "");
-  if (!cleanedContact) {
-    errors.contactNo = "Contact number is required.";
-  } else if (!/^09\d{9}$/.test(cleanedContact)) {
-    errors.contactNo = "Enter an 11-digit number starting with 09 (e.g. 09XX XXX XXXX).";
-  }
+  if (!isValidContact(form.contactNo)) errors.contactNo = CONTACT_ERROR;
 
   const size = Number(form.farmSize);
   if (!(size > 0)) {
@@ -300,10 +293,10 @@ function validateFarmerForm(form) {
   }
   if (!form.sitioId) errors.sitioId = "Choose the sitio/purok from the list.";
   if (!form.barangayId) errors.barangayId = "Choose the barangay.";
-  if (!form.cropTypeId) errors.cropTypeId = "Choose the commodity/crop.";
+  if (!form.typeIds?.length) errors.typeIds = "Choose at least one type of farmer.";
   if (!form.ownershipType) errors.ownershipType = "Choose the ownership / tenurial status.";
   if (!form.pcicInsured) errors.pcicInsured = "Choose whether the farm is PCIC insured.";
-  if (!form.status) errors.status = "Choose a status.";
+  if (editing && !form.status) errors.status = "Choose a status.";
 
   return errors;
 }
@@ -315,18 +308,20 @@ export default function Farmers() {
   const { data: farmers, setData: setFarmers, loading, error: loadError } = useSupabaseList(listFarmers);
   const [search, setSearch] = useState(location.state?.presetSearch ?? "");
   const [debouncedSearch, setDebouncedSearch] = useState(search);
-  // Two filters: barangay and status.
+  // Filters: barangay, status and type of farmer.
   const [barangayFilter, setBarangayFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("All");
-  // Commodities with a kg/ha rate, for the Seed program field.
-  const [commodities, setCommodities] = useState([]);
-  // Sitios/puroks, farmers' associations and crops (Settings).
-  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [], barangays: [] });
+  const [typeFilter, setTypeFilter] = useState("all");
+  // Sitios/puroks, farmers' associations, types of farmer, barangays (Settings).
+  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [], barangays: [], farmerTypes: [] });
   useEffect(() => {
-    listCommodities().then(setCommodities).catch(() => {});
     listAllEntries().then(setLists).catch(() => {});
   }, []);
   const addToList = (kind, entry) => setLists((l) => ({ ...l, [kind]: [...l[kind].filter((e) => e.id !== entry.id), entry].sort((a, b) => a.name.localeCompare(b.name)) }));
+  // "Manage sitios/puroks": the Farmers' Association President manages their
+  // own barangay's list, the MAO Admin any barangay's. null | { barangayId }
+  const [sitiosModal, setSitiosModal] = useState(null);
+  const ownBarangay = !isMAO && user?.barangayId ? { id: user.barangayId, name: user.barangayName } : null;
 
   // Deep-link support: the Validation page's "View full profile" / "Open
   // farmer record" links navigate here with a preset search term.
@@ -358,10 +353,11 @@ export default function Farmers() {
         f.rsbsaNo.includes(debouncedSearch) ||
         (searchDigits && f.rsbsaNo.replace(/\D/g, "").includes(searchDigits));
       const matchesStatus = statusFilter === "All" || f.status === statusFilter;
-      return matchesSearch && matchesStatus && inBarangay(lists.barangays, barangayFilter, f.barangayId, f.barangay);
+      const matchesType = typeFilter === "all" || f.types.some((t) => String(t.id) === typeFilter);
+      return matchesSearch && matchesStatus && matchesType && inBarangay(lists.barangays, barangayFilter, f.barangayId, f.barangay);
     });
-  }, [farmers, debouncedSearch, statusFilter, barangayFilter, lists]);
-  const filtersOn = statusFilter !== "All" || barangayFilter !== "all";
+  }, [farmers, debouncedSearch, statusFilter, typeFilter, barangayFilter, lists]);
+  const filtersOn = statusFilter !== "All" || barangayFilter !== "all" || typeFilter !== "all";
 
 
   // Rows per page = however many fit in the full-height table area (min 5).
@@ -440,11 +436,23 @@ export default function Farmers() {
             <option value="Inactive">Inactive</option>
           </select>
 
-          {isMAO && (
-            <button className="btn btn-agri-primary ms-auto d-flex align-items-center gap-2" onClick={() => setModal({ mode: "add" })}>
-              <Plus size={16} /> Add Farmer
-            </button>
-          )}
+          <select className="form-select agri-toolbar-filter" style={{ "--agri-filter-width": "176px" }} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Filter by type of farmer">
+            <option value="all">All types of farmer</option>
+            {lists.farmerTypes.filter((t) => t.isActive).map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+          </select>
+
+          <div className="agri-toolbar-actions ms-auto">
+            {(isMAO || ownBarangay) && (
+              <button type="button" className="btn btn-outline-secondary d-flex align-items-center gap-2 text-nowrap" onClick={() => setSitiosModal({ barangayId: barangayFilter === "all" ? "" : barangayFilter })}>
+                <MapPin size={15} /> Sitios/Puroks
+              </button>
+            )}
+            {isMAO && (
+              <button className="btn btn-agri-primary d-flex align-items-center gap-2 text-nowrap" onClick={() => setModal({ mode: "add" })}>
+                <Plus size={16} /> Add Farmer
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="agri-table-wrap" ref={tableRef}>
@@ -452,7 +460,7 @@ export default function Farmers() {
             <thead>
               <tr>
                 <th>RSBSA No.</th><th>Full Name</th><th>Sex</th><th>Birth Date</th><th>Contact No.</th>
-                <th>Barangay</th><th>Commodity</th><th>Farm Size</th><th>Farm Location</th><th>Status</th><th></th>
+                <th>Barangay</th><th>Type of Farmer</th><th>Farm Size</th><th>Farm Location</th><th>Status</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -471,7 +479,7 @@ export default function Farmers() {
                   <td>{formatDate(f.birthDate)}</td>
                   <td>{f.contactNo}</td>
                   <td>{f.barangay}</td>
-                  <td>{f.commodity}</td>
+                  <td><TypeChips types={f.types} max={2} /></td>
                   <td>{f.farmSize} ha</td>
                   <td>{f.farmLocation}</td>
                   <td><Pill status={f.status} /></td>
@@ -520,9 +528,10 @@ export default function Farmers() {
           mode={modal.mode}
           farmer={modal.farmer}
           farmers={farmers}
-          commodities={commodities}
           lists={lists}
           onListAdded={addToList}
+          canManageSitios={isMAO}
+          onManageSitios={(barangayId) => setSitiosModal({ barangayId })}
           onClose={() => setModal(null)}
           onViewExisting={(rsbsaNo) => {
             setSearch(rsbsaNo);
@@ -554,6 +563,20 @@ export default function Farmers() {
             }
             setModal(null);
           }}
+        />
+      )}
+
+      {sitiosModal && (
+        <ManageSitiosModal
+          barangays={lists.barangays}
+          sitios={lists.sitios}
+          fixedBarangay={ownBarangay}
+          initialBarangayId={sitiosModal.barangayId}
+          onSaved={(entry) => addToList("sitios", entry)}
+          onRemoved={(id, result) =>
+            setLists((l) => ({ ...l, sitios: result === "hidden" ? l.sitios.map((s) => (s.id === id ? { ...s, isActive: false } : s)) : l.sitios.filter((s) => s.id !== id) }))
+          }
+          onClose={() => setSitiosModal(null)}
         />
       )}
 
@@ -641,13 +664,13 @@ function AccountCredentialsDialog({ farmerName, rsbsaNo, loginId, password, onCl
   );
 }
 
-function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdded, onClose, onSaved, onViewExisting }) {
+function FarmerModal({ mode, farmer, farmers, lists, onListAdded, canManageSitios = false, onManageSitios, onClose, onSaved, onViewExisting }) {
   const [form, setForm] = useState(() => (mode === "edit" ? farmerToForm(farmer, lists) : EMPTY_FORM));
   // Lists that arrive after the form opened: match the saved values now.
   useEffect(() => {
     setForm((f) => {
       const next = { ...f };
-      for (const [idKey, legacyKey, kind] of [["barangayId", "barangayLegacy", "barangays"], ["sitioId", "sitioLegacy", "sitios"], ["farmSitioId", "farmLocationLegacy", "sitios"], ["cropTypeId", "cropLegacy", "crops"], ["associationId", "orgLegacy", "associations"]]) {
+      for (const [idKey, legacyKey, kind] of [["barangayId", "barangayLegacy", "barangays"], ["sitioId", "sitioLegacy", "sitios"], ["farmSitioId", "farmLocationLegacy", "sitios"], ["associationId", "orgLegacy", "associations"]]) {
         if (!next[idKey] && next[legacyKey]) {
           const pool = kind === "sitios" || kind === "associations" ? ofBarangay(lists[kind], next.barangayId) : lists[kind];
           const match = entryForText(pool, next[legacyKey]);
@@ -657,12 +680,11 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
       return next;
     });
   }, [lists]);
-  // Commodity/crop: the active crops, plus the farmer's own if deactivated.
-  const cropOptions = useMemo(() => lists.crops.filter((c) => c.isActive || String(c.id) === form.cropTypeId), [lists.crops, form.cropTypeId]);
   // Barangay: the active barangays, plus the farmer's own if deactivated.
   const barangayOptions = useMemo(() => lists.barangays.filter((b) => b.isActive || String(b.id) === form.barangayId), [lists.barangays, form.barangayId]);
   // Sitios/puroks and associations: the chosen barangay's lists.
   const sitioEntries = useMemo(() => ofBarangay(lists.sitios, form.barangayId), [lists.sitios, form.barangayId]);
+  const noSitios = !!form.barangayId && !sitioEntries.some((s) => s.isActive);
   const associationEntries = useMemo(() => ofBarangay(lists.associations, form.barangayId), [lists.associations, form.barangayId]);
   // Another barangay: its sitio/purok, farm location and association are
   // chosen again from that barangay's lists.
@@ -674,21 +696,6 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
     setErrors((e) => (e.barangayId ? { ...e, barangayId: undefined } : e));
   }
   const needBarangay = form.barangayId ? undefined : "Choose the barangay first";
-  const cropName = lists.crops.find((c) => String(c.id) === form.cropTypeId)?.name ?? form.cropLegacy;
-  // Seed program: any active commodity with a kg/ha rate (the farmer's own
-  // crop first), plus the saved one if it was since made inactive.
-  const savedProgramId = mode === "edit" && farmer?.seedProgramId ? String(farmer.seedProgramId) : "";
-  const programOptions = useMemo(() => {
-    const crop = String(cropName ?? "").toLowerCase();
-    return commodities
-      .filter((c) => c.rate > 0 && (c.status === "Active" || String(c.id) === savedProgramId))
-      .sort((a, b) => Number(categoryOption(b.category).toLowerCase() === crop) - Number(categoryOption(a.category).toLowerCase() === crop) || a.name.localeCompare(b.name))
-      .map((c) => ({ id: String(c.id), label: `${c.name} (${formatRate(c.rate)})${c.status === "Active" ? "" : " — inactive"}` }));
-  }, [commodities, cropName, savedProgramId]);
-  // A saved program whose commodity was deleted or lost its rate can't be kept.
-  useEffect(() => {
-    if (commodities.length && form.seedProgramId && !programOptions.some((o) => o.id === form.seedProgramId)) setForm((f) => ({ ...f, seedProgramId: "" }));
-  }, [commodities.length, programOptions, form.seedProgramId]);
   const [errors, setErrors] = useState({});
   const [duplicate, setDuplicate] = useState(null);
   // A possible duplicate the admin was warned about; a second Save with the
@@ -733,7 +740,7 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
     setDuplicate(null);
     setDeletedDuplicate(null);
 
-    const fieldErrors = validateFarmerForm(form);
+    const fieldErrors = validateFarmerForm(form, { editing: mode === "edit" });
     setErrors(fieldErrors);
     if (Object.keys(fieldErrors).length > 0) return;
 
@@ -875,7 +882,16 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
                 <DateInput value={form.birthDate} onChange={(v) => update("birthDate", v)} invalid={!!errors.birthDate} aria-label="Birth date" />
               </Field>
               <Field label="Contact No." col={4} required error={errors.contactNo}>
-                <input type="tel" inputMode="numeric" className="form-control" value={form.contactNo} onChange={(e) => update("contactNo", e.target.value)} placeholder="09XX XXX XXXX" />
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={11}
+                  className={`form-control${errors.contactNo ? " is-invalid" : ""}`}
+                  value={form.contactNo}
+                  onChange={(e) => update("contactNo", contactInput(e.target.value))}
+                  placeholder={CONTACT_PLACEHOLDER}
+                  aria-label="Contact no."
+                />
               </Field>
             </Section>
 
@@ -894,13 +910,19 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
                   value={form.sitioId}
                   legacyText={form.sitioLegacy}
                   onChange={pickFrom("sitioId", "sitioLegacy")}
-                  onAdded={(entry) => onListAdded("sitios", entry)}
-                  canAdd
                   invalid={!!errors.sitioId}
-                  disabled={!form.barangayId}
-                  placeholder={needBarangay}
+                  disabled={!form.barangayId || noSitios}
+                  placeholder={needBarangay ?? (noSitios ? "No sitios/puroks yet" : undefined)}
                   barangayId={form.barangayId}
                 />
+                {noSitios && (
+                  <div className="agri-field-hint agri-no-sitios">
+                    No sitios/puroks yet for this barangay. Ask the Farmers&apos; Association President to add them.
+                    {canManageSitios && (
+                      <button type="button" className="agri-link-btn" onClick={() => onManageSitios(form.barangayId)}>Manage sitios/puroks</button>
+                    )}
+                  </div>
+                )}
               </Field>
               {/* Municipality and province are always these: fixed, not inputs. */}
               <Field label="Municipality" col={6}>
@@ -912,17 +934,8 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
             </Section>
 
             <Section title="Farm Information">
-              <Field label="Commodity / Crop Type" col={6} required error={errors.cropTypeId}>
-                <select className={`form-select${errors.cropTypeId ? " is-invalid" : ""}`} value={form.cropTypeId} onChange={(e) => pickFrom("cropTypeId", "cropLegacy")(e.target.value)} aria-label="Commodity / crop type">
-                  <option value="" disabled>{form.cropLegacy ? `${form.cropLegacy} (not on the list)` : "Select commodity"}</option>
-                  {cropOptions.map((c) => <option key={c.id} value={String(c.id)}>{c.name}{c.isActive ? "" : " (deactivated)"}</option>)}
-                </select>
-              </Field>
-              <Field label="Seed Program" col={6} hint={programOptions.length ? "Optional. Distributions of this commodity add this farmer." : "No commodity has a kg-per-hectare allocation yet (set one in the distribution form)."}>
-                <select className="form-select" value={form.seedProgramId} onChange={(e) => update("seedProgramId", e.target.value)} disabled={!programOptions.length} aria-label="Seed program">
-                  <option value="">Select seed program</option>
-                  {programOptions.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-                </select>
+              <Field label="Type of farmer" col={12} required error={errors.typeIds} hint="Choose all that apply.">
+                <TypeChecklist id="farmer-types" options={lists.farmerTypes} value={form.typeIds} onChange={(v) => update("typeIds", v)} invalid={!!errors.typeIds} />
               </Field>
               <Field label="Farm Size (ha)" col={6} required error={errors.farmSize}>
                 <input type="number" step="0.01" min="0" className={`form-control${errors.farmSize ? " is-invalid" : ""}`} value={form.farmSize} onChange={(e) => update("farmSize", e.target.value)} aria-label="Farm size (ha)" />
@@ -935,8 +948,6 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
                   value={form.farmSitioId}
                   legacyText={form.farmLocationLegacy}
                   onChange={pickFrom("farmSitioId", "farmLocationLegacy")}
-                  onAdded={(entry) => onListAdded("sitios", entry)}
-                  canAdd
                   optional
                   disabled={!form.barangayId}
                   placeholder={needBarangay}
@@ -959,7 +970,7 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
               </Field>
             </Section>
 
-            <Section title="Affiliation & Status" last>
+            <Section title={mode === "edit" ? "Affiliation & Status" : "Affiliation"} last>
               <Field label="Farmers' Association" col={6} htmlFor="farmer-association" hint="Optional. Type to search.">
                 <ListPicker
                   id="farmer-association"
@@ -977,12 +988,19 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
                   ariaLabel="Farmers' association"
                 />
               </Field>
-              <Field label="Status" col={6} required error={errors.status}>
-                <select className={`form-select${errors.status ? " is-invalid" : ""}`} value={form.status} onChange={(e) => update("status", e.target.value)} aria-label="Status">
-                  <option value="" disabled>Select status</option>
-                  <option>Active</option><option>Inactive</option>
-                </select>
-              </Field>
+              {mode === "edit" ? (
+                <Field label="Status" col={6} required error={errors.status}>
+                  <select className={`form-select${errors.status ? " is-invalid" : ""}`} value={form.status} onChange={(e) => update("status", e.target.value)} aria-label="Status">
+                    <option value="" disabled>Select status</option>
+                    <option>Active</option><option>Inactive</option>
+                  </select>
+                </Field>
+              ) : (
+                <Field label="Status" col={6}>
+                  <div className="agri-fixed-value">Active</div>
+                  <div className="agri-field-hint">New farmers are Active. Change it later in Edit.</div>
+                </Field>
+              )}
             </Section>
           </form>
         </div>

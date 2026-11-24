@@ -110,8 +110,8 @@ export default function HarvestReportModal({ report, onClose, onSaved }) {
 
   const fieldError = (key) => errors[key] && <div className="invalid-feedback d-block">{errors[key]}</div>;
   const perHa = twoDecimals(form.areaHa) && twoDecimals(form.yieldKg) && Number(form.areaHa) > 0 && Number(form.yieldKg) > 0 ? Number(form.yieldKg) / Number(form.areaHa) : null;
-  const returned = report.statusKey === "returned";
-  const title = returned ? "Correct and Resubmit" : "Edit Harvest Report";
+  const rejected = report.statusKey === "rejected";
+  const title = rejected ? "Correct and Resubmit" : "Edit Harvest Report";
 
   return (
     <div className="agri-modal-backdrop" onClick={saving ? undefined : onClose}>
@@ -132,7 +132,7 @@ export default function HarvestReportModal({ report, onClose, onSaved }) {
           {formError && (
             <div className="agri-pill red" role="alert" style={{ display: "block", marginBottom: 14, padding: "8px 12px" }}>{formError}</div>
           )}
-          {returned && report.reviewRemarks && (
+          {rejected && report.reviewRemarks && (
             <div className="agri-warning-box" role="status" style={{ marginTop: 0, marginBottom: 14 }}>
               <div><strong>MAO remarks:</strong> {report.reviewRemarks}</div>
             </div>
@@ -194,7 +194,7 @@ export default function HarvestReportModal({ report, onClose, onSaved }) {
         <div className="agri-modal-footer">
           <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={saving}>Cancel</button>
           <button type="submit" className="btn btn-agri-primary" disabled={saving || !crops}>
-            {saving ? "Saving…" : returned ? "Resubmit" : "Save Changes"}
+            {saving ? "Saving…" : rejected ? "Resubmit" : "Save Changes"}
           </button>
         </div>
       </form>

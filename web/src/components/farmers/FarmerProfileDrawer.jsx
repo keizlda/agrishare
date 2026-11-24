@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import Pill from "../ui/Pill.jsx";
+import { TypeChips } from "./FarmerTypes.jsx";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { getFarmerProfileExtras } from "../../lib/api/farmers.js";
 import { listFarmerDistributionHistory } from "../../lib/api/distributions.js";
@@ -133,8 +134,10 @@ export default function FarmerProfileDrawer({ farmer, showAccount, onClose }) {
 
           {/* Add/Edit form: Farm Information */}
           <ProfileSection title="Farm Information">
-            <Info label="Commodity / Crop Type" value={f.commodity} />
-            <Info label="Seed Program" value={f.seedProgram} />
+            <div style={{ gridColumn: "1 / -1" }}>
+              <div className="agri-kv-label">Type of Farmer</div>
+              <div className="agri-kv-value"><TypeChips types={f.types} empty={DASH} /></div>
+            </div>
             {/* An empty Farm Size is saved as 0. */}
             <Info label="Farm Size (ha)" value={f.farmSize ? f.farmSize : null} />
             <Info label="Farm Location" value={f.farmLocation} wide />

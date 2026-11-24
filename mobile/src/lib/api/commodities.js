@@ -12,6 +12,8 @@ function mapCommodity(row) {
     unit: row.unit,
     status: dbStatusToLabel(row.status),
     rate: row.unit === "kg" && Number(row.allocation_per_hectare) > 0 ? Number(row.allocation_per_hectare) : null,
+    // The type of farmer it's for (e.g. Corn Seeds → Corn farmer), or null.
+    farmerTypeId: row.farmer_type_id ?? null,
   };
 }
 
@@ -22,7 +24,7 @@ function mapCommodity(row) {
 export async function listCommodities() {
   const { data, error } = await supabase
     .from("commodities")
-    .select("commodity_id, name, category, unit, status, allocation_per_hectare")
+    .select("commodity_id, name, category, unit, status, allocation_per_hectare, farmer_type_id")
     .is("deleted_at", null)
     .order("name");
   if (error) throw error;

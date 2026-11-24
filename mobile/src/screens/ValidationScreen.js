@@ -100,7 +100,7 @@ function fromHarvest(h) {
     stage: h.statusKey === "submitted" ? "pending" : h.statusKey === "verified" ? "done" : "rejected",
     status: h.status,
     doneLabel: "Verified",
-    rejectedLabel: "Returned",
+    rejectedLabel: "Rejected",
     summary: [`${fmt(h.yieldKg)} kg`, h.harvestMonth].filter(Boolean).join(" · "),
     latestMeta: [h.crop, h.areaHa != null ? `${fmt(h.areaHa)} ha` : null, `${fmt(h.yieldKg)} kg`].filter(Boolean).join(" · "),
     reviewRemarks: h.reviewRemarks,

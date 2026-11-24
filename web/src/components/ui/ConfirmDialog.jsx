@@ -5,7 +5,7 @@ import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 // what's about to be submitted). `busy` disables both buttons mid-request.
 // `confirmDisabled` disables just the confirm button (e.g. a required field
 // in `children` that's still empty), independent of `busy`.
-export default function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger = true, busy = false, confirmDisabled = false, children, onConfirm, onCancel }) {
+export default function ConfirmDialog({ title, message, confirmLabel = "Confirm", cancelLabel = "Cancel", danger = true, busy = false, confirmDisabled = false, children, onConfirm, onCancel }) {
   useEscapeToClose(true, onCancel);
 
   return (
@@ -26,7 +26,7 @@ export default function ConfirmDialog({ title, message, confirmLabel = "Confirm"
         <div className="agri-muted" style={{ fontSize: "0.85rem", marginBottom: children ? 12 : 20 }}>{message}</div>
         {children && <div style={{ marginBottom: 20 }}>{children}</div>}
         <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" className="btn btn-outline-secondary flex-fill" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button type="button" className="btn btn-outline-secondary flex-fill" onClick={onCancel} disabled={busy}>{cancelLabel}</button>
           <button
             type="button"
             className={`btn flex-fill ${danger ? "btn-outline-danger" : "btn-agri-primary"}`}

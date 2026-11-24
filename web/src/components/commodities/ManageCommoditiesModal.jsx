@@ -1,19 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog.jsx";
 import { RateInput } from "./CommodityFields.jsx";
 import { isKg, validateCommodity } from "../../lib/commodityRules.js";
 import { categoryOption, deleteCommodity, saveCommodity } from "../../lib/api/commodities.js";
 import { formatRate } from "../../lib/allocation.js";
+import { listEntries } from "../../lib/api/lists.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 
 // "Manage commodities" (MAO Admin, from the distribution form): every
-// commodity with its category and rate; rename, edit the rate, or delete.
+// commodity with its category, rate and the type of farmer it's for;
+// rename, edit the rate or type of farmer, or delete.
 // Deleting is a soft delete: records that used the commodity keep showing
 // it, but it's no longer offered for new distributions.
 export default function ManageCommoditiesModal({ commodities, onClose, onUpdated, onDeleted }) {
-  const [editing, setEditing] = useState(null); // { id, name, rate }
+  const [editing, setEditing] = useState(null); // { id, name, rate, farmerTypeId }
+  const [farmerTypes, setFarmerTypes] = useState([]);
+  useEffect(() => {
+    listEntries("farmerTypes").then(setFarmerTypes).catch(() => {});
+  }, []);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null); // { tone, text }
@@ -24,7 +30,7 @@ export default function ManageCommoditiesModal({ commodities, onClose, onUpdated
   const list = [...commodities].sort((a, b) => a.name.localeCompare(b.name));
 
   function start(c) {
-    setEditing({ id: c.id, name: c.name, rate: c.rate == null ? "" : String(c.rate) });
+    setEditing({ id: c.id, name: c.name, rate: c.rate == null ? "" : String(c.rate), farmerTypeId: c.farmerTypeId == null ? "" : String(c.farmerTypeId) });
     setErrors({});
     setMessage(null);
   }
@@ -35,7 +41,7 @@ export default function ManageCommoditiesModal({ commodities, onClose, onUpdated
     if (Object.keys(found).length) return;
     setBusy(true);
     try {
-      const saved = await saveCommodity(c.id, { name: editing.name.trim().replace(/\s+/g, " "), category: c.category, rate: isKg(c.unit) ? editing.rate.trim() : "" });
+      const saved = await saveCommodity(c.id, { name: editing.name.trim().replace(/\s+/g, " "), category: c.category, rate: isKg(c.unit) ? editing.rate.trim() : "", farmerTypeId: editing.farmerTypeId });
       onUpdated(saved);
       setEditing(null);
       setMessage({ tone: "success", text: `${saved.name} saved.` });
@@ -65,7 +71,7 @@ export default function ManageCommoditiesModal({ commodities, onClose, onUpdated
     <div className="agri-modal-backdrop agri-modal-backdrop-top" onClick={busy ? undefined : onClose}>
       <div
         className="agri-card agri-modal agri-modal-full"
-        style={{ "--agri-modal-width": "640px" }}
+        style={{ "--agri-modal-width": "780px" }}
         role="dialog"
         aria-label="Manage commodities"
         onClick={(e) => e.stopPropagation()}
@@ -82,7 +88,7 @@ export default function ManageCommoditiesModal({ commodities, onClose, onUpdated
           <div className="agri-table-wrap agri-manage-commodities">
             <table className="agri-table">
               <thead>
-                <tr><th>Name</th><th>Category</th><th>Rate</th><th className="text-end" aria-label="Actions" /></tr>
+                <tr><th>Name</th><th>Category</th><th>Rate</th><th>Type of Farmer</th><th className="text-end" aria-label="Actions" /></tr>
               </thead>
               <tbody>
                 {list.map((c) => {
@@ -112,6 +118,16 @@ export default function ManageCommoditiesModal({ commodities, onClose, onUpdated
                           <span className="agri-muted">— ({c.unit})</span>
                         )}
                       </td>
+                      <td>
+                        {on ? (
+                          <select className="form-select form-select-sm" value={editing.farmerTypeId} onChange={(e) => setEditing((x) => ({ ...x, farmerTypeId: e.target.value }))} aria-label={`Type of farmer for ${c.name}`} disabled={busy}>
+                            <option value="">None</option>
+                            {farmerTypes.filter((t) => t.isActive || String(t.id) === editing.farmerTypeId).map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+                          </select>
+                        ) : (
+                          c.farmerType || <span className="agri-muted">—</span>
+                        )}
+                      </td>
                       <td className="text-end agri-manage-actions">
                         {on ? (
                           <>
@@ -129,12 +145,12 @@ export default function ManageCommoditiesModal({ commodities, onClose, onUpdated
                   );
                 })}
                 {list.length === 0 && (
-                  <tr><td colSpan={4} className="agri-muted text-center py-3">No commodities yet. Add one with “+ Add new commodity”.</td></tr>
+                  <tr><td colSpan={5} className="agri-muted text-center py-3">No commodities yet. Add one with “+ Add new commodity”.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
-          <div className="agri-field-hint">Rate changes apply to new distributions and are recorded in the Activity Log. Saved distributions keep the rate they were saved with.</div>
+          <div className="agri-field-hint">Rate changes apply to new distributions and are recorded in the Activity Log. Saved distributions keep the rate they were saved with. The type of farmer is suggested when tagging beneficiaries.</div>
         </div>
         <div className="agri-modal-footer">
           <button type="button" className="btn btn-agri-primary" onClick={onClose} disabled={busy}>Done</button>

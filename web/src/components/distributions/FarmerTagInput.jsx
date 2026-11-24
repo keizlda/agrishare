@@ -6,10 +6,12 @@ import { searchFarmers } from "../../lib/api/farmers.js";
 
 // Gmail-style farmer tagging: type a name/RSBSA/@name, pick from a debounced
 // dropdown (photo or initials, name, RSBSA, barangay, status badge),
-// Enter/click to add, chip ✕ or Backspace-on-empty to remove.
+// Enter/click to add, chip ✕ or Backspace-on-empty to remove. showChips
+// false: just the search ("Or add by name"); the tagged farmers are listed
+// elsewhere, each with its own ✕.
 // Inactive farmers can still be added but need a confirm step —
 // handled by the parent via onRequestAdd's return value (see Distributions.jsx).
-export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFarmer, disabled }) {
+export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFarmer, disabled, showChips = true }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [open, setOpen] = useState(false);
@@ -58,7 +60,7 @@ export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFar
   }
 
   function handleKeyDown(e) {
-    if (e.key === "Backspace" && query === "" && taggedFarmers.length > 0) {
+    if (showChips && e.key === "Backspace" && query === "" && taggedFarmers.length > 0) {
       onRemoveFarmer(taggedFarmers[taggedFarmers.length - 1].farmerId);
       return;
     }
@@ -81,7 +83,7 @@ export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFar
   return (
     <div ref={wrapRef} style={{ position: "relative" }}>
       <div className="agri-tag-input" onClick={() => inputRef.current?.focus()}>
-        {taggedFarmers.map((f) => (
+        {showChips && taggedFarmers.map((f) => (
           <span key={f.farmerId} className={`agri-tag-chip${f.duplicateWarning ? " warn" : ""}`}>
             <FarmerAvatar url={f.avatarUrl} firstName={f.firstName} lastName={f.lastName} size={20} />
             {f.firstName} {f.lastName}
@@ -100,7 +102,7 @@ export default function FarmerTagInput({ taggedFarmers, onAddFarmer, onRemoveFar
         <input
           ref={inputRef}
           className="agri-tag-input-field"
-          placeholder={taggedFarmers.length === 0 ? "Type a name, RSBSA number, or @name…" : "Add another…"}
+          placeholder={!showChips ? "Type a name or RSBSA number" : taggedFarmers.length === 0 ? "Type a name, RSBSA number, or @name…" : "Add another…"}
           value={query}
           disabled={disabled}
           onChange={(e) => setQuery(e.target.value)}

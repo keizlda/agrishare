@@ -14,6 +14,7 @@ export const ENTITY_TYPES = [
   "sitios",
   "associations",
   "crop_types",
+  "farmer_types",
   "barangays",
   "profiles",
 ];
@@ -30,6 +31,7 @@ export const ENTITY_LABELS = {
   sitios: "Sitios / Puroks",
   associations: "Farmers' Associations",
   crop_types: "Crops",
+  farmer_types: "Types of Farmer",
   barangays: "Barangays",
   profiles: "Accounts",
 };

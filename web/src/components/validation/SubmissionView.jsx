@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useBarangays } from "../../hooks/useBarangays.js";
 import { inBarangay } from "../../lib/listMatch.js";
-import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Image as ImageIcon, Inbox, Pencil, ShieldAlert, Trash2, Undo2, X, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Image as ImageIcon, Inbox, Pencil, ShieldAlert, Trash2, X, XCircle } from "lucide-react";
 import Pill from "../ui/Pill.jsx";
 import FarmerAvatar from "../ui/FarmerAvatar.jsx";
 import RowActionsMenu from "../ui/RowActionsMenu.jsx";
@@ -96,7 +96,7 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
   const planting = item.kind === "planting";
   const pending = item.group === "pending";
   const canReview = isMAO && pending;
-  const words = planting ? { approve: "Validate", decline: "Reject", approved: "Validated", declined: "Rejected", waiting: "validate" } : { approve: "Verify", decline: "Return", approved: "Verified", declined: "Returned", waiting: "verify" };
+  const words = planting ? { approve: "Validate", decline: "Reject", approved: "Validated", declined: "Rejected", waiting: "validate" } : { approve: "Verify", decline: "Reject", approved: "Verified", declined: "Rejected", waiting: "verify" };
   const ownFiling = !planting && raw.submittedBy === user?.id;
   const canEdit = !planting && raw.statusKey !== "verified" && (isMAO || ownFiling);
   const canRemove = !planting && (isMAO || (ownFiling && raw.statusKey !== "verified"));
@@ -127,7 +127,7 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
     try {
       const updated = planting
         ? toItem.planting(kind === "approve" ? await validateSubmission(item.id, text) : await rejectSubmission(item.id, text))
-        : toItem.harvest(await reviewHarvestReport(item.id, kind === "approve" ? "verified" : "returned", text));
+        : toItem.harvest(await reviewHarvestReport(item.id, kind === "approve" ? "verified" : "rejected", text));
       onChanged(updated);
       onToast({ tone: "success", message: `${planting ? "Submission" : "Harvest report"} ${(kind === "approve" ? words.approved : words.declined).toLowerCase()}. The farmer was notified.` });
       if (goTo) onOpen(goTo);
@@ -219,7 +219,7 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
                 <span className="agri-timeline-dot" aria-hidden="true" />
                 <div className="agri-timeline-title">Corrected and resubmitted</div>
                 <div className="agri-timeline-meta">{formatDateTime(raw.resubmittedAt)}</div>
-                {raw.reviewRemarks && <div className="agri-timeline-remarks">Returned earlier: “{raw.reviewRemarks}”</div>}
+                {raw.reviewRemarks && <div className="agri-timeline-remarks">Rejected earlier: “{raw.reviewRemarks}”</div>}
               </li>
             )}
             {pending ? (
@@ -283,7 +283,7 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
               {remarksError && <div className="invalid-feedback d-block">{remarksError}</div>}
             </div>
             <button type="button" className="btn btn-outline-danger d-flex align-items-center gap-2" onClick={() => decide("decline")} disabled={!!saving}>
-              {planting ? <XCircle size={15} /> : <Undo2 size={15} />} {saving === "decline" ? `${words.decline === "Reject" ? "Rejecting" : "Returning"}…` : words.decline}
+              <XCircle size={15} /> {saving === "decline" ? "Rejecting…" : words.decline}
             </button>
             <button type="button" className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => decide("approve")} disabled={!!saving}>
               <CheckCircle2 size={15} /> {saving === "approve" ? `${words.approve === "Validate" ? "Validating" : "Verifying"}…` : words.approve}
@@ -312,7 +312,7 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
           onSaved={(saved) => {
             setEditing(false);
             onChanged(toItem.harvest(saved));
-            onToast({ tone: "success", message: raw.statusKey === "returned" ? "Harvest report resubmitted to the MAO." : "Harvest report updated." });
+            onToast({ tone: "success", message: raw.statusKey === "rejected" ? "Harvest report resubmitted to the MAO." : "Harvest report updated." });
           }}
         />
       )}

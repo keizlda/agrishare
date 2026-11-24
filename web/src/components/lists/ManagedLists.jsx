@@ -6,25 +6,29 @@ import { LISTS, addEntry, deleteEntry, listAllEntries, listUsage, renameEntry, s
 import { MAX_LIST_NAME, checkName, cleanName } from "../../lib/listMatch.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
-const KINDS = ["sitios", "associations", "crops", "barangays"];
+// Types of farmer took the place of the crops list (Nov 26, 2026): farmers
+// are classified by type, no longer by a single crop.
+const KINDS = ["sitios", "associations", "farmerTypes", "barangays"];
 // Sitios/puroks and farmers' associations belong to a barangay.
 const PER_BARANGAY = new Set(["sitios", "associations"]);
-const sortByName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name));
+// Types of farmer keep their order (new ones at the end); the rest by name.
+const sortFor = (kind) => (list) =>
+  [...list].sort((a, b) => (kind === "farmerTypes" ? a.sortOrder - b.sortOrder : 0) || a.name.localeCompare(b.name));
 const PLACEHOLDERS = {
   sitios: "New sitio/purok, e.g. Purok 6",
   associations: "New association name",
-  crops: "New crop, e.g. Cassava",
+  farmerTypes: "New type, e.g. Bee farmer",
   barangays: "New barangay name",
 };
 
 // Settings → Lists (MAO Admin): the sitios/puroks, farmers' associations,
-// crops and barangays the farmer form (and, for barangays, the Create post
+// types of farmer and barangays the farmer form (and, for barangays, the Create post
 // window) offers. Add, rename, deactivate / reactivate; an entry no farmer
 // uses can be deleted (the database refuses deleting one that's in use).
 // Barangays are never deleted, only deactivated.
 export default function ManagedLists() {
   const [lists, setLists] = useState(null);
-  const [usage, setUsage] = useState({ sitios: {}, associations: {}, crops: {}, barangays: {} });
+  const [usage, setUsage] = useState({ sitios: {}, associations: {}, farmerTypes: {}, barangays: {} });
   const [loadError, setLoadError] = useState("");
   const [toast, setToast] = useState(null);
   const [barangayId, setBarangayId] = useState("all");
@@ -38,7 +42,7 @@ export default function ManagedLists() {
       .catch((err) => setLoadError(friendlyError(err, "Couldn't load the lists.")));
   }, []);
 
-  const replace = (kind, entry) => setLists((l) => ({ ...l, [kind]: sortByName([...l[kind].filter((e) => e.id !== entry.id), entry]) }));
+  const replace = (kind, entry) => setLists((l) => ({ ...l, [kind]: sortFor(kind)([...l[kind].filter((e) => e.id !== entry.id), entry]) }));
   const remove = (kind, id) => setLists((l) => ({ ...l, [kind]: l[kind].filter((e) => e.id !== id) }));
 
   if (loadError) return <div className="agri-pill red" style={{ display: "block", padding: "8px 12px" }}>{loadError}</div>;
@@ -92,7 +96,10 @@ function ListCard({ kind, entries, barangayId, barangayName, usage, onSaved, onD
   const [newName, setNewName] = useState("");
   const [addNote, setAddNote] = useState(null); // { tone, text, similar?, same? }
   const [busy, setBusy] = useState(false);
-  const [editing, setEditing] = useState(null); // { id, name, note }
+  const [editing, setEditing] = useState(null); // { id, name, examples, note }
+  // Types of farmer also have examples ("palay, irrigated rice"), shown in
+  // small gray text beside each type in the farmer form.
+  const isTypes = kind === "farmerTypes";
   const [pendingDelete, setPendingDelete] = useState(null);
   const [rowError, setRowError] = useState(null); // { id, text }
 
@@ -111,7 +118,8 @@ function ListCard({ kind, entries, barangayId, barangayName, usage, onSaved, onD
     }
     setBusy(true);
     try {
-      const saved = await addEntry(kind, check.name, perBarangay ? barangayId : null);
+      const extra = isTypes ? { sort_order: Math.max(0, ...entries.map((e) => e.sortOrder ?? 0)) + 1 } : {};
+      const saved = await addEntry(kind, check.name, perBarangay ? barangayId : null, extra);
       setNewName("");
       setAddNote(null);
       onSaved(saved, `“${saved.name}” added.`);
@@ -124,8 +132,14 @@ function ListCard({ kind, entries, barangayId, barangayName, usage, onSaved, onD
 
   async function saveRename(anyway = false) {
     const entry = entries.find((e) => e.id === editing.id);
-    if (cleanName(editing.name) === entry.name) {
+    const examples = isTypes ? cleanName(editing.examples ?? "") : null;
+    const examplesChanged = isTypes && examples !== (entry.examples ?? "");
+    if (cleanName(editing.name) === entry.name && !examplesChanged) {
       setEditing(null);
+      return;
+    }
+    if (examples && examples.length > 200) {
+      setEditing((x) => ({ ...x, note: { tone: "error", text: "Keep the examples to 200 characters or fewer." } }));
       return;
     }
     const check = checkName(entries, editing.name, { exceptId: entry.id, anyway });
@@ -139,9 +153,9 @@ function ListCard({ kind, entries, barangayId, barangayName, usage, onSaved, onD
     }
     setBusy(true);
     try {
-      const saved = await renameEntry(kind, entry.id, check.name);
+      const saved = await renameEntry(kind, entry.id, check.name, isTypes ? { examples: examples || null } : {});
       setEditing(null);
-      onSaved(saved, `Renamed to “${saved.name}”. Farmer records show the new name.`);
+      onSaved(saved, saved.name === entry.name ? `“${saved.name}” saved.` : `Renamed to “${saved.name}”. Farmer records show the new name.`);
     } catch (err) {
       setEditing((x) => ({ ...x, note: { tone: "error", text: friendlyError(err, "Couldn't rename it.") } }));
     } finally {
@@ -240,7 +254,7 @@ function ListCard({ kind, entries, barangayId, barangayName, usage, onSaved, onD
                       value={editing.name}
                       maxLength={MAX_LIST_NAME + 20}
                       aria-label={`Rename ${entry.name}`}
-                      onChange={(e) => setEditing({ id: entry.id, name: e.target.value, note: null })}
+                      onChange={(e) => setEditing((x) => ({ ...x, name: e.target.value, note: null }))}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") { e.preventDefault(); saveRename(); }
                         if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setEditing(null); }
@@ -251,6 +265,21 @@ function ListCard({ kind, entries, barangayId, barangayName, usage, onSaved, onD
                     <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setEditing(null)} disabled={busy}>Cancel</button>
                     <button type="button" className="btn btn-sm btn-agri-primary" onClick={() => saveRename()} disabled={busy} aria-label={`Save name of ${entry.name}`}>Save</button>
                   </div>
+                  {isTypes && (
+                    <input
+                      className="form-control form-control-sm mt-1"
+                      value={editing.examples ?? ""}
+                      maxLength={220}
+                      placeholder="Examples (optional), e.g. palay, irrigated rice"
+                      aria-label={`Examples for ${entry.name}`}
+                      onChange={(e) => setEditing((x) => ({ ...x, examples: e.target.value, note: null }))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); saveRename(); }
+                        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setEditing(null); }
+                      }}
+                      disabled={busy}
+                    />
+                  )}
                   {editing.note && (
                     <div className={`agri-list-note ${editing.note.tone}`} role="alert">
                       {editing.note.text}
@@ -261,7 +290,10 @@ function ListCard({ kind, entries, barangayId, barangayName, usage, onSaved, onD
               ) : (
                 <>
                   <div className="agri-list-row-main">
-                    <span className="agri-list-row-name">{entry.name}</span>
+                    <span className="agri-list-row-name">
+                      {entry.name}
+                      {isTypes && entry.examples && <span className="agri-list-row-examples">{entry.examples}</span>}
+                    </span>
                     <span className="agri-list-row-meta">
                       {mustChoose && <span className="agri-pill gray">{barangayName(entry.barangayId)}</span>}
                       {uses ? `${uses} farmer${uses === 1 ? "" : "s"}` : "Not used"}
@@ -269,7 +301,7 @@ function ListCard({ kind, entries, barangayId, barangayName, usage, onSaved, onD
                     </span>
                   </div>
                   <div className="agri-list-row-actions">
-                    <button type="button" className="agri-icon-btn" aria-label={`Rename ${entry.name}`} title="Rename" onClick={() => setEditing({ id: entry.id, name: entry.name, note: null })} disabled={busy}>
+                    <button type="button" className="agri-icon-btn" aria-label={`Rename ${entry.name}`} title={isTypes ? "Edit" : "Rename"} onClick={() => setEditing({ id: entry.id, name: entry.name, examples: entry.examples ?? "", note: null })} disabled={busy}>
                       <Pencil size={14} />
                     </button>
                     <button type="button" className="agri-icon-btn" aria-label={`${entry.isActive ? "Deactivate" : "Reactivate"} ${entry.name}`} title={entry.isActive ? "Deactivate" : "Reactivate"} onClick={() => toggle(entry)} disabled={busy}>

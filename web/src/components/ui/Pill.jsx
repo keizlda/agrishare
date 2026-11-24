@@ -15,10 +15,10 @@ export const STATUS_COLOR = {
   Received: "green",
   Complete: "green",
   "For Review": "purple",
-  // Harvest reports: Submitted -> Verified, or Returned to the farmer.
+  // Harvest reports: Submitted -> Verified, or Rejected (the farmer corrects
+  // and resubmits; the same red as a rejected proof of planting).
   Submitted: "orange",
   Verified: "green",
-  Returned: "red",
 };
 
 export default function Pill({ status, children }) {

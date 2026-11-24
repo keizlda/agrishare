@@ -53,10 +53,11 @@ Deno.serve(async (req) => {
     if (body.action === "create") {
       const fullName = String(body.fullName ?? "").trim().replace(/\s+/g, " ");
       const email = String(body.email ?? "").trim().toLowerCase();
-      const contactNo = String(body.contactNo ?? "").trim() || null;
+      const contactNo = String(body.contactNo ?? "").replace(/\s/g, "") || null;
       const barangayId = Number(body.barangayId);
       if (!fullName) return jsonResponse({ error: "Enter the full name." }, 400);
       if (!EMAIL.test(email)) return jsonResponse({ error: "Enter a valid email address." }, 400);
+      if (contactNo && !/^09\d{9}$/.test(contactNo)) return jsonResponse({ error: "Enter an 11-digit mobile number starting with 09." }, 400);
       const { data: brgy } = await admin.from("barangays").select("id, name").eq("id", barangayId).eq("is_active", true).maybeSingle();
       if (!brgy) return jsonResponse({ error: "Choose the barangay from the list." }, 400);
 

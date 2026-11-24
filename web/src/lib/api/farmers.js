@@ -14,12 +14,17 @@ export function isValidRsbsaFormat(rsbsaNo) {
 
 const SELECT = `
   farmer_id, profile_id, deleted_at, rsbsa_no, surname, first_name, middle_name, sex, birth_date, contact_no,
-  household_head, household_members, org_affiliation, association_id, status, created_at, seed_program_id,
-  seed_program:commodities!seed_program_id ( name, allocation_per_hectare ),
+  household_head, household_members, org_affiliation, association_id, status, created_at,
   profiles!profile_id ( avatar_url ),
   addresses ( street, sitio_id, barangay, barangay_id, municipality, province ),
-  farm_parcels ( farm_location, sitio_id, farm_size_hectares, ownership_type, is_pcic_insured, livestock_details, crops ( crop_type, crop_type_id ) )
+  farm_parcels ( farm_location, sitio_id, farm_size_hectares, ownership_type, is_pcic_insured, livestock_details, crops ( crop_type, crop_type_id ) ),
+  farmer_types ( id, name, sort_order )
 `;
+
+// A farmer's types of farmer, in the list's order: [{ id, name }].
+export function typesOf(row) {
+  return [...(row.farmer_types ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name)).map((t) => ({ id: t.id, name: t.name }));
+}
 
 // manage-farmer-account (Edge Function): creates/updates/resets/disables a
 // farmer's mobile login. Runs with the service role key server-side — never
@@ -101,12 +106,11 @@ function mapFarmer(row) {
     province: address?.province ?? PLACE.province,
     householdHead: row.household_head ? "Yes" : "No",
     householdMembers: row.household_members ?? "",
+    // Types of farmer (one or more): what the farmer is classified as,
+    // e.g. Rice farmer and Livestock farmer. They replace the single crop
+    // and the seed program (kept in the database, no longer shown).
+    types: typesOf(row),
     commodity: parcel?.crops?.[0]?.crop_type ?? "",
-    cropTypeId: parcel?.crops?.[0]?.crop_type_id ?? null,
-    // Seed program: the commodity (with a kg/ha rate) the farmer is enrolled
-    // in, e.g. "Rice Seeds – Inbred (RCEF)". Optional.
-    seedProgramId: row.seed_program_id ?? null,
-    seedProgram: row.seed_program?.name ?? "",
     farmSize: parcel?.farm_size_hectares != null ? Number(parcel.farm_size_hectares) : 0,
     farmLocation: parcel?.farm_location ?? "",
     farmSitioId: parcel?.sitio_id ?? null,
@@ -182,6 +186,7 @@ function toSavePayload(form) {
     contact_no: form.contactNo,
     association_id: idOrNull(form.associationId),
     org_affiliation: form.associationId ? null : form.orgLegacy || null,
+    // A new farmer is always saved Active; the status is changed in Edit.
     status: form.status ? labelToDbStatus(form.status) : null,
     sitio_id: idOrNull(form.sitioId),
     barangay_id: idOrNull(form.barangayId),
@@ -190,8 +195,7 @@ function toSavePayload(form) {
     farm_size_hectares: Number(form.farmSize) || 0,
     ownership_type: form.ownershipType || null,
     is_pcic_insured: pcicDbValue(form.pcicInsured),
-    crop_type_id: idOrNull(form.cropTypeId),
-    seed_program_id: idOrNull(form.seedProgramId),
+    farmer_type_ids: (form.typeIds ?? []).map(Number),
   };
 }
 
@@ -303,7 +307,7 @@ export async function setFarmerStatus(farmerId, statusLabel) {
 // Matches on name or RSBSA number; deliberately not the full listFarmers()
 // select — this only needs to render a compact suggestion row.
 const SEARCH_SELECT =
-  "farmer_id, rsbsa_no, first_name, surname, status, seed_program_id, seed_program:commodities!seed_program_id ( name ), addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url )";
+  "farmer_id, rsbsa_no, first_name, surname, status, addresses ( barangay, street ), farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ), farmer_types ( id, name, sort_order )";
 
 // A farmer's total farm size (every parcel) and main crop (first parcel's
 // first crop) — what the Distribution form and the FA President's "Add
@@ -326,8 +330,7 @@ function mapFarmerBrief(row) {
     sitioPurok: address?.street ?? "",
     status: dbStatusToLabel(row.status),
     avatarUrl: row.profiles?.avatar_url ?? null,
-    seedProgramId: row.seed_program_id ?? null,
-    seedProgram: row.seed_program?.name ?? "",
+    types: typesOf(row),
     ...farmSummary(row.farm_parcels),
   };
 }

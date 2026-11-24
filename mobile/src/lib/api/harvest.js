@@ -4,14 +4,14 @@ import { decode } from "base64-arraybuffer";
 import { supabase } from "../supabaseClient";
 
 // The farmer's own harvest reports, in kilograms (RLS returns only theirs).
-// The MAO verifies a report or returns it with remarks; a returned report
+// The MAO verifies a report or rejects it with remarks; a rejected report
 // can be corrected and resubmitted.
 
 const BUCKET = "harvest-photos";
 
 // A harvest is identified by its harvest date (no Wet/Dry season): summaries
 // show the month and year, e.g. "8,400 kg · Nov 2026".
-const STATUS_LABEL = { submitted: "Submitted", verified: "Verified", returned: "Returned" };
+const STATUS_LABEL = { submitted: "Submitted", verified: "Verified", rejected: "Rejected" };
 
 const SELECT = `
   harvest_report_id, commodity_id, area_harvested_ha, yield_kg, yield_per_ha,
@@ -120,7 +120,7 @@ export async function submitHarvestReport(farmerId, form) {
   return mapHarvest(data);
 }
 
-// Correct a Submitted or Returned report; a Returned one goes back to
+// Correct a Submitted or Rejected report; a Rejected one goes back to
 // Submitted for the MAO.
 export async function updateHarvestReport(id, form) {
   const { data, error } = await supabase.from("harvest_reports").update(toRow(form)).eq("harvest_report_id", id).select(SELECT).maybeSingle();

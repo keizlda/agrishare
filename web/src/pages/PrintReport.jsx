@@ -33,6 +33,7 @@ export default function PrintReport() {
   const barangay = user?.role === "FA President" && user.barangayName ? user.barangayName : searchParams.get("barangay") || "All Barangays";
   const sex = searchParams.get("sex") || "All";
   const association = searchParams.get("association") || "All";
+  const farmerType = searchParams.get("farmerType") || "All Types";
 
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -67,11 +68,12 @@ export default function PrintReport() {
   else if (dateTo) subtitleParts.push(`${reportType === "Harvest Report" ? "Harvested through" : farmerList ? "Registered through" : "Through"}: ${formatDate(dateTo)}`);
   if (status !== "All Status") subtitleParts.push(`Status: ${status}`);
   if (barangay !== "All Barangays") subtitleParts.push(`Barangay: ${barangay}`);
-  if (commodity !== "All Commodities") subtitleParts.push(`${farmerList ? "Crop" : "Commodity"}: ${commodity}`);
+  if (!farmerList && commodity !== "All Commodities") subtitleParts.push(`Commodity: ${commodity}`);
+  if (farmerList && farmerType !== "All Types") subtitleParts.push(`Type of farmer: ${farmerType}`);
   if (farmerList && sex !== "All") subtitleParts.push(`Sex: ${sex}`);
   if (farmerList && association !== "All") subtitleParts.push(association === "None" ? "No farmers' association" : `Association: ${association}`);
 
-  const filters = { barangay, commodity, dateFrom, dateTo, status, sex, association, barangays: data.barangays };
+  const filters = { barangay, commodity, dateFrom, dateTo, status, sex, association, farmerType, barangays: data.barangays };
 
   return (
     <PrintLayout title={reportType} subtitle={subtitleParts.join(" · ") || undefined} backTo="/reports" landscape={WIDE_REPORTS.includes(reportType)} barangayLine={barangay === "All Barangays" ? "ALL BARANGAYS" : `Barangay ${barangay}`}>
@@ -472,9 +474,9 @@ function FarmerRequestCounts({ requests = [], filters: { dateFrom, dateTo } }) {
 }
 
 // List of Farmers (farmer masterlist): RSBSA No. first, sorted by last name,
-// with a summary at the end. Soft-deleted farmers are already excluded by
-// listFarmers(). Filters: barangay, status, crop, sex, and the date
-// registered.
+// with a summary at the end (and the farmers of each type). Soft-deleted
+// farmers are already excluded by listFarmers(). Filters: barangay, status,
+// type of farmer, sex, farmers' association and the date registered.
 function ageOn(birthDate, today = new Date()) {
   if (!birthDate) return null;
   const b = new Date(`${birthDate}T00:00:00`);
@@ -485,11 +487,11 @@ function ageOn(birthDate, today = new Date()) {
 const masterName = (f) => `${f.lastName}, ${f.firstName}${f.middleName ? ` ${f.middleName.trim()[0]}.` : ""}`;
 
 function FarmerList({ farmers, filters }) {
-  const { status, commodity, sex, association, dateFrom, dateTo } = filters;
+  const { status, farmerType, sex, association, dateFrom, dateTo } = filters;
   const rows = farmers
     .filter((f) => inReportBarangay(filters, f.barangay, f.barangayId))
     .filter((f) => status === "All Status" || f.status === status)
-    .filter((f) => commodity === "All Commodities" || ciEquals(f.commodity, commodity))
+    .filter((f) => farmerType === "All Types" || f.types.some((t) => ciEquals(t.name, farmerType)))
     .filter((f) => sex === "All" || f.sex === sex)
     .filter((f) => association === "All" || (association === "None" ? !f.orgAffiliation : ciEquals(f.orgAffiliation, association)))
     .filter((f) => !dateFrom || (f.dateRegistered ?? "") >= dateFrom)
@@ -498,6 +500,9 @@ function FarmerList({ farmers, filters }) {
   const male = rows.filter((f) => f.sex === "Male").length;
   const active = rows.filter((f) => f.status === "Active").length;
   const area = rows.reduce((sum, f) => sum + (Number(f.farmSize) || 0), 0);
+  // Farmers of each type (a farmer with two types counts under both).
+  const byType = new Map();
+  for (const f of rows) for (const t of f.types) byType.set(t.name, (byType.get(t.name) ?? 0) + 1);
 
   return (
     <div className="pr-section">
@@ -510,8 +515,7 @@ function FarmerList({ farmers, filters }) {
           <col style={{ width: "3.5%" }} />
           <col style={{ width: "8%" }} />
           <col style={{ width: "7%" }} />
-          <col style={{ width: "6.5%" }} />
-          <col style={{ width: "6.5%" }} />
+          <col style={{ width: "13%" }} />
           <col style={{ width: "5.5%" }} />
           <col style={{ width: "12%" }} />
           <col style={{ width: "11.5%" }} />
@@ -527,9 +531,8 @@ function FarmerList({ farmers, filters }) {
             <th>Contact No.</th>
             <th>Sitio/<wbr />Purok</th>
             <th>Barangay</th>
-            <th>Commodity/<wbr />Crop</th>
+            <th>Type of Farmer</th>
             <th className="pr-num">Farm Size (ha)</th>
-            <th>Seed Program</th>
             <th>Farmers&apos; Association</th>
             <th>Status</th>
           </tr>
@@ -545,9 +548,8 @@ function FarmerList({ farmers, filters }) {
               <td>{f.contactNo || "—"}</td>
               <td>{f.sitioPurok || "—"}</td>
               <td>{barangayOf(filters, f.barangay)}</td>
-              <td>{f.commodity || "—"}</td>
+              <td>{f.types.map((t) => t.name).join(", ") || "—"}</td>
               <td className="pr-num">{f.farmSize > 0 ? Number(f.farmSize).toFixed(2) : "—"}</td>
-              <td>{f.seedProgram || "—"}</td>
               <td>{f.orgAffiliation || "—"}</td>
               <td>{f.status}</td>
             </tr>
@@ -562,6 +564,22 @@ function FarmerList({ farmers, filters }) {
         <KV label="Active / Inactive" value={`${active.toLocaleString()} / ${(rows.length - active).toLocaleString()}`} />
         <KV label="Total Farm Area" value={`${area.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha`} />
       </div>
+      {byType.size > 0 && (
+        <>
+          <div className="pr-section-label" style={{ marginTop: 18 }}>By Type of Farmer</div>
+          <table className="pr-items-table">
+            <thead>
+              <tr><th>Type of Farmer</th><th className="pr-num">Farmers</th></tr>
+            </thead>
+            <tbody>
+              {[...byType.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name, n]) => (
+                <tr key={name}><td>{name}</td><td className="pr-num">{n.toLocaleString()}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="pr-note" style={{ fontSize: "8.5pt", marginTop: 4 }}>A farmer with more than one type is counted under each.</div>
+        </>
+      )}
       <ByBarangay
         filters={filters}
         items={rows}
@@ -578,7 +596,7 @@ function FarmerList({ farmers, filters }) {
 
 
 // Harvest reports in the report's filters: harvest date range, barangay,
-// crop (commodity) and status (Submitted / Verified / Returned).
+// crop (commodity) and status (Submitted / Verified / Rejected).
 function filterHarvests(harvests, filters) {
   const { commodity, dateFrom, dateTo, status } = filters;
   return harvests

@@ -38,7 +38,7 @@
 // Farmers' Association President, Approved, Rejected), distributions by
 // farm size × the commodity's rate (one with a 2,000 kg barangay
 // allocation), harvest reports in kg
-// (Submitted, Verified, Returned; Maui, Claude and Luna only as new rows),
+// (Submitted, Verified, Rejected; Maui, Claude and Luna only as new rows),
 // and the default-password reminder turned off for the seeded (evaluator)
 // farmers.
 //
@@ -220,6 +220,9 @@ async function main() {
   // ---------- FA President accounts (each in a barangay) ----------
   // The first is the one requests and harvest reports are filed by.
   let faId = null;
+  // The Farmers' Association President of each barangay (the sitios/puroks
+  // of their barangay are recorded as added by them).
+  const faByBarangay = new Map();
   for (const fa of [data.accounts.fa_president, ...(data.accounts.more_fa_presidents ?? [])]) {
     const faUser = userByEmail.get(fa.email.toLowerCase());
     if (faUser && faUser.app_metadata?.seed_batch !== BATCH) throw new StopError(`${fa.email} already exists and was not created by this seed.`);
@@ -244,6 +247,7 @@ async function main() {
       }
     }
     faId ??= id;
+    if (id && fa.barangay) faByBarangay.set(barangayId(fa.barangay), id);
     log(`FA President ${fa.name} (${fa.barangay ?? "no barangay"}): ${faUser ? "already seeded" : DRY ? "would create" : "created"}`);
   }
   if (!DRY) saveLedger(ledger);
@@ -317,6 +321,19 @@ async function main() {
     return Math.round(parcels.reduce((a, p) => a + (Number(p.farm_size_hectares) || 0), 0) * 100) / 100;
   };
 
+  // ---------- Types of farmer (farmer_types, from the migration) ----------
+  const CROP_TYPE = { Rice: "Rice farmer", Corn: "Corn farmer", Vegetables: "Vegetable farmer" };
+  const farmerTypeId = new Map((await must(sb.from("farmer_types").select("id, name"), "farmer types")).map((t) => [t.name, t.id]));
+  // Each commodity's type of farmer (only where none is set yet).
+  for (const c of data.commodities) {
+    if (!c.farmer_type || DRY) continue;
+    if (!farmerTypeId.has(c.farmer_type)) throw new Error(`Unknown type of farmer ${c.farmer_type} (${c.name})`);
+    const id = commodityId.get(c.name);
+    if (id == null) continue;
+    const set = await must(sb.from("commodities").update({ farmer_type_id: farmerTypeId.get(c.farmer_type) }).eq("commodity_id", id).is("farmer_type_id", null).select("commodity_id"), `type of farmer for ${c.name}`);
+    if (set.length) bump("commodities (type of farmer set)");
+  }
+
   // ---------- Managed lists: sitios/puroks, farmers' associations, crops ----------
   // Matched by name ignoring case and spaces (as the database does). An entry
   // the test data needs that isn't on a list yet is added and recorded in
@@ -342,7 +359,8 @@ async function main() {
       listIds[table].set(k, null);
       return null;
     }
-    const row = await must(sb.from(table).insert({ name, ...(perBarangay ? { barangay_id: bid } : {}) }).select("id, name").single(), `add ${table} ${name}`);
+    const addedBy = table === "sitios" ? faByBarangay.get(bid) : null;
+    const row = await must(sb.from(table).insert({ name, ...(perBarangay ? { barangay_id: bid } : {}), ...(addedBy ? { created_by: addedBy } : {}) }).select("id, name").single(), `add ${table} ${name}`);
     remember(ledger[LIST_LEDGER[table]], { id: row.id, name: row.name }, "id");
     bump(table);
     saveLedger(ledger);
@@ -487,6 +505,28 @@ async function main() {
     if (associationId) {
       const joined = await must(sb.from("farmers").update({ association_id: associationId }).eq("farmer_id", fr.id).is("association_id", null).select("farmer_id"), `association of ${f.login_id}`);
       if (joined.length) bump("farmers (association set)");
+    }
+    // Types of farmer (added to any the farmer already has): farmer_types in
+    // the JSON, or the one for their crop (Rice → Rice farmer).
+    const wanted = f.farmer_types ?? (CROP_TYPE[f.commodity] ? [CROP_TYPE[f.commodity]] : []);
+    for (const t of wanted) {
+      if (!farmerTypeId.has(t)) throw new Error(`Unknown type of farmer ${t} (${f.login_id})`);
+      const { data: added, error } = await sb.from("farmer_farmer_types").upsert({ farmer_id: fr.id, farmer_type_id: farmerTypeId.get(t) }, { onConflict: "farmer_id,farmer_type_id", ignoreDuplicates: true }).select("farmer_id");
+      if (error) throw new Error(`type of farmer for ${f.login_id}: ${error.message}`);
+      if (added?.length) bump("farmer_farmer_types");
+    }
+  }
+
+  // Sitios/puroks the seed added to a barangay with a Farmers' Association
+  // President: recorded as added by them.
+  if (!DRY) {
+    for (const s of ledger.sitios ?? []) {
+      const row = await maybeOne(sb.from("sitios").select("id, barangay_id, created_by").eq("id", s.id), `sitio ${s.name}`);
+      const fa = row && faByBarangay.get(row.barangay_id);
+      if (fa && row.created_by !== fa) {
+        await must(sb.from("sitios").update({ created_by: fa }).eq("id", row.id), `sitio ${s.name} added by`);
+        bump("sitios (added by the Farmers' Association President)");
+      }
     }
   }
 
@@ -721,11 +761,12 @@ async function main() {
   // ---------- Harvest reports (kg) ----------
   // Inserted Submitted the way the apps file them (a farmer's own report
   // notifies the MAO Admin and the FA President; one the FA President filed
-  // notifies the MAO Admin and the farmer), then Verified or Returned by the
+  // notifies the MAO Admin and the farmer), then Verified or Rejected by the
   // MAO Admin (notifies the farmer). Maui, Claude and Luna only get new
   // report rows that reference them. Matched on farmer + harvest date. No
   // Wet/Dry season (retired Nov 24, 2026): the season columns are left empty.
-  const HARVEST_STATUS = { Submitted: "submitted", Verified: "verified", Returned: "returned" };
+  // "Returned" is the old name of Rejected (Nov 26, 2026).
+  const HARVEST_STATUS = { Submitted: "submitted", Verified: "verified", Rejected: "rejected", Returned: "rejected" };
   for (const hr of data.harvest_reports ?? []) {
     const fr = farmerByRsbsa.get(hr.rsbsa_number);
     const cid = commodityId.get(hr.commodity);
@@ -733,7 +774,7 @@ async function main() {
     if (!fr) throw new Error(`Harvest report for unknown farmer ${hr.rsbsa_number}`);
     if (!status) throw new Error(`Harvest report for ${hr.farmer}: unknown status`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(hr.harvest_date ?? "")) throw new Error(`Harvest report for ${hr.farmer}: harvest_date is required (YYYY-MM-DD).`);
-    if (status === "returned" && !hr.review_remarks) throw new Error(`Harvest report for ${hr.farmer}: Returned needs review_remarks.`);
+    if (status === "rejected" && !hr.review_remarks) throw new Error(`Harvest report for ${hr.farmer}: Rejected needs review_remarks.`);
     if (DRY || fr.dry || typeof cid !== "number") { if (DRY) log(`Harvest report: would insert ${hr.farmer} harvested ${hr.harvest_date} · ${hr.commodity} · ${hr.area_ha} ha · ${hr.yield_kg} kg (${hr.status}${hr.filed_by ? ", filed by the FA President" : ""})`); continue; }
     const existing = await maybeOne(sb.from("harvest_reports").select("harvest_report_id").eq("farmer_id", fr.id).eq("harvest_date", hr.harvest_date).is("deleted_at", null), `harvest report ${hr.farmer}`);
     if (existing) {
@@ -770,7 +811,7 @@ async function main() {
     await must(sb.from("harvest_reports").update({
       status, review_remarks: hr.review_remarks || null, reviewed_by: maoId, reviewed_at: reviewedAt, updated_at: reviewedAt,
     }).eq("harvest_report_id", row.harvest_report_id), `review harvest report ${hr.farmer}`);
-    await captureNotifs(reviewedAt, ["Harvest report verified", "Harvest report returned"]);
+    await captureNotifs(reviewedAt, ["Harvest report verified", "Harvest report rejected"]);
   }
 
   // ---------- Announcements ----------

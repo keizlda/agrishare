@@ -148,7 +148,18 @@ export default function ProfileScreen({ navigation }) {
 
         <Section title="Farming Information">
           <Row label="Farm Size" value={farmer?.farmSize} />
-          <Row label="Primary Commodity" value={farmer?.primaryCommodity} />
+          <View style={[styles.itemRow, styles.dataRow]}>
+            <Text style={styles.rowLabel}>Type of Farmer</Text>
+            <View style={styles.typeChips}>
+              {(farmer?.types ?? []).length ? (
+                farmer.types.map((t) => (
+                  <Text key={t.id} style={styles.typeChip}>{t.name}</Text>
+                ))
+              ) : (
+                <Text style={styles.rowValue}>—</Text>
+              )}
+            </View>
+          </View>
           <Row label="Farmers' Association" value={farmer?.association || "—"} last />
         </Section>
 
@@ -292,6 +303,17 @@ const styles = StyleSheet.create({
   dataRow: { alignItems: "flex-start" },
   rowLabel: { width: "40%", paddingRight: 8, fontSize: 11.5, color: colors.textMuted },
   rowValue: { flex: 1, textAlign: "right", fontSize: 12.5, color: colors.text, fontWeight: "600" },
+  typeChips: { flex: 1, flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 4 },
+  typeChip: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.primaryDark,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    overflow: "hidden",
+  },
 
   note: {
     flexDirection: "row",

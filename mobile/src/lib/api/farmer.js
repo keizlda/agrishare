@@ -2,8 +2,8 @@ import { supabase } from "../supabaseClient";
 import { dbStatusToLabel } from "../status";
 
 const SELECT = `
-  farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status, seed_program_id, org_affiliation,
-  seed_program:commodities!seed_program_id ( name ),
+  farmer_id, profile_id, rsbsa_no, surname, first_name, contact_no, status, org_affiliation,
+  farmer_types ( id, name, sort_order ),
   addresses ( barangay, street, barangays ( name, center_lat, center_lng ) ),
   farm_parcels ( farm_size_hectares, crops ( crop_type ) ),
   profiles!profile_id ( avatar_url, must_change_password )
@@ -31,10 +31,11 @@ function mapFarmer(row) {
     farmSize: parcel?.farm_size_hectares != null ? `${Number(parcel.farm_size_hectares).toFixed(2)} ha` : "—",
     // Total farm size in hectares (every parcel), for suggested quantities.
     farmSizeHa: Math.round((row.farm_parcels ?? []).reduce((a, p) => a + (Number(p.farm_size_hectares) || 0), 0) * 100) / 100,
-    // Seed program: the commodity the farmer is enrolled in, e.g.
-    // "Rice Seeds – Inbred (RCEF)". Optional.
-    seedProgramId: row.seed_program_id ?? null,
-    seedProgramName: row.seed_program?.name ?? "",
+    // Types of farmer (one or more), e.g. Rice farmer and Livestock farmer,
+    // in the MAO's list order.
+    types: [...(row.farmer_types ?? [])]
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name))
+      .map((t) => ({ id: t.id, name: t.name })),
     primaryCommodity: parcel?.crops?.[0]?.crop_type ?? "—",
     // A farmer's own status is only Active/Inactive — validation belongs to
     // each proof-of-planting submission (see api/cropValidation).

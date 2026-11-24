@@ -3,18 +3,18 @@ import { supabase } from "../supabaseClient.js";
 // Harvest reports (MAO presentation, Nov 2026), in kilograms. The database
 // decides who may do what (harvest_reports RLS + its guard trigger):
 //   Farmer (mobile): adds their own; corrects/resubmits while Submitted or
-//     Returned.
+//     Rejected.
 //   Farmers' Association President: reads all; corrects the ones they filed
 //     earlier, before verification (only farmers add reports, from the
 //     mobile app).
-//   MAO Admin: reads all; Verify / Return (remarks required to return).
+//   MAO Admin: reads all; Verify / Reject (remarks required to reject).
 
 // A harvest is identified by its harvest date (no Wet/Dry season since Nov
 // 24, 2026): summaries show the month and year, e.g. "8,400 kg · Nov 2026".
 export const HARVEST_STATUSES = [
   { value: "submitted", label: "Submitted" },
   { value: "verified", label: "Verified" },
-  { value: "returned", label: "Returned" },
+  { value: "rejected", label: "Rejected" },
 ];
 const STATUS_LABEL = Object.fromEntries(HARVEST_STATUSES.map((s) => [s.value, s.label]));
 
@@ -117,7 +117,7 @@ const toRow = (form) => ({
   remarks: form.remarks.trim() || null,
 });
 
-// Correct a report (before verification); a Returned one goes back to
+// Correct a report (before verification); a Rejected one goes back to
 // Submitted.
 export async function updateHarvestReport(report, form) {
   const { data, error } = await supabase.from("harvest_reports").update(toRow(form)).eq("harvest_report_id", report.id).select(SELECT).maybeSingle();
@@ -126,7 +126,7 @@ export async function updateHarvestReport(report, form) {
   return mapHarvest(data);
 }
 
-// MAO Admin: "verified" or "returned" (remarks required to return).
+// MAO Admin: "verified" or "rejected" (remarks required to reject).
 export async function reviewHarvestReport(id, status, remarks) {
   const patch = { status, review_remarks: remarks?.trim() || null };
   const { data, error } = await supabase.from("harvest_reports").update(patch).eq("harvest_report_id", id).select(SELECT).maybeSingle();

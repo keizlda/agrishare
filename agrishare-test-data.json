@@ -92,6 +92,7 @@
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
+      "farmer_types": ["Rice farmer", "Livestock farmer"],
       "farm_size_ha": 1.2,
       "farm_location": "Purok 1",
       "ownership": "Registered Owner",
@@ -161,6 +162,7 @@
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Rice",
+      "farmer_types": ["Rice farmer", "Coconut farmer"],
       "farm_size_ha": 2.5,
       "farm_location": "Purok 3",
       "ownership": "Lessee",
@@ -275,6 +277,7 @@
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Vegetables",
+      "farmer_types": ["Vegetable farmer", "Integrated farmer", "Poultry farmer"],
       "farm_size_ha": 0.6,
       "farm_location": "Purok 5",
       "ownership": "Registered Owner",
@@ -366,6 +369,7 @@
       "municipality": "Labangan",
       "province": "Zamboanga del Sur",
       "commodity": "Vegetables",
+      "farmer_types": ["Vegetable farmer", "Coconut farmer", "Fruit farmer"],
       "farm_size_ha": 0.75,
       "farm_location": "Sitio Balulang",
       "ownership": "Lessee",
@@ -663,6 +667,7 @@
       "sitio_purok": "Purok 1",
       "barangay": "Bokong",
       "commodity": "Rice",
+      "farmer_types": ["Rice farmer", "Coconut farmer"],
       "farm_size_ha": 1.8,
       "farm_location": "Purok 1",
       "ownership": "Owner"
@@ -705,6 +710,7 @@
       "sitio_purok": "Purok 1",
       "barangay": "Combo",
       "commodity": "Rice",
+      "farmer_types": ["Rice farmer", "Livestock farmer"],
       "farm_size_ha": 2.2,
       "farm_location": "Purok 1",
       "ownership": "Owner"
@@ -726,6 +732,7 @@
       "sitio_purok": "Purok 3",
       "barangay": "Combo",
       "commodity": "Vegetables",
+      "farmer_types": ["Vegetable farmer", "Root crop farmer"],
       "farm_size_ha": 0.7,
       "farm_location": "Purok 3",
       "ownership": "Lessee"
@@ -747,6 +754,7 @@
       "sitio_purok": "Purok 2",
       "barangay": "New Labangan",
       "commodity": "Rice",
+      "farmer_types": ["Integrated farmer", "Rice farmer"],
       "farm_size_ha": 1.4,
       "farm_location": "Purok 2",
       "ownership": "Owner"
@@ -768,6 +776,7 @@
       "sitio_purok": "Purok 4",
       "barangay": "New Labangan",
       "commodity": "Corn",
+      "farmer_types": ["Corn farmer", "Coconut farmer"],
       "farm_size_ha": 0.9,
       "farm_location": "Purok 4",
       "ownership": "Tenant"
@@ -777,6 +786,7 @@
     {
       "name": "Rice Seeds (NSIC Rc222)",
       "category": "Rice",
+      "farmer_type": "Rice farmer",
       "unit": "kg",
       "status": "Active",
       "allocation_per_hectare": 40
@@ -784,6 +794,7 @@
     {
       "name": "Rice Seeds – Inbred (RCEF)",
       "category": "Rice",
+      "farmer_type": "Rice farmer",
       "unit": "kg",
       "status": "Active",
       "allocation_per_hectare": 40
@@ -791,6 +802,7 @@
     {
       "name": "Rice Seeds – Hybrid",
       "category": "Rice",
+      "farmer_type": "Rice farmer",
       "unit": "kg",
       "status": "Active",
       "allocation_per_hectare": 15
@@ -798,6 +810,7 @@
     {
       "name": "Corn Seeds",
       "category": "Corn",
+      "farmer_type": "Corn farmer",
       "unit": "kg",
       "status": "Active",
       "allocation_per_hectare": 20
@@ -805,6 +818,7 @@
     {
       "name": "Vegetable Seeds",
       "category": "Vegetables",
+      "farmer_type": "Vegetable farmer",
       "unit": "kg",
       "status": "Active"
     },
@@ -835,6 +849,7 @@
     {
       "name": "Livestock Assistance (Native Chicken)",
       "category": "Livestock",
+      "farmer_type": "Poultry farmer",
       "unit": "head",
       "status": "Inactive"
     }
@@ -1967,7 +1982,7 @@
       "area_ha": 3,
       "yield_kg": 18600,
       "harvest_date": "2026-11-03",
-      "status": "Returned",
+      "status": "Rejected",
       "photo": true,
       "latitude": 7.8341,
       "longitude": 123.6347,
@@ -2033,7 +2048,7 @@
       "area_ha": 10,
       "yield_kg": 28000,
       "harvest_date": "2026-11-08",
-      "status": "Returned",
+      "status": "Rejected",
       "filed_by": "fa_president",
       "review_remarks": "Please confirm the area harvested; the parcel survey shows 8 ha planted."
     },
@@ -2070,7 +2085,7 @@
       "area_ha": 1.4,
       "yield_kg": 6100,
       "harvest_date": "2026-11-09",
-      "status": "Returned",
+      "status": "Rejected",
       "photo": true,
       "latitude": 7.8455,
       "longitude": 123.5226,

@@ -138,6 +138,83 @@ Updated November 23, 2026 (see the updates below).
   a different account, this tab follows instead of acting as the wrong
   account.
 
+## On `develop` (not on the live site yet): types of farmer, tagging by type, sitios by the Farmers' Association President
+
+**Design changes (for the paper):** farmers are classified by one or more
+types of farmer instead of a single crop; beneficiaries are tagged by type of
+farmer or by name; the barangay allocation drives the automatically computed
+total quantity; sitios/puroks are managed by each barangay's Farmers'
+Association President; new farmers are Active by default; harvest reports
+are approved or rejected.
+
+- **Type of farmer.** "Commodity / Crop Type" and "Seed Program" are gone
+  from Add/Edit Farmer, the profile, the Farmers table, the farmer app and
+  the reports. Instead, "Type of farmer" is a checklist (two columns, at
+  least one required) with examples in small gray text: Rice, Corn, Coconut,
+  Vegetable, Root crop, Fruit, Cacao, Coffee, Livestock, Poultry,
+  Aquaculture, Seaweed and Integrated farmer. The list is in Settings →
+  Lists (the MAO Admin adds, renames, edits the examples or deactivates).
+  Existing farmers were classified from their crop (Rice → Rice farmer, Corn
+  → Corn farmer, Vegetables → Vegetable farmer); every farmer on dev and on
+  live maps, none were left out. The old columns are kept, unused.
+- **Farmers page:** a TYPE OF FARMER column with small chips, and a "Type of
+  farmer" filter next to Barangay and Status.
+- **Contact numbers:** exactly 11 digits starting with 09 (farmers,
+  Farmers' Association President accounts, the office number in Settings).
+  Letters and a 12th digit can't be typed; the error reads "Enter an
+  11-digit mobile number starting with 09." The database checks new and
+  changed numbers; existing ones aren't changed.
+- **New farmers are Active.** Add Farmer has no Status field; Edit Farmer
+  keeps it.
+- **Sitios/puroks.** A "Sitios/Puroks" button on the Farmers page opens
+  "Manage sitios/puroks" (add with a similar-name warning, rename, delete).
+  The Farmers' Association President manages their own barangay's list; the
+  MAO Admin chooses the barangay. Deleting one that farmers have hides it
+  instead (they keep it). In Add/Edit Farmer, Sitio/Purok is a dropdown of
+  the barangay's list only (no "+ Add new"); an empty list says "No
+  sitios/puroks yet for this barangay. Ask the Farmers' Association
+  President to add them."
+- **Harvest reports: Reject instead of Return.** Verify / Reject, status
+  Rejected (existing Returned reports became Rejected), in the web inbox,
+  filters, badges, notifications, reports and the farmer app. A rejected
+  report can still be corrected and resubmitted.
+- **Distributions: tag by type of farmer.** "Add all eligible farmers" is
+  gone. Beneficiaries: first "Tag by type of farmer" (chips; the
+  commodity's own type is suggested, e.g. Corn Seeds → Corn farmer),
+  adding that barangay's Active farmers of the type and listing who was
+  skipped as a repeat distribution; clicking the chip again removes them
+  (asking about farmers also added another way). Then "Or add by name". The
+  tagged list is grouped ("Rice farmer · 9 farmers", "Added by name") with
+  RSBSA, sitio, farm size, rate, the kg and its calculation, and a ✕ on
+  each row. Each commodity's type of farmer is set in Manage commodities.
+- **Quantity:** with a kg/ha rate, "Total allocation for the barangay (kg)"
+  is required and is the only quantity typed; "Total quantity" fills in by
+  itself (the farmers' kg added up). "Allocated X of Y kg · Remaining Z kg"
+  with the bar; going over shows a red warning and blocks saving.
+  Commodities without a rate keep the equal split.
+- **Print preview:** no A4 / Letter switch. Pages are laid out on a size
+  that fits both, and the paper is chosen in the print dialog.
+
+Migration (agrishare-dev only): `20261126000000_farmer_types.sql`;
+`manage-fa-account` updated (contact number check).
+
+Live farmers whose contact numbers don't match (they have spaces; not
+changed — open Edit and Save to fix, the form removes the spaces):
+09-73-00-000-000124 Maria Santos "0921 987 6543", 000125 Pedro Reyes
+"0918 765 4321", 000126 Ana Mendoza "0906 234 5678", 000127 Rogelio Torres
+"0915 345 6789", 000128 Liza Ramirez "0932 456 7890", 000129 Mario Bautista
+"0919 567 8901", 000999 Juan Dela Cruz "0917 123 4567". Until fixed, saving
+any change to these 7 records (including status or delete) asks for the
+number to be fixed first.
+
+| Check (localhost + agrishare-dev) | Result |
+| --- | --- |
+| Database rules on a local copy built like live (types, contact check, save_farmer, sitios by the Farmers' Association President, Rejected, tag by type) | 100/100 |
+| Web at 1366×768 and 1920×1080: add farmer, edit status, type filter, tag by type + by name, allocation, Manage commodities, List of Farmers by type, print preview, sitios as the Farmers' Association President, harvest Reject | 23/23 |
+| Farmer app (360 px): types on the profile; a rejected harvest report resubmitted | 4/4 |
+| Direct database calls as each account (barangay scope) | 10/10 |
+| Web lint and production build; farmer app bundle | pass |
+
 ## On `develop` (not on the live site yet): all 25 barangays; each Farmers' Association President sees only their barangay
 
 **Design changes (for the paper):** the system supports all 25 barangays of

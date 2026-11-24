@@ -14,9 +14,9 @@ import { useAuth } from "../context/AuthContext.jsx";
 // Distribution reports filter by the distribution's status; the Harvest
 // Report by the harvest report's.
 const STATUS_OPTIONS = ["All Status", "Ongoing", "Completed"];
-const HARVEST_STATUS_OPTIONS = ["All Status", "Submitted", "Verified", "Returned"];
-// List of Farmers: the farmer's own status, sex, crop and farmers'
-// association (crops and associations: the lists in Settings).
+const HARVEST_STATUS_OPTIONS = ["All Status", "Submitted", "Verified", "Rejected"];
+// List of Farmers: the farmer's own status, sex, type of farmer and
+// farmers' association (types and associations: the lists in Settings).
 const FARMER_STATUS_OPTIONS = ["All Status", "Active", "Inactive"];
 const SEX_OPTIONS = ["All", "Male", "Female"];
 const statusOptionsFor = (type) => (type === "Harvest Report" ? HARVEST_STATUS_OPTIONS : type === "List of Farmers" ? FARMER_STATUS_OPTIONS : STATUS_OPTIONS);
@@ -36,13 +36,14 @@ export default function Reports() {
   const [dateTo, setDateTo] = useState("");
   const [status, setStatus] = useState("All Status");
   const [commodity, setCommodity] = useState("All Commodities");
+  const [farmerType, setFarmerType] = useState("All Types");
   // A Farmers' Association President's reports are always their barangay's.
   const { user } = useAuth();
   const isFA = user?.role === "FA President";
   const [barangay, setBarangay] = useState(isFA && user.barangayName ? user.barangayName : "All Barangays");
   const [sex, setSex] = useState("All");
   const [association, setAssociation] = useState("All");
-  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [], barangays: [] });
+  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [], barangays: [], farmerTypes: [] });
   const farmerList = reportType === "List of Farmers";
   const [rangeError, setRangeError] = useState("");
   const tableRef = useRef(null);
@@ -57,8 +58,8 @@ export default function Reports() {
 
   // Opens the printable preview in a new tab. Nothing prints by itself: the
   // print dialog opens only from the preview's "Print / Save as PDF".
-  function printUrl({ type, dateFrom, dateTo, status, commodity, barangay, sex = "All", association = "All" }) {
-    const params = new URLSearchParams({ type, dateFrom, dateTo, status, commodity, barangay, sex, association });
+  function printUrl({ type, dateFrom, dateTo, status, commodity, barangay, sex = "All", association = "All", farmerType = "All Types" }) {
+    const params = new URLSearchParams({ type, dateFrom, dateTo, status, commodity, barangay, sex, association, farmerType });
     return `/print/reports?${params.toString()}`;
   }
 
@@ -74,7 +75,7 @@ export default function Reports() {
     setReports((prev) => [
       {
         id,
-        name: `${reportType} — ${commodity}`,
+        name: `${reportType} — ${farmerList ? farmerType : commodity}`,
         type: reportType,
         dateGenerated: formatDateTime(new Date()),
         dateFrom,
@@ -84,14 +85,15 @@ export default function Reports() {
         barangay,
         sex: farmerList ? sex : "All",
         association: farmerList ? association : "All",
+        farmerType: farmerList ? farmerType : "All Types",
       },
       ...prev,
     ]);
-    window.open(printUrl({ type: reportType, dateFrom, dateTo, status, commodity, barangay, sex: farmerList ? sex : "All", association: farmerList ? association : "All" }), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: reportType, dateFrom, dateTo, status, commodity: farmerList ? "All Commodities" : commodity, barangay, sex: farmerList ? sex : "All", association: farmerList ? association : "All", farmerType: farmerList ? farmerType : "All Types" }), "_blank", "noopener,noreferrer");
   }
 
   function handlePreview(r) {
-    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay, sex: r.sex ?? "All", association: r.association ?? "All" }), "_blank", "noopener,noreferrer");
+    window.open(printUrl({ type: r.type, dateFrom: r.dateFrom, dateTo: r.dateTo, status: r.status ?? "All Status", commodity: r.commodity, barangay: r.barangay, sex: r.sex ?? "All", association: r.association ?? "All", farmerType: r.farmerType ?? "All Types" }), "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -109,18 +111,28 @@ export default function Reports() {
                   const next = e.target.value;
                   setReportType(next);
                   if (!statusOptionsFor(next).includes(status)) setStatus("All Status");
-                  // The farmer list's crops and the commodities are different lists.
-                  if ((next === "List of Farmers") !== farmerList) setCommodity("All Commodities");
                 }}
               >
                 {reportTypes.map((t) => <option key={t}>{t}</option>)}
               </select>
 
-              <label className="agri-form-label">{reportType === "Harvest Report" ? "Crop" : farmerList ? "Commodity/Crop" : "Commodity"}</label>
-              <select className="form-select mb-3" value={commodity} onChange={(e) => setCommodity(e.target.value)}>
-                <option>All Commodities</option>
-                {(farmerList ? lists.crops.map((c) => c.name) : commodityOptions).map((c) => <option key={c}>{c}</option>)}
-              </select>
+              {farmerList ? (
+                <>
+                  <label className="agri-form-label" htmlFor="report-farmer-type">Type of Farmer</label>
+                  <select id="report-farmer-type" className="form-select mb-3" value={farmerType} onChange={(e) => setFarmerType(e.target.value)}>
+                    <option>All Types</option>
+                    {lists.farmerTypes.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <label className="agri-form-label">{reportType === "Harvest Report" ? "Crop" : "Commodity"}</label>
+                  <select className="form-select mb-3" value={commodity} onChange={(e) => setCommodity(e.target.value)}>
+                    <option>All Commodities</option>
+                    {commodityOptions.map((c) => <option key={c}>{c}</option>)}
+                  </select>
+                </>
+              )}
 
               <label className="agri-form-label">Status</label>
               <select className="form-select mb-3" value={status} onChange={(e) => setStatus(e.target.value)}>

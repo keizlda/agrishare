@@ -10,6 +10,7 @@ export const LISTS = {
   sitios: { table: "sitios", title: "Sitios / Puroks", noun: "sitio/purok", addLabel: "Add new sitio/purok", placeholder: "Select sitio/purok" },
   associations: { table: "associations", title: "Farmers' Associations", noun: "farmers' association", addLabel: "Add new association", placeholder: "Select farmers' association" },
   crops: { table: "crop_types", title: "Crops", noun: "commodity/crop", addLabel: "Add new crop", placeholder: "Select commodity" },
+  farmerTypes: { table: "farmer_types", title: "Types of Farmer", noun: "type of farmer", addLabel: "Add new type of farmer", placeholder: "Select type of farmer" },
   barangays: { table: "barangays", title: "Barangays", noun: "barangay", addLabel: "Add new barangay", placeholder: "Select barangay", noDelete: true },
 };
 const KINDS = Object.keys(LISTS);
@@ -20,6 +21,7 @@ const SELECT = {
   sitios: "id, name, is_active, created_at, barangay_id",
   associations: "id, name, is_active, created_at, barangay_id",
   crop_types: "id, name, is_active, created_at",
+  farmer_types: "id, name, examples, sort_order, is_active, created_at",
   barangays: "id, name, is_active, created_at, former_names, center_lat, center_lng",
 };
 const mapEntry = (row) => ({
@@ -30,24 +32,33 @@ const mapEntry = (row) => ({
   barangayId: row.barangay_id ?? null,
   formerNames: row.former_names ?? [],
   center: row.center_lat != null && row.center_lng != null ? { lat: Number(row.center_lat), lng: Number(row.center_lng) } : null,
+  examples: row.examples ?? "",
+  sortOrder: row.sort_order ?? 0,
 });
 
+// Types of farmer keep the MAO's order (Rice farmer first); the others go
+// by name.
+const ORDER = { farmer_types: ["sort_order", "name"] };
+
 export async function listEntries(kind) {
-  const { data, error } = await supabase.from(LISTS[kind].table).select(SELECT[LISTS[kind].table]).order("name");
+  const table = LISTS[kind].table;
+  let query = supabase.from(table).select(SELECT[table]);
+  for (const col of ORDER[table] ?? ["name"]) query = query.order(col);
+  const { data, error } = await query;
   if (error) throw error;
   return data.map(mapEntry);
 }
 
-// All the lists at once: { sitios, associations, crops, barangays }.
+// All the lists at once: { sitios, associations, crops, barangays, farmerTypes }.
 export async function listAllEntries() {
   const lists = await Promise.all(KINDS.map(listEntries));
   return Object.fromEntries(KINDS.map((k, i) => [k, lists[i]]));
 }
 
 // barangayId: the barangay a new sitio/purok or association belongs to.
-export async function addEntry(kind, name, barangayId = null) {
+export async function addEntry(kind, name, barangayId = null, extra = {}) {
   const table = LISTS[kind].table;
-  const { data, error } = await supabase.from(table).insert({ name, ...(barangayId ? { barangay_id: Number(barangayId) } : {}) }).select(SELECT[table]).single();
+  const { data, error } = await supabase.from(table).insert({ name, ...(barangayId ? { barangay_id: Number(barangayId) } : {}), ...extra }).select(SELECT[table]).single();
   if (error) throw error;
   return mapEntry(data);
 }
@@ -55,11 +66,11 @@ export async function addEntry(kind, name, barangayId = null) {
 async function updateEntry(kind, id, fields) {
   const { data, error } = await supabase.from(LISTS[kind].table).update(fields).eq("id", id).select(SELECT[LISTS[kind].table]).maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error("Only the MAO Admin can change this list.");
+  if (!data) throw new Error(kind === "sitios" ? "You can only change your own barangay's sitios/puroks." : "Only the MAO Admin can change this list.");
   return mapEntry(data);
 }
 
-export const renameEntry = (kind, id, name) => updateEntry(kind, id, { name });
+export const renameEntry = (kind, id, name, extra = {}) => updateEntry(kind, id, { name, ...extra });
 export const setEntryActive = (kind, id, isActive) => updateEntry(kind, id, { is_active: isActive });
 
 export async function deleteEntry(kind, id) {
@@ -70,7 +81,16 @@ export async function deleteEntry(kind, id) {
   }
 }
 
-// { sitios: { [id]: farmers }, associations: {...}, crops: {...}, barangays: {...} }
+// Removes a sitio/purok (MAO Admin, or the Farmers' Association President
+// for their own barangay): deleted when no farmer has it, otherwise hidden
+// from the list and kept on those farmers. Returns "deleted" or "hidden".
+export async function removeSitio(id) {
+  const { data, error } = await supabase.rpc("remove_sitio", { p_id: id });
+  if (error) throw error;
+  return data;
+}
+
+// { sitios: { [id]: farmers }, associations: {...}, crops: {...}, barangays: {...}, farmerTypes: {...} }
 export async function listUsage() {
   const { data, error } = await supabase.rpc("list_usage");
   if (error) throw error;

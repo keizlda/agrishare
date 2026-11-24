@@ -83,10 +83,13 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
   const rate = commodity && commodity.unit === "kg" && commodity.rate > 0 ? commodity.rate : null;
   const suggested = farmer && rate && farmer.farmSize > 0 ? computeAllocation(rate, farmer.farmSize) : null;
 
-  // Picking a farmer chooses their Seed program when no commodity is chosen yet.
+  // Picking a farmer chooses a commodity for their type of farmer (Corn
+  // Seeds for a Corn farmer) when no commodity is chosen yet.
   useEffect(() => {
-    if (!farmer?.seedProgramId || commodityId) return;
-    if (commodities.some((c) => String(c.id) === String(farmer.seedProgramId))) setCommodityId(String(farmer.seedProgramId));
+    if (!farmer?.types?.length || commodityId) return;
+    const typeIds = new Set(farmer.types.map((t) => t.id));
+    const forType = commodities.find((c) => c.farmerTypeId != null && typeIds.has(c.farmerTypeId));
+    if (forType) setCommodityId(String(forType.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmer?.id, commodities]);
 
@@ -173,7 +176,7 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
                 </div>
                 <div className="agri-beneficiary-meta">RSBSA {farmer.rsbsaNo}</div>
                 <div className="agri-beneficiary-meta">{[farmer.sitioPurok, farmer.barangay].filter(Boolean).join(", ")}</div>
-                <div className="agri-beneficiary-meta">{farmer.cropType || "—"} · {formatHectares(farmer.farmSize)}</div>
+                <div className="agri-beneficiary-meta">{farmer.types?.map((t) => t.name).join(", ") || "—"} · {formatHectares(farmer.farmSize)}</div>
               </div>
               <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => setFarmer(null)} disabled={saving}>Change</button>
             </div>
@@ -218,9 +221,6 @@ export default function FarmerRequestModal({ onClose, onSaved }) {
             <option value="">Choose a commodity</option>
             {commodities.map((c) => <option key={c.id} value={c.id}>{c.name}{c.rate > 0 && c.unit === "kg" ? ` (${formatRate(c.rate)})` : ""}</option>)}
           </select>
-          {farmer?.seedProgram && commodity && String(commodity.id) !== String(farmer.seedProgramId) && (
-            <div className="agri-field-hint">{farmer.firstName}&apos;s seed program is {farmer.seedProgram}.</div>
-          )}
           {openRequests.length > 0 && (
             <div className="agri-warning-box" role="status">
               <AlertTriangle size={14} style={{ flex: "none", marginTop: 2 }} />

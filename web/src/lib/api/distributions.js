@@ -79,7 +79,7 @@ const BENEFICIARY_SELECT = `
   claim_id, farmer_id, commodity_id, quantity_received, duplicate_override_reason, farm_size_hectares, quantity_adjusted, adjustment_reason,
   rate_kg_per_ha,
   commodities ( unit ),
-  farmers ( rsbsa_no, first_name, surname, status, deleted_at, seed_program_id, seed_program:commodities!seed_program_id ( name ), addresses ( barangay, street ),
+  farmers ( rsbsa_no, first_name, surname, status, deleted_at, addresses ( barangay, street ),
     farm_parcels ( parcel_id, farm_size_hectares, crops ( crop_type ) ), profiles!profile_id ( avatar_url ) )
 `;
 
@@ -110,10 +110,8 @@ function mapBeneficiary(row) {
     quantity: Number(row.quantity_received),
     unit: row.commodities?.unit ?? "kg",
     // The kg/ha rate this row was saved with (a later change to the
-    // commodity's rate never alters it), and the farmer's Seed program.
+    // commodity's rate never alters it).
     rate: numberOrNull(row.rate_kg_per_ha),
-    seedProgramId: row.farmers?.seed_program_id ?? null,
-    seedProgram: row.farmers?.seed_program?.name ?? "",
     adjusted: !!row.quantity_adjusted,
     adjustmentReason: row.adjustment_reason ?? "",
     overrideReason: row.duplicate_override_reason,
@@ -247,19 +245,18 @@ export async function checkDuplicateDistribution({ farmerId, commodityId, progra
   return { eventId: row.event_id, program: row.program_name, date: row.event_date, quantity: Number(row.quantity_received) };
 }
 
-// "Add all eligible farmers": Active farmers whose Seed program is this
-// commodity (or, when nobody is enrolled in it, whose crop matches its
-// category), each with their farm data and — when a program is given — the
-// same-commodity/program/year distribution they already got.
-// MAO Admin only (the database returns nothing to anyone else).
-// barangayId: only that barangay's farmers (the distribution's barangay).
-export async function listEligibleFarmers({ commodityId, programName, year, excludeEventId, barangayId = null }) {
-  const { data, error } = await supabase.rpc("distribution_eligible_farmers", {
-    p_commodity_id: commodityId,
+// "Tag by type of farmer": the Active farmers of one type in the
+// distribution's barangay, each with their farm size and — when a commodity
+// and program are given — the same-commodity/program/year distribution they
+// already got. MAO Admin only (the database returns nothing to anyone else).
+export async function listFarmersOfType({ farmerTypeId, barangayId, commodityId = null, programName = null, year = null, excludeEventId = null }) {
+  const { data, error } = await supabase.rpc("farmers_of_type", {
+    p_farmer_type_id: Number(farmerTypeId),
+    p_barangay_id: barangayId ? Number(barangayId) : null,
+    p_commodity_id: commodityId ? Number(commodityId) : null,
     p_program_name: programName || null,
     p_year: year,
     p_exclude_event_id: excludeEventId ?? null,
-    p_barangay_id: barangayId ? Number(barangayId) : null,
   });
   if (error) throw error;
   return (data ?? []).map((r) => ({
@@ -269,10 +266,8 @@ export async function listEligibleFarmers({ commodityId, programName, year, excl
     lastName: r.surname,
     barangay: r.barangay ?? "",
     sitioPurok: r.sitio_purok ?? "",
-    cropType: r.crop_type ?? "",
     farmSize: Number(r.farm_size_hectares) || 0,
     avatarUrl: r.avatar_url ?? null,
-    seedProgramId: r.seed_program_id ?? null,
     status: "Active",
     duplicate: r.duplicate_program
       ? { program: r.duplicate_program, date: r.duplicate_date, quantity: Number(r.duplicate_quantity) }

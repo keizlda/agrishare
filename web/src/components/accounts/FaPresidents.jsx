@@ -6,6 +6,7 @@ import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { useBarangays } from "../../hooks/useBarangays.js";
 import { createFaPresident, listFaPresidents, resetFaPresidentPassword, setFaPresidentBarangay } from "../../lib/api/faPresidents.js";
 import { friendlyError } from "../../lib/friendlyError.js";
+import { CONTACT_ERROR, CONTACT_PLACEHOLDER, contactInput, isValidContact } from "../../lib/contact.js";
 
 const EMPTY = { fullName: "", email: "", contactNo: "", barangayId: "" };
 
@@ -154,6 +155,7 @@ function AddAccount({ barangays, onClose, onCreated }) {
     const next = {};
     if (!form.fullName.trim()) next.fullName = "Enter the full name.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = "Enter a valid email address.";
+    if (form.contactNo && !isValidContact(form.contactNo)) next.contactNo = CONTACT_ERROR;
     if (!form.barangayId) next.barangayId = "Choose the barangay.";
     setErrors(next);
     if (Object.keys(next).length) return;
@@ -181,7 +183,15 @@ function AddAccount({ barangays, onClose, onCreated }) {
           {[["fullName", "Full name", "text"], ["email", "Email (their sign-in)", "email"], ["contactNo", "Contact no. (optional)", "tel"]].map(([k, label, type]) => (
             <div key={k} className="mb-3">
               <label className="agri-form-label" htmlFor={`fa-${k}`}>{label}</label>
-              <input id={`fa-${k}`} type={type} className={`form-control${errors[k] ? " is-invalid" : ""}`} value={form[k]} onChange={(e) => update(k, e.target.value)} disabled={saving} />
+              <input
+                id={`fa-${k}`}
+                type={type}
+                className={`form-control${errors[k] ? " is-invalid" : ""}`}
+                value={form[k]}
+                onChange={(e) => update(k, k === "contactNo" ? contactInput(e.target.value) : e.target.value)}
+                disabled={saving}
+                {...(k === "contactNo" ? { inputMode: "numeric", maxLength: 11, placeholder: CONTACT_PLACEHOLDER } : {})}
+              />
               {errors[k] && <div className="agri-post-field-error">{errors[k]}</div>}
             </div>
           ))}

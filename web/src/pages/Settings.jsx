@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { supabase } from "../lib/supabaseClient.js";
 import { getOrgSettings, updateOrgSettings } from "../lib/api/orgSettings.js";
 import { friendlyError } from "../lib/friendlyError.js";
+import { CONTACT_ERROR, CONTACT_PLACEHOLDER, contactInput, isValidContact } from "../lib/contact.js";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -76,8 +77,15 @@ function GeneralInformation() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  const [contactError, setContactError] = useState("");
+
   async function handleSave(e) {
     e.preventDefault();
+    if (form.contactNumber && !isValidContact(form.contactNumber)) {
+      setContactError(CONTACT_ERROR);
+      return;
+    }
+    setContactError("");
     setSaving(true);
     try {
       const saved = await updateOrgSettings(form);
@@ -114,7 +122,16 @@ function GeneralInformation() {
               <input className="form-control" value={form.address} onChange={(e) => update("address", e.target.value)} />
             </Field>
             <Field label="Contact Number" col={6}>
-              <input type="tel" inputMode="numeric" className="form-control" value={form.contactNumber} onChange={(e) => update("contactNumber", e.target.value)} />
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={11}
+                className={`form-control${contactError ? " is-invalid" : ""}`}
+                value={form.contactNumber ?? ""}
+                placeholder={CONTACT_PLACEHOLDER}
+                onChange={(e) => { update("contactNumber", contactInput(e.target.value)); setContactError(""); }}
+              />
+              {contactError && <div style={{ color: "var(--agri-red)", fontSize: "0.72rem", marginTop: 4 }}>{contactError}</div>}
             </Field>
             <Field label="Email Address" col={6}>
               <input type="email" className="form-control" value={form.email} onChange={(e) => update("email", e.target.value)} />

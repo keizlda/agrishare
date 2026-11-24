@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, ChevronDown, Pencil, Plus, Printer, Search, Trash2, Truck, Users, X } from "lucide-react";
+import { CheckCircle2, ChevronDown, Pencil, Plus, Printer, Search, Trash2, Truck, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import TableFooter from "../components/ui/TableFooter.jsx";
@@ -23,11 +23,12 @@ import {
   deleteDistribution,
   listDistributionBeneficiaries,
   listDistributions,
-  listEligibleFarmers,
+  listFarmersOfType,
   updateDistribution,
   updateDistributionStatus,
 } from "../lib/api/distributions.js";
 import { listCommodities } from "../lib/api/commodities.js";
+import { listEntries } from "../lib/api/lists.js";
 import { formatDate, formatDateLong, formatDateNumeric, todayIso } from "../lib/dates.js";
 import BarangayFilter from "../components/lists/BarangayFilter.jsx";
 import { useBarangays } from "../hooks/useBarangays.js";
@@ -549,14 +550,15 @@ function farmerRow(farmer, extra = {}) {
     rsbsaNo: farmer.rsbsaNo,
     barangay: farmer.barangay,
     sitioPurok: farmer.sitioPurok ?? "",
-    cropType: farmer.cropType ?? "",
     farmSize: Number(farmer.farmSize) || 0,
     currentFarmSize: Number(farmer.currentFarmSize ?? farmer.farmSize) || 0,
     avatarUrl: farmer.avatarUrl,
     status: farmer.status ?? "Active",
     farmerDeleted: !!farmer.farmerDeleted,
-    seedProgramId: farmer.seedProgramId ?? null,
-    seedProgram: farmer.seedProgram ?? "",
+    // How the row was added: by type of farmer (the type ids, in the order
+    // they were clicked) and/or by name. Saved rows have neither.
+    viaTypes: [],
+    byName: false,
     quantity: 0,
     recompute: false,
     edited: false,
@@ -615,9 +617,14 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
   const savingRef = useRef(false);
   const [pendingFarmer, setPendingFarmer] = useState(null);
   const [overrideReason, setOverrideReason] = useState("");
-  const [addingEligible, setAddingEligible] = useState(false);
-  const addingEligibleRef = useRef(false);
-  const [eligibleResult, setEligibleResult] = useState(null);
+  // "Tag by type of farmer": the types (Settings → Lists), the chips turned
+  // on, the one loading, the last result, and a removal to confirm.
+  const [farmerTypes, setFarmerTypes] = useState([]);
+  const [typesOn, setTypesOn] = useState([]);
+  const [typeLoading, setTypeLoading] = useState(null);
+  const typeLoadingRef = useRef(false);
+  const [tagNote, setTagNote] = useState(null); // { tone, text }
+  const [pendingUntag, setPendingUntag] = useState(null); // { type, shared: [farmerId] }
   const [showReasonErrors, setShowReasonErrors] = useState(false);
   // The commodity's rate changed since this (Ongoing) distribution was
   // saved: offer to recompute once.
@@ -632,6 +639,10 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
 
   useEscapeToClose(true, onClose);
 
+  useEffect(() => {
+    listEntries("farmerTypes").then(setFarmerTypes).catch(() => {});
+  }, []);
+
   const commodityOptions = useMemo(() => {
     if (!editing || !primaryItem || commodities.some((c) => String(c.id) === String(primaryItem.commodityId))) return commodities;
     return [...commodities, { id: primaryItem.commodityId, name: primaryItem.name, unit: primaryItem.unit, rate: null }];
@@ -642,6 +653,9 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
   const commodityRate = rateOverride ?? rateOf(commodity);
   const byRate = commodityRate !== null;
   const showAllocation = isKgUnit(unit);
+  // With a kg/ha rate the barangay allocation is the one quantity typed in
+  // (required); the total is the farmers' quantities added up.
+  const allocationRequired = byRate;
   const rows = form.taggedBeneficiaries;
   const states = new Map(rows.map((r) => [r.farmerId, quantityState(r, commodityRate)]));
 
@@ -771,8 +785,12 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
   }
 
   function addFarmerRow(farmer) {
-    setForm((f) => withNewRows(f, [farmer]));
-    checkDuplicates([farmer]);
+    const already = rows.some((r) => r.farmerId === farmer.id);
+    setForm((f) => {
+      const next = withNewRows(f, [farmer]);
+      return { ...next, taggedBeneficiaries: next.taggedBeneficiaries.map((r) => (r.farmerId === farmer.id ? { ...r, byName: true } : r)) };
+    });
+    if (!already) checkDuplicates([farmer]);
   }
 
   function handleAddFarmer(farmer) {
@@ -805,7 +823,7 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
   function changeCommodity(id, nextCommodity = findCommodity(id)) {
     const next = nextCommodity;
     const nextRate = rateOf(next);
-    setEligibleResult(null);
+    setTagNote(null);
     setRateNotice(null);
     setRateOverride(null);
     setForm((f) => {
@@ -843,69 +861,121 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
   const allocated = rows.length ? taggedTotal : Number(form.quantity) || 0;
   const overAllocation = allocation !== null && allocation > 0 && allocated > allocation + 0.001;
 
-  // Adds every Active farmer enrolled in this commodity (or, when nobody
-  // is, whose crop matches its category), each at farm size × rate; skips
-  // repeat distributions and stops at the allocation.
   // The distribution's barangay (a list entry), and tagged farmers who live
   // in another one (allowed, with a warning).
   const formBarangay = entryForText(barangays, form.barangay);
   const fromOtherBarangay = (row) => !!formBarangay && !!row.barangay && !inBarangay(barangays, String(formBarangay.id), null, row.barangay);
 
-  async function addAllEligible() {
-    if (addingEligibleRef.current || !commodity) return;
+  // "Tag by type of farmer": a chip adds every Active farmer of that type in
+  // the distribution's barangay (farm size × rate each), skipping repeat
+  // distributions of this commodity under this program this year; clicking
+  // it again takes them off (asking first about farmers also added another
+  // way). The commodity's own type of farmer is suggested.
+  async function toggleType(type) {
+    if (typeLoadingRef.current) return;
+    const key = type.id;
+    if (typesOn.includes(key)) {
+      const mine = rows.filter((r) => r.viaTypes.includes(key));
+      const shared = mine.filter((r) => r.byName || r.viaTypes.length > 1).map((r) => r.farmerId);
+      const only = mine.filter((r) => !r.byName && r.viaTypes.length === 1).map((r) => r.farmerId);
+      untagType(key, only, []);
+      if (shared.length) setPendingUntag({ type, shared });
+      else setTagNote({ tone: "info", text: `Removed ${only.length} ${type.name.toLowerCase()}${only.length === 1 ? "" : "s"}.` });
+      return;
+    }
     const program = form.program.trim();
     if (!formBarangay) {
-      setEligibleResult({ tone: "error", text: "Choose the barangay first, so only its farmers are added." });
+      setTagNote({ tone: "error", text: "Choose the barangay first, so only its farmers are tagged." });
+      return;
+    }
+    if (!commodity) {
+      setTagNote({ tone: "error", text: "Choose the commodity first." });
       return;
     }
     if (!program) {
-      setEligibleResult({ tone: "error", text: "Enter the program name first, so farmers who already received this commodity under it are skipped." });
+      setTagNote({ tone: "error", text: "Enter the program name first, so farmers who already received this commodity under it are skipped." });
       return;
     }
-    addingEligibleRef.current = true;
-    setAddingEligible(true);
-    setEligibleResult(null);
+    typeLoadingRef.current = true;
+    setTypeLoading(key);
+    setTagNote(null);
     try {
-      const eligible = await listEligibleFarmers({ commodityId: commodity.id, programName: program, year: distributionYear(), excludeEventId: editing ? distribution.id : undefined, barangayId: formBarangay.id });
+      const found = await listFarmersOfType({
+        farmerTypeId: key,
+        barangayId: formBarangay.id,
+        commodityId: commodity.id,
+        programName: program,
+        year: distributionYear(),
+        excludeEventId: editing ? distribution.id : null,
+      });
       const tagged = new Set(rows.map((r) => r.farmerId));
-      const already = eligible.filter((f) => tagged.has(f.id));
-      const repeats = eligible.filter((f) => !tagged.has(f.id) && f.duplicate);
-      const toAdd = [];
-      const noRoom = [];
-      let running = taggedTotal;
-      for (const f of eligible.filter((x) => !tagged.has(x.id) && !x.duplicate)) {
-        const row = newRowFor(f);
-        if (byRate && allocation !== null && running + Number(row.quantity) > allocation + 0.001) {
-          noRoom.push(f);
-          continue;
-        }
-        running += Number(row.quantity) || 0;
-        toAdd.push(f);
-      }
-      setForm((f) => withNewRows(f, toAdd));
-      if (eligible.length === 0) {
-        setEligibleResult({ tone: "info", text: `No Active farmers of Barangay ${formBarangay.name} enrolled in ${commodity.name} or with a ${commodity.category || "matching"} crop were found.` });
+      const already = found.filter((f) => tagged.has(f.id));
+      const repeats = found.filter((f) => !tagged.has(f.id) && f.duplicate);
+      const toAdd = found.filter((f) => !tagged.has(f.id) && !f.duplicate);
+      const alreadyIds = new Set(already.map((f) => f.id));
+      const addIds = new Set(toAdd.map((f) => f.id));
+      setForm((f) => {
+        const next = withNewRows(f, toAdd);
+        return {
+          ...next,
+          taggedBeneficiaries: next.taggedBeneficiaries.map((r) => (addIds.has(r.farmerId) || alreadyIds.has(r.farmerId) ? { ...r, viaTypes: [...r.viaTypes.filter((t) => t !== key), key] } : r)),
+        };
+      });
+      setTypesOn((on) => [...on, key]);
+      const name = (f) => `${f.firstName} ${f.lastName}`;
+      if (found.length === 0) {
+        setTagNote({ tone: "info", text: `No Active ${type.name.toLowerCase()}s in Barangay ${formBarangay.name}.` });
       } else {
-        const name = (f) => `${f.firstName} ${f.lastName}`;
-        const parts = [`Added ${toAdd.length} ${farmersWord(toAdd.length)}.`];
-        if (repeats.length) parts.push(`Skipped ${repeats.length} who already received ${commodity.name} under ${program} this year (${listNames(repeats.map(name))}).`);
-        if (noRoom.length) parts.push(`Skipped ${noRoom.length} who didn't fit the ${formatKg(allocation)} allocation (${listNames(noRoom.map(name))}).`);
+        const parts = [`Added ${toAdd.length} ${type.name.toLowerCase()}${toAdd.length === 1 ? "" : "s"}.`];
+        if (repeats.length) parts.push(`Skipped ${repeats.length} who already received ${commodity.name} under ${program} this year: ${listNames(repeats.map((f) => `${name(f)} (${formatQuantity(f.duplicate.quantity, unit)} on ${formatDate(f.duplicate.date)})`))}.`);
         if (already.length) parts.push(`${already.length} ${already.length === 1 ? "was" : "were"} already tagged.`);
-        setEligibleResult({ tone: "info", text: parts.join(" ") });
+        setTagNote({ tone: repeats.length ? "warn" : "info", text: parts.join(" ") });
       }
     } catch (err) {
-      setEligibleResult({ tone: "error", text: friendlyError(err, "Couldn't load the eligible farmers. Check your connection and try again.") });
+      setTagNote({ tone: "error", text: friendlyError(err, "Couldn't load the farmers of this type. Check your connection and try again.") });
     } finally {
-      addingEligibleRef.current = false;
-      setAddingEligible(false);
+      typeLoadingRef.current = false;
+      setTypeLoading(null);
     }
   }
 
-  // A tagged farmer enrolled in a different seed program gets a warning chip.
-  const enrolledElsewhere = (row) => {
-    if (!row.seedProgramId || !commodity || String(row.seedProgramId) === String(commodity.id)) return "";
-    return row.seedProgram || findCommodity(row.seedProgramId)?.name || "another seed program";
-  };
+  // Takes a type's chip off: `remove` farmers come off the list; everyone
+  // else just loses that type as a reason they were added.
+  function untagType(key, remove, alsoRemove) {
+    const gone = new Set([...remove, ...alsoRemove]);
+    setTypesOn((on) => on.filter((t) => t !== key));
+    setForm((f) => {
+      const next = f.taggedBeneficiaries.filter((r) => !gone.has(r.farmerId)).map((r) => (r.viaTypes.includes(key) ? { ...r, viaTypes: r.viaTypes.filter((t) => t !== key) } : r));
+      return { ...f, taggedBeneficiaries: byRate ? next : redistributeQuantities(next, f.quantity, unit) };
+    });
+  }
+
+  // A different barangay: the chips start over (their farmers stay, with a
+  // warning when they live elsewhere).
+  function changeBarangay(value) {
+    update("barangay", value);
+    setTypesOn([]);
+    setTagNote(null);
+  }
+
+  // Rows grouped by how they were added: by type (in the list's order), by
+  // name, then the ones saved before.
+  const typeName = (id) => farmerTypes.find((t) => t.id === id)?.name ?? "Type of farmer";
+  const groups = useMemo(() => {
+    const order = new Map(farmerTypes.map((t, i) => [t.id, i]));
+    const keyOf = (r) => (r.viaTypes.length ? `t${r.viaTypes[0]}` : r.byName ? "name" : "saved");
+    const out = new Map();
+    for (const r of rows) {
+      const k = keyOf(r);
+      if (!out.has(k)) out.set(k, []);
+      out.get(k).push(r);
+    }
+    const rank = (k) => (k.startsWith("t") ? order.get(Number(k.slice(1))) ?? 999 : k === "name" ? 1000 : 1001);
+    return [...out.entries()]
+      .sort((a, b) => rank(a[0]) - rank(b[0]))
+      .map(([k, list]) => ({ key: k, label: k.startsWith("t") ? typeName(Number(k.slice(1))) : k === "name" ? "Added by name" : editing ? "Tagged before" : "Added", rows: list }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, farmerTypes, editing]);
 
   function validate() {
     if (beneficiaryLoadError) return `${beneficiaryLoadError} Close this form and open it again before saving.`;
@@ -920,8 +990,11 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
       if (form.status === "Completed" && form.date > today) return "A completed distribution can't have a future date.";
       if (form.date > `${Number(y) + 1}-${m}-${d}`) return "Enter a date within the next year.";
     }
+    if (allocationRequired && String(form.allocation).trim() === "") {
+      return "Enter the total allocation for the barangay (kg).";
+    }
     if (showAllocation && String(form.allocation).trim() !== "" && !(/^\d+(\.\d{1,2})?$/.test(String(form.allocation).trim()) && Number(form.allocation) > 0)) {
-      return "Enter the barangay allocation as kg greater than 0 (up to 2 decimals), or leave it blank.";
+      return allocationRequired ? "Enter the barangay allocation as kg greater than 0 (up to 2 decimals)." : "Enter the barangay allocation as kg greater than 0 (up to 2 decimals), or leave it blank.";
     }
     if (hasUnresolvedDuplicate && !overrideReason.trim()) {
       return "One or more tagged farmers already received this commodity under this program this year. Remove them or provide an override reason.";
@@ -930,6 +1003,7 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
     const total = Number(form.quantity);
     const wholeOnly = `${unit} can't be split`;
     if (rows.length === 0) {
+      if (byRate) return "Tag at least one farmer: the total quantity is their quantities added up.";
       if (!(total > 0)) return "Enter a total quantity greater than 0.";
       if (isSplitQuantity(total, unit)) return `Enter a whole number for Total Quantity: ${wholeOnly}.`;
     } else {
@@ -951,7 +1025,7 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
       if (!totalIsSum && form.quantity !== "" && isSplitQuantity(total, unit)) return `Enter a whole number for Total Quantity: ${wholeOnly}.`;
     }
     if (overAllocation) {
-      return `The farmers' quantities (${formatKg(allocated)}) are more than the barangay allocation (${formatKg(allocation)}). Raise the allocation or lower the quantities.`;
+      return `The farmers' quantities (${formatKg(allocated)}) are more than the barangay allocation (${formatKg(allocation)}). Remove farmers, adjust quantities (with a reason), or raise the allocation.`;
     }
     return "";
   }
@@ -986,7 +1060,7 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
         overrideReason: r.duplicate ? overrideReason.trim() : r.overrideReason || "",
         adjustmentReason: states.get(r.farmerId)?.state === "adjusted" ? r.adjustmentReason.trim() : "",
       }));
-      const quantity = totalIsSum ? taggedTotal : form.quantity;
+      const quantity = byRate ? taggedTotal : form.quantity;
       const allocationKg = showAllocation && String(form.allocation).trim() !== "" ? Number(form.allocation) : null;
       const saved = editing
         ? await updateDistribution(distribution.id, {
@@ -1057,7 +1131,7 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
             <div className="col-12 col-sm-6">
               <label className="agri-form-label" htmlFor="distribution-barangay">Barangay</label>
               {/* From the barangays list; an older name not on it stays until another is chosen. */}
-              <select id="distribution-barangay" required className="form-select" value={form.barangay} onChange={(e) => update("barangay", e.target.value)}>
+              <select id="distribution-barangay" required className="form-select" value={form.barangay} onChange={(e) => changeBarangay(e.target.value)}>
                 <option value="" disabled>Select barangay</option>
                 {form.barangay && !barangays.some((b) => b.name === form.barangay) && <option value={form.barangay}>{form.barangay}</option>}
                 {barangays.filter((b) => b.isActive || b.name === form.barangay).map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
@@ -1111,17 +1185,19 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
           <div className="row g-3 mb-2">
             {showAllocation && (
               <div className="col-12 col-sm-6">
-                <label className="agri-form-label" htmlFor="distribution-allocation">Total allocation for the barangay (kg)</label>
+                <label className="agri-form-label" htmlFor="distribution-allocation">
+                  Total allocation for the barangay (kg){allocationRequired && <span style={{ color: "var(--agri-red)" }}> *</span>}
+                </label>
                 <input id="distribution-allocation" inputMode="decimal" className="form-control" placeholder="e.g. 2000" value={form.allocation} onChange={(e) => update("allocation", e.target.value)} disabled={saving} />
-                <div className="agri-field-hint">Optional. Saving is blocked if the farmers' total goes over it.</div>
+                <div className="agri-field-hint">{allocationRequired ? "Saving is blocked if the farmers' total goes over it." : "Optional. Saving is blocked if the farmers' total goes over it."}</div>
               </div>
             )}
             <div className="col-12 col-sm-6">
               <label className="agri-form-label" htmlFor="distribution-total">Total Quantity ({unit})</label>
-              {totalIsSum ? (
+              {byRate ? (
                 <>
-                  <input id="distribution-total" className="form-control text-end" readOnly value={formatQuantity(taggedTotal, unit)} />
-                  <div className="agri-field-hint">The sum of the farmers' quantities below.</div>
+                  <input id="distribution-total" className="form-control text-end agri-readonly-total" readOnly tabIndex={-1} value={formatQuantity(taggedTotal, unit)} />
+                  <div className="agri-field-hint">Filled in automatically: the tagged farmers&apos; quantities added up.</div>
                 </>
               ) : (
                 <>
@@ -1141,10 +1217,15 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
           {allocation !== null && allocation > 0 && (
             <div className={`agri-alloc ${barTone}`} role="status">
               <div className="agri-alloc-text">
-                Allocated {formatKg(allocated)} / {formatKg(allocation)} ·{" "}
+                Allocated {formatKg(allocated)} of {formatKg(allocation)} ·{" "}
                 {overAllocation ? <strong>Over by {formatKg(allocated - allocation)}</strong> : <>Remaining {formatKg(allocation - allocated)}</>}
               </div>
               <div className="agri-alloc-track"><div className="agri-alloc-fill" style={{ width: `${pct}%` }} /></div>
+              {overAllocation && (
+                <div className="agri-alloc-warning" role="alert">
+                  Over the barangay allocation. Remove farmers, adjust quantities (with a reason), or raise the allocation before saving.
+                </div>
+              )}
             </div>
           )}
 
@@ -1165,20 +1246,33 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
             <div className="agri-pill red" style={{ display: "block", marginBottom: 10, padding: "8px 12px" }}>{beneficiaryLoadError}</div>
           ) : (
             <>
-              <FarmerTagInput taggedFarmers={rows.map((r) => ({ ...r, duplicateWarning: !!r.duplicate }))} onAddFarmer={handleAddFarmer} onRemoveFarmer={handleRemoveFarmer} disabled={saving} />
-              <div className="agri-add-eligible-row">
-                <button type="button" className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2" onClick={addAllEligible} disabled={saving || addingEligible || !commodity}>
-                  {addingEligible ? <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" /> : <Users size={14} />}
-                  {addingEligible ? "Adding…" : "Add all eligible farmers"}
-                </button>
-                {eligibleResult ? (
-                  <span className="agri-add-eligible-result" role="status" style={eligibleResult.tone === "error" ? { color: "var(--agri-red)" } : undefined}>{eligibleResult.text}</span>
-                ) : (
-                  <span className="agri-add-eligible-result">
-                    {commodity ? `Active farmers enrolled in ${commodity.name} (or, if none are, whose crop is ${commodity.category || "its category"}).` : "Choose a commodity first."}
-                  </span>
-                )}
+              <div className="agri-tag-step-label">Tag by type of farmer</div>
+              <div className="agri-type-tags" role="group" aria-label="Tag by type of farmer">
+                {farmerTypes.filter((t) => t.isActive || typesOn.includes(t.id)).map((t) => {
+                  const on = typesOn.includes(t.id);
+                  const suggested = commodity?.farmerTypeId === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`agri-type-tag${on ? " on" : ""}${suggested ? " suggested" : ""}`}
+                      aria-pressed={on}
+                      title={suggested ? `Suggested: ${commodity.name} is for ${t.name.toLowerCase()}s` : t.examples || undefined}
+                      onClick={() => toggleType(t)}
+                      disabled={saving || (typeLoading !== null && typeLoading !== t.id)}
+                    >
+                      {typeLoading === t.id && <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />}
+                      {t.name}
+                      {suggested && !on && <span className="agri-type-tag-hint">Suggested</span>}
+                    </button>
+                  );
+                })}
               </div>
+              {tagNote && (
+                <div className={`agri-tag-note ${tagNote.tone}`} role="status">{tagNote.text}</div>
+              )}
+              <div className="agri-tag-step-label">Or add by name</div>
+              <FarmerTagInput showChips={false} taggedFarmers={rows.map((r) => ({ ...r, duplicateWarning: !!r.duplicate }))} onAddFarmer={handleAddFarmer} onRemoveFarmer={handleRemoveFarmer} disabled={saving} />
             </>
           )}
 
@@ -1187,13 +1281,25 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
               <div className="agri-beneficiary-table-wrap agri-beneficiary-table-wrap-form">
                 <table className="agri-table">
                   <thead>
-                    <tr><th>Farmer</th><th className="agri-col-farm text-end">Farm Size</th><th className="text-end">Qty ({unit})</th></tr>
+                    <tr>
+                      <th>Farmer</th>
+                      <th className="agri-col-farm text-end">Farm Size</th>
+                      <th className="agri-col-farm text-end">Rate</th>
+                      <th className="text-end">Qty ({unit})</th>
+                      <th aria-label="Remove" />
+                    </tr>
                   </thead>
-                  <tbody>
-                    {rows.map((row) => {
+                  {groups.map((g) => (
+                  <tbody key={g.key}>
+                    <tr className="agri-tag-group-row">
+                      <td colSpan={5}>
+                        {g.label} <span className="agri-muted">· {g.rows.length} {farmersWord(g.rows.length)}</span>
+                      </td>
+                    </tr>
+                    {g.rows.map((row) => {
                       const { state, computed, rate, size } = states.get(row.farmerId) ?? { state: "manual" };
                       const reasonMissing = showReasonErrors && state === "adjusted" && !row.adjustmentReason.trim();
-                      const elsewhere = enrolledElsewhere(row);
+                      const alsoVia = [...row.viaTypes.slice(g.key.startsWith("t") ? 1 : 0).map(typeName), ...(row.byName && g.key !== "name" ? ["added by name"] : [])];
                       return (
                         <Fragment key={row.farmerId}>
                           <tr className={state === "adjusted" ? "agri-beneficiary-adjusted" : undefined}>
@@ -1213,8 +1319,8 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
                                   From Barangay {row.barangay}, not {formBarangay.name}
                                 </span>
                               )}
-                              <div className="agri-beneficiary-meta agri-beneficiary-farm-inline">{formatHectares(size ?? row.currentFarmSize)}</div>
-                              {elsewhere && <span className="agri-enrolled-chip" title="This farmer's Seed program is a different commodity">Enrolled in {elsewhere}</span>}
+                              <div className="agri-beneficiary-meta agri-beneficiary-farm-inline">{formatHectares(size ?? row.currentFarmSize)}{rate ? ` · ${formatRate(rate)}` : ""}</div>
+                              {alsoVia.length > 0 && <div className="agri-beneficiary-meta">Also: {alsoVia.join(", ")}</div>}
                               {row.duplicate && (
                                 <div className="agri-beneficiary-duplicate-warning">
                                   Already received {formatQuantity(row.duplicate.quantity, unit)} from {row.duplicate.program} on {formatDate(row.duplicate.date)}
@@ -1222,6 +1328,7 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
                               )}
                             </td>
                             <td className="agri-col-farm text-end">{formatHectares(size ?? row.currentFarmSize)}</td>
+                            <td className="agri-col-farm text-end">{rate ? formatRate(rate) : "—"}</td>
                             <td className="agri-beneficiary-qty-cell text-end">
                               <input
                                 type="number"
@@ -1243,10 +1350,15 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
                                 <span className="agri-beneficiary-sub">as saved before</span>
                               ) : null}
                             </td>
+                            <td className="agri-tag-remove-cell">
+                              <button type="button" className="agri-icon-btn agri-type-remove" aria-label={`Remove ${fullName(row)}`} title="Remove" onClick={() => handleRemoveFarmer(row.farmerId)} disabled={saving}>
+                                <X size={14} />
+                              </button>
+                            </td>
                           </tr>
                           {state === "adjusted" && (
                             <tr className="agri-beneficiary-reason-row">
-                              <td colSpan={3}>
+                              <td colSpan={5}>
                                 <input
                                   className={`agri-beneficiary-reason-input${reasonMissing ? " is-invalid" : ""}`}
                                   aria-label={`Reason for adjusting ${fullName(row)}'s quantity`}
@@ -1263,10 +1375,11 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
                       );
                     })}
                   </tbody>
+                  ))}
                 </table>
               </div>
               <div className="agri-type-totals">
-                {rows.length} {farmersWord(rows.length)} · <strong>Total {formatQuantity(taggedTotal, unit)}</strong>
+                {rows.length} {farmersWord(rows.length)} tagged · <strong>Total {formatQuantity(taggedTotal, unit)}</strong>
               </div>
             </>
           )}
@@ -1286,6 +1399,26 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
               danger={false}
               onConfirm={doSave}
               onCancel={() => setConfirmReopen(false)}
+            />
+          )}
+
+          {pendingUntag && (
+            <ConfirmDialog
+              title={`Also remove ${pendingUntag.shared.length} ${farmersWord(pendingUntag.shared.length)}?`}
+              message={`${pendingUntag.shared.length === 1 ? "This farmer was" : "These farmers were"} also added another way (by name or another type of farmer): ${listNames(rows.filter((r) => pendingUntag.shared.includes(r.farmerId)).map(fullName))}. Remove them too?`}
+              confirmLabel="Remove them too"
+              cancelLabel="Keep them"
+              onConfirm={() => {
+                const { type, shared } = pendingUntag;
+                setPendingUntag(null);
+                untagType(type.id, shared, []);
+                setTagNote({ tone: "info", text: `Removed the ${type.name.toLowerCase()}s.` });
+              }}
+              onCancel={() => {
+                const { type } = pendingUntag;
+                setPendingUntag(null);
+                setTagNote({ tone: "info", text: `Removed the ${type.name.toLowerCase()}s added only by this type; kept the ones also added another way.` });
+              }}
             />
           )}
 

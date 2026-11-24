@@ -85,7 +85,6 @@ export const statusColor = (status) => {
     case "Inactive":
     case "Not Validated":
     case "Rejected":
-    case "Returned":
       return statusColors.danger;
     case "Pending":
     case "Ongoing":

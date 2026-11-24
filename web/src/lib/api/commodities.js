@@ -8,7 +8,8 @@ import { dbStatusToLabel, labelToDbStatus } from "../status.js";
 // Admin can write (RLS "commodities: MAO writes").
 const SELECT = `
   commodity_id, name, category, unit, status, created_at, deleted_at,
-  allocation_per_hectare, rate_updated_at, rate_updater:profiles!rate_updated_by ( full_name )
+  allocation_per_hectare, rate_updated_at, rate_updater:profiles!rate_updated_by ( full_name ),
+  farmer_type_id, farmer_type:farmer_types ( name )
 `;
 
 // Category choices (older free-text values still show and are kept).
@@ -33,6 +34,10 @@ function mapCommodity(row) {
     rate: row.allocation_per_hectare != null ? Number(row.allocation_per_hectare) : null,
     rateUpdatedAt: row.rate_updated_at ?? null,
     rateUpdatedBy: row.rate_updater?.full_name ?? null,
+    // The type of farmer the commodity is for (Corn Seeds → Corn farmer):
+    // suggested when tagging a distribution's beneficiaries.
+    farmerTypeId: row.farmer_type_id ?? null,
+    farmerType: row.farmer_type?.name ?? "",
   };
 }
 
@@ -58,8 +63,9 @@ const rateValue = (rate) => (rate === "" || rate == null ? null : Number(rate));
 // hectare, or "" / null for "not given by hectare". Commodities are either
 // available or deleted (soft delete); the Active / Inactive status is no
 // longer set from the app.
-export async function saveCommodity(commodityId, { name, category, rate, status }) {
+export async function saveCommodity(commodityId, { name, category, rate, status, farmerTypeId }) {
   const row = { name: name.trim(), category, allocation_per_hectare: rateValue(rate) };
+  if (farmerTypeId !== undefined) row.farmer_type_id = farmerTypeId === "" || farmerTypeId == null ? null : Number(farmerTypeId);
   if (status) row.status = labelToDbStatus(status);
   const query = commodityId
     ? supabase.from("commodities").update(row).eq("commodity_id", commodityId)
