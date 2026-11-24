@@ -6,6 +6,7 @@ import CropValidationScreen from "../screens/CropValidationScreen";
 import RequestsScreen from "../screens/RequestsScreen";
 import HarvestReportScreen from "../screens/HarvestReportScreen";
 import AnnouncementsScreen from "../screens/AnnouncementsScreen";
+import AnnouncementDetailScreen from "../screens/AnnouncementDetailScreen";
 import MyDistributionsScreen from "../screens/MyDistributionsScreen";
 import ChangePasswordScreen from "../screens/ChangePasswordScreen";
 import MainTabs from "./MainTabs";
@@ -45,6 +46,7 @@ export default function RootNavigator() {
           <Stack.Screen name="HarvestReport" component={HarvestReportScreen} options={{ presentation: "modal" }} />
           {/* No longer a bottom tab — reached from Home's bell instead. */}
           <Stack.Screen name="Announcements" component={AnnouncementsScreen} options={{ presentation: "modal" }} />
+          <Stack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} />
           <Stack.Screen name="MyDistributions" component={MyDistributionsScreen} options={{ presentation: "modal" }} />
           <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ presentation: "modal" }} />
         </>

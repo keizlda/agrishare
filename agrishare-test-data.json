@@ -1,14 +1,24 @@
 {
-  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Sitios/puroks, farmers' associations and crops come from the managed lists (Nov 24, 2026): test farmers use list entries; the two test associations are added to the list if missing. Announcements are simple posts (Nov 24, 2026): text with an optional photo and an audience; distribution details are written in the post. Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
+  "note": "AgriShare test data (fictional). New accounts use password123. Farmer login ID = last 6 digits of RSBSA. Maui Pelaez, Claude Oclarit and Luna Cuizon already exist in the system: link to them by RSBSA number, never recreate or change them. MAO presentation (Nov 22–23, 2026): one allocation (kg per hectare) per commodity — varieties are separate commodities (Rice Seeds – Inbred (RCEF) 40, Rice Seeds – Hybrid 15) — each seeded farmer's Seed program, requests go straight to the MAO (Pending, optionally Recommended by the Farmers' Association President), a distribution with a 2,000 kg barangay allocation by farm size × rate, and harvest reports in kg (identified by harvest date; no Wet/Dry season). Sitios/puroks, farmers' associations and crops come from the managed lists (Nov 24, 2026): test farmers use list entries; the two test associations are added to the list if missing. Announcements (Nov 24, 2026): a title, optional date, time and venue, details, and who can see it — farmers and/or Farmers' Association Presidents, in all barangays or chosen ones. AgriShare covers the barangays of Labangan: farmers belong to their address's barangay and each Farmers' Association President to a barangay; the second test FA President and farmer 000226 are in Bagalupa so visibility by barangay can be tested. Association requests were removed from the apps (Nov 23, 2026): none are seeded; older seeded ones stay in the ledger so cleanup can remove them.",
   "accounts": {
     "fa_president": {
       "name": "Pedro Lagunay",
       "email": "fapresident@agrishare.test",
       "password": "password123",
-      "role": "fa_president"
+      "role": "fa_president",
+      "barangay": "Langapud"
     },
     "farmers": "Created from 'farmers' below: email {login_id}@farmers.agrishare.ph, password password123",
-    "farmers_note": "Seeded farmer accounts keep their password from this file; the default-password reminder is turned off for them (evaluator accounts)."
+    "farmers_note": "Seeded farmer accounts keep their password from this file; the default-password reminder is turned off for them (evaluator accounts).",
+    "more_fa_presidents": [
+      {
+        "name": "Rosario Dumdum",
+        "email": "fapresident.bagalupa@agrishare.test",
+        "password": "password123",
+        "role": "fa_president",
+        "barangay": "Bagalupa"
+      }
+    ]
   },
   "existing_farmers_used": [
     {
@@ -605,6 +615,27 @@
       "status": "Active",
       "password": "password123",
       "farmers_association": "Langapud Corn and Vegetable Growers Association"
+    },
+    {
+      "rsbsa_number": "09-73-00-000-000226",
+      "login_id": "000226",
+      "first_name": "Lorenzo",
+      "middle_name": "Abad",
+      "last_name": "Tumulak",
+      "sex": "Male",
+      "birth_date": "1979-08-09",
+      "contact_number": "09761222030",
+      "sitio_purok": "Purok 1",
+      "barangay": "Bagalupa",
+      "municipality": "Labangan",
+      "province": "Zamboanga del Sur",
+      "commodity": "Corn",
+      "farm_size_ha": 1.2,
+      "farm_location": "Purok 1",
+      "ownership": "Owner",
+      "pcic_insured": false,
+      "status": "Active",
+      "password": "password123"
     }
   ],
   "commodities": [
@@ -1493,27 +1524,75 @@
   ],
   "announcements": [
     {
-      "body": "RCEF wet season seed distribution on October 2\n\nPlease arrive early. Distribution is first come, first served per purok.\n\nDate: October 2, 2026 · 8:00 AM\nVenue: Langapud Barangay Hall\nType of assistance: Rice Seeds (NSIC Rc222)\nRequirements: RSBSA stub and one valid ID",
+      "title": "RCEF wet season seed distribution on October 2",
+      "details": "Please arrive early. Distribution is first come, first served per purok.\n\nType of assistance: Rice Seeds (NSIC Rc222)\nRequirements: RSBSA stub and one valid ID",
+      "date": "2026-10-02",
+      "time": "08:00",
+      "venue": "Langapud Barangay Hall",
       "audience": "everyone",
+      "barangays": [
+        "Langapud"
+      ],
       "status": "Published",
       "pinned": false
     },
     {
-      "body": "Urea fertilizer distribution on October 23\n\nOnly tagged beneficiaries will receive fertilizer. Check the app if you are included.\n\nDate: October 23, 2026 · 9:00 AM\nVenue: Langapud Covered Court\nType of assistance: Urea Fertilizer (46-0-0)\nRequirements: RSBSA stub, valid ID, and validated proof of planting",
+      "title": "Urea fertilizer distribution on October 23",
+      "details": "Only tagged beneficiaries will receive fertilizer. Check the app if you are included.\n\nType of assistance: Urea Fertilizer (46-0-0)\nRequirements: RSBSA stub, valid ID, and validated proof of planting",
+      "date": "2026-10-23",
+      "time": "09:00",
+      "venue": "Langapud Covered Court",
       "audience": "everyone",
+      "barangays": [
+        "Langapud"
+      ],
       "status": "Published",
       "pinned": true
     },
     {
-      "body": "Submit proof of planting for the wet season\n\nUpload a geotagged photo of your planted crop through the AgriShare app before October 31, 2026.",
+      "title": "Submit proof of planting for the wet season",
+      "details": "Upload a geotagged photo of your planted crop through the AgriShare app before October 31, 2026.",
       "audience": "farmers",
+      "barangays": [
+        "Langapud"
+      ],
       "status": "Published",
       "pinned": false
     },
     {
-      "body": "FA meeting with the MAO\n\nCoordination meeting on November 5, 2026, 2:00 PM at the MAO Labangan Office.",
+      "title": "FA meeting with the MAO",
+      "details": "Coordination meeting on November 5, 2026, 2:00 PM at the MAO Labangan Office.",
       "audience": "fa_president",
+      "barangays": [
+        "Langapud"
+      ],
       "status": "Draft",
+      "pinned": false
+    },
+    {
+      "title": "Corn seed distribution in Bagalupa on December 3",
+      "details": "For registered corn farmers of Bagalupa. Bring your RSBSA stub and one valid ID.",
+      "date": "2026-12-03",
+      "time": "09:00",
+      "venue": "Bagalupa Barangay Hall",
+      "audience": "farmers",
+      "barangays": [
+        "Bagalupa"
+      ],
+      "status": "Published",
+      "pinned": false
+    },
+    {
+      "title": "Bagalupa Farmers' Association Presidents' meeting",
+      "details": "Planning for the dry season distributions with the MAO.",
+      "date": "2026-11-28",
+      "time": "14:00",
+      "venue": "MAO Labangan Office",
+      "audience": "fa_president",
+      "barangays": [
+        "Bagalupa"
+      ],
+      "status": "Published",
       "pinned": false
     }
   ],

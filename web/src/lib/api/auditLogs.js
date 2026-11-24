@@ -14,6 +14,7 @@ export const ENTITY_TYPES = [
   "sitios",
   "associations",
   "crop_types",
+  "barangays",
 ];
 
 export const ENTITY_LABELS = {
@@ -28,6 +29,7 @@ export const ENTITY_LABELS = {
   sitios: "Sitios / Puroks",
   associations: "Farmers' Associations",
   crop_types: "Crops",
+  barangays: "Barangays",
 };
 
 export const ACTION_TYPES = ["insert", "update", "delete"];

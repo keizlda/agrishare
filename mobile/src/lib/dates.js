@@ -34,6 +34,21 @@ export function formatDateTime(value, fallback = "—") {
     : value || fallback;
 }
 
+// When a post went up, in full: "Nov 23, 2026 · 3:15 PM".
+export function formatPostedOn(value) {
+  const d = toDate(value);
+  if (!d) return "";
+  return `${formatDate(d)} · ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+}
+
+// A time of day ("08:00" or "08:00:00") as "8:00 AM".
+export function formatTime(value, fallback = "") {
+  const m = /^(\d{1,2}):(\d{2})/.exec(value ?? "");
+  if (!m) return fallback;
+  const h = Number(m[1]);
+  return `${h % 12 || 12}:${m[2]} ${h < 12 ? "AM" : "PM"}`;
+}
+
 // When a post went up: "Just now", "5m ago", "2h ago", then the date
 // ("Nov 23, 2026").
 export function formatPostedAt(value, now = new Date()) {

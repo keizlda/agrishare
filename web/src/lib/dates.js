@@ -40,6 +40,13 @@ export function formatDateTime(value, fallback = "—") {
   return format(value, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }, fallback);
 }
 
+// When a post went up: "Oct 27, 2026 · 3:15 PM".
+export function formatPostedOn(value) {
+  const d = toDate(value);
+  if (!d) return "";
+  return `${formatDate(d)} · ${d.toLocaleString("en-US", { hour: "numeric", minute: "2-digit", timeZone: TIME_ZONE })}`;
+}
+
 // A time of day ("08:00" or "08:00:00") as "8:00 AM".
 export function formatTime(value, fallback = "") {
   const m = /^(\d{1,2}):(\d{2})/.exec(value ?? "");

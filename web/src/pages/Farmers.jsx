@@ -80,6 +80,8 @@ const EMPTY_FORM = {
   contactNo: "",
   sitioId: "",
   sitioLegacy: "",
+  barangayId: "",
+  barangayLegacy: "",
   cropTypeId: "",
   cropLegacy: "",
   seedProgramId: "",
@@ -103,6 +105,7 @@ function resolveEntry(entries, id, text) {
 
 function farmerToForm(f, lists) {
   const sitio = resolveEntry(lists.sitios, f.sitioId, f.sitioPurok);
+  const brgy = resolveEntry(lists.barangays, f.barangayId, f.barangay);
   const farm = resolveEntry(lists.sitios, f.farmSitioId, f.farmLocation);
   const crop = resolveEntry(lists.crops, f.cropTypeId, f.commodity);
   const assoc = resolveEntry(lists.associations, f.associationId, f.orgAffiliation);
@@ -116,6 +119,8 @@ function farmerToForm(f, lists) {
     contactNo: f.contactNo ?? "",
     sitioId: sitio.id,
     sitioLegacy: sitio.legacy,
+    barangayId: brgy.id,
+    barangayLegacy: brgy.legacy,
     cropTypeId: crop.id,
     cropLegacy: crop.legacy,
     seedProgramId: f.seedProgramId ? String(f.seedProgramId) : "",
@@ -297,6 +302,7 @@ function validateFarmerForm(form) {
     errors.farmSize = `Enter a realistic farm size (up to ${MAX_FARM_HECTARES.toLocaleString()} ha).`;
   }
   if (!form.sitioId) errors.sitioId = "Choose the sitio/purok from the list.";
+  if (!form.barangayId) errors.barangayId = "Choose the barangay.";
   if (!form.cropTypeId) errors.cropTypeId = "Choose the commodity/crop.";
   if (!form.ownershipType) errors.ownershipType = "Choose the ownership / tenurial status.";
   if (!form.pcicInsured) errors.pcicInsured = "Choose whether the farm is PCIC insured.";
@@ -320,7 +326,7 @@ export default function Farmers() {
   // Commodities with a kg/ha rate, for the Seed program field.
   const [commodities, setCommodities] = useState([]);
   // Sitios/puroks, farmers' associations and crops (Settings).
-  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [] });
+  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [], barangays: [] });
   useEffect(() => {
     listCommodities().then(setCommodities).catch(() => {});
     listAllEntries().then(setLists).catch(() => {});
@@ -673,7 +679,7 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
   useEffect(() => {
     setForm((f) => {
       const next = { ...f };
-      for (const [idKey, legacyKey, kind] of [["sitioId", "sitioLegacy", "sitios"], ["farmSitioId", "farmLocationLegacy", "sitios"], ["cropTypeId", "cropLegacy", "crops"], ["associationId", "orgLegacy", "associations"]]) {
+      for (const [idKey, legacyKey, kind] of [["sitioId", "sitioLegacy", "sitios"], ["barangayId", "barangayLegacy", "barangays"], ["farmSitioId", "farmLocationLegacy", "sitios"], ["cropTypeId", "cropLegacy", "crops"], ["associationId", "orgLegacy", "associations"]]) {
         if (!next[idKey] && next[legacyKey]) {
           const match = entryForText(lists[kind], next[legacyKey]);
           if (match) Object.assign(next, { [idKey]: String(match.id), [legacyKey]: "" });
@@ -684,6 +690,8 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
   }, [lists]);
   // Commodity/crop: the active crops, plus the farmer's own if deactivated.
   const cropOptions = useMemo(() => lists.crops.filter((c) => c.isActive || String(c.id) === form.cropTypeId), [lists.crops, form.cropTypeId]);
+  // Barangay: the active barangays, plus the farmer's own if deactivated.
+  const barangayOptions = useMemo(() => lists.barangays.filter((b) => b.isActive || String(b.id) === form.barangayId), [lists.barangays, form.barangayId]);
   const cropName = lists.crops.find((c) => String(c.id) === form.cropTypeId)?.name ?? form.cropLegacy;
   // Seed program: any active commodity with a kg/ha rate (the farmer's own
   // crop first), plus the saved one if it was since made inactive.
@@ -903,10 +911,13 @@ function FarmerModal({ mode, farmer, farmers, commodities = [], lists, onListAdd
                   invalid={!!errors.sitioId}
                 />
               </Field>
-              {/* AgriShare covers Barangay Langapud only: fixed, not inputs. */}
-              <Field label="Barangay" col={6}>
-                <div className="agri-fixed-value">{PLACE.barangay}</div>
+              <Field label="Barangay" col={6} required error={errors.barangayId}>
+                <select className={`form-select${errors.barangayId ? " is-invalid" : ""}`} value={form.barangayId} onChange={(e) => pickFrom("barangayId", "barangayLegacy")(e.target.value)} aria-label="Barangay">
+                  <option value="" disabled>{form.barangayLegacy ? `${form.barangayLegacy} (not on the list)` : "Select barangay"}</option>
+                  {barangayOptions.map((b) => <option key={b.id} value={String(b.id)}>{b.name}{b.isActive ? "" : " (deactivated)"}</option>)}
+                </select>
               </Field>
+              {/* Municipality and province are always these: fixed, not inputs. */}
               <Field label="Municipality" col={6}>
                 <div className="agri-fixed-value">{PLACE.municipality}</div>
               </Field>

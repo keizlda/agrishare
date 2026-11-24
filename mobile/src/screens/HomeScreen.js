@@ -3,7 +3,6 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } 
 import { useFocusEffect } from "@react-navigation/native";
 import { ChevronRight, Leaf, Megaphone, Package, Pin } from "lucide-react-native";
 import TabScreenLayout, { tabCard } from "../components/TabScreenLayout";
-import AnnouncementDetailModal from "../components/AnnouncementDetailModal";
 import { PostThumb } from "../components/PostCard";
 import Avatar from "../components/Avatar";
 import Pill from "../components/Pill";
@@ -32,7 +31,6 @@ export default function HomeScreen({ navigation }) {
   const tabBarHeight = useTabBarHeight();
   const [distributions, setDistributions] = useState([]);
   const [announcements, setAnnouncements] = useState(null); // null while loading
-  const [openAnnouncement, setOpenAnnouncement] = useState(null);
   // Shown with Try again when either list fails to load (instead of empty
   // lists that would read as "no distributions").
   const [loadError, setLoadError] = useState("");
@@ -65,8 +63,9 @@ export default function HomeScreen({ navigation }) {
   // Pinned first, then newest (listAnnouncements' order).
   const latestAnnouncements = (announcements ?? []).slice(0, ANNOUNCEMENT_ROWS);
 
+  // Opens the post's details screen (and marks it read).
   function openPost(a) {
-    setOpenAnnouncement(a);
+    navigation.navigate("AnnouncementDetail", { post: { ...a, read: true } });
     if (!a.read && farmer?.farmerId) {
       setAnnouncements((prev) => prev?.map((x) => (x.id === a.id ? { ...x, read: true } : x)) ?? prev);
       markAnnouncementRead(a.id, farmer.farmerId).catch(() => {
@@ -137,14 +136,14 @@ export default function HomeScreen({ navigation }) {
                   style={[styles.annRow, i === latestAnnouncements.length - 1 && styles.lastRow]}
                   onPress={() => openPost(a)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${a.isPinned ? "Pinned. " : ""}${a.firstLine}${a.read ? "" : ". Unread"}`}
+                  accessibilityLabel={`${a.isPinned ? "Pinned. " : ""}${a.title}${a.read ? "" : ". Unread"}`}
                 >
                   <View style={styles.annIcon}>
                     <Icon size={16} color={colors.primaryDark} />
                   </View>
-                  {/* The post's first line as the preview, with a small photo. */}
+                  {/* The post's title as the preview, with a small photo. */}
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.annTitle} numberOfLines={1}>{a.firstLine}</Text>
+                    <Text style={styles.annTitle} numberOfLines={1}>{a.title}</Text>
                     <Text style={styles.annSub} numberOfLines={1}>
                       MAO Labangan · {formatPostedAt(a.postedAt)}
                     </Text>
@@ -191,7 +190,6 @@ export default function HomeScreen({ navigation }) {
         )}
       </ScrollView>
 
-      <AnnouncementDetailModal announcement={openAnnouncement} onClose={() => setOpenAnnouncement(null)} />
     </TabScreenLayout>
   );
 }

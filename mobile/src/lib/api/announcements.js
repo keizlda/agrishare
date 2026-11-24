@@ -1,25 +1,35 @@
 import { supabase } from "../supabaseClient";
 
-// Announcements are simple posts by "MAO Labangan": text with an optional
-// photo. RLS already limits rows to published, not-deleted posts aimed at
-// this farmer, and the embedded announcement_reads only ever contains this
+// Announcements are posts by "MAO Labangan": a title, an optional date,
+// time and venue, details and a photo. RLS already limits rows to published,
+// not-deleted posts meant for this farmer (farmers, in their barangay or all
+// barangays), and the embedded announcement_reads only ever contains this
 // farmer's own receipt — so a non-empty array = read.
 const SELECT = `
-  announcement_id, body, image_url, is_pinned, published_at, created_at, forwarded_at,
+  announcement_id, title, body, distribution_date, distribution_time, venue,
+  audience, all_barangays, barangay_ids, image_url, is_pinned, published_at, created_at, forwarded_at,
   announcement_reads ( read_at )
 `;
 
-// The first non-empty line of a post (or "Photo" for a photo-only post).
-export function firstLine(body) {
-  const line = String(body ?? "").split("\n").map((l) => l.trim()).find(Boolean);
-  return line || "Photo";
+// "Farmers", "Farmers' Association Presidents" or both.
+function audienceLabel(audience) {
+  const farmers = audience === "farmers" || audience === "everyone";
+  const fa = audience === "fa_president" || audience === "everyone";
+  return [farmers && "Farmers", fa && "Farmers' Association Presidents"].filter(Boolean).join(" / ");
 }
 
-function mapAnnouncement(row) {
+function mapAnnouncement(row, barangayName) {
+  const allBarangays = row.all_barangays !== false;
   return {
     id: row.announcement_id,
+    title: row.title ?? "",
     body: row.body ?? "",
-    firstLine: firstLine(row.body),
+    date: row.distribution_date ?? "",
+    time: row.distribution_time ? row.distribution_time.slice(0, 5) : "",
+    venue: row.venue ?? "",
+    audienceLabel: audienceLabel(row.audience),
+    allBarangays,
+    barangayNames: allBarangays ? [] : (row.barangay_ids ?? []).map((id) => barangayName.get(Number(id)) ?? "Barangay").sort((a, b) => a.localeCompare(b)),
     imagePath: row.image_url,
     isPinned: row.is_pinned,
     postedAt: row.published_at ?? row.created_at,
@@ -28,16 +38,29 @@ function mapAnnouncement(row) {
   };
 }
 
+// Barangay names by id (the list in Settings → Lists), kept for a while.
+let barangayCache = { until: 0, map: new Map() };
+async function barangayNames() {
+  if (barangayCache.until > Date.now()) return barangayCache.map;
+  const { data, error } = await supabase.from("barangays").select("id, name");
+  if (error) return barangayCache.map;
+  barangayCache = { until: Date.now() + 10 * 60 * 1000, map: new Map(data.map((b) => [Number(b.id), b.name])) };
+  return barangayCache.map;
+}
+
 // Pinned first, then newest.
 export async function listAnnouncements() {
-  const { data, error } = await supabase
-    .from("announcements")
-    .select(SELECT)
-    .is("deleted_at", null)
-    .order("is_pinned", { ascending: false })
-    .order("published_at", { ascending: false });
+  const [{ data, error }, names] = await Promise.all([
+    supabase
+      .from("announcements")
+      .select(SELECT)
+      .is("deleted_at", null)
+      .order("is_pinned", { ascending: false })
+      .order("published_at", { ascending: false }),
+    barangayNames(),
+  ]);
   if (error) throw error;
-  return data.map(mapAnnouncement);
+  return data.map((row) => mapAnnouncement(row, names));
 }
 
 // Idempotent: the (announcement_id, farmer_id) primary key + ignoreDuplicates

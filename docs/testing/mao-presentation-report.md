@@ -138,6 +138,48 @@ Updated November 23, 2026 (see the updates below).
   a different account, this tab follows instead of acting as the wrong
   account.
 
+## On `develop` (not on the live site yet): who can see a post, and the barangays of Labangan
+
+Runs on localhost against the development database (agrishare-dev); it
+goes live only with "deploy to live" (README.md). Migration
+`20261124000500_announcements_by_barangay.sql` (applied to agrishare-dev
+only).
+
+- **Barangays:** a new list with the 25 barangays of Labangan (Settings →
+  Lists → Barangays: add, rename, deactivate; never deleted). Existing
+  farmers, Farmers' Association Presidents and posts are linked to Langapud
+  (the three records kept unchanged are matched by their barangay text). The
+  farmer form's Barangay is now a required dropdown from the list; the
+  Reports barangay filter reads the list too.
+- **Create post, top to bottom:** "Who can see this?" (Farmers / Farmers'
+  Association Presidents, at least one, none chosen at the start);
+  Barangays (All barangays / Choose barangays, with a search box that adds
+  removable chips); a green summary line ("Visible to farmers and Farmers'
+  Association Presidents in 3 barangays"); Title (required, up to 150);
+  Date and Time; Venue; Details (up to 2,000); Photo and Pin; Post.
+- **Who sees a post (enforced by the database):** farmers see posts for
+  farmers in their barangay or all barangays; Farmers' Association
+  Presidents see posts for them in their barangay or all barangays; the MAO
+  Admin sees all. Notifications go only to those people.
+- **Feed (web) and list (mobile):** "Posted [date] · [time]", the bold
+  title, the highlighted date / time / venue row, details with "See more",
+  the photo, and at the bottom who can see it ("Farmers / Farmers'
+  Association Presidents · Langapud, Bagalupa" or "· All barangays").
+  Clicking a post opens it in full (a window on the web, a details screen in
+  the app); hovering highlights it; the ⋯ menu keeps Edit, Pin / Unpin and
+  Delete. The web adds a sort (Newest / Oldest first, pinned on top) and a
+  barangay filter next to the search box.
+- **Going live:** the migration splits the live posts' text back into title,
+  details and date / time / venue (checked read-only against all 11 live
+  posts and the format the live web now saves), and links them to Langapud.
+
+| Check | Result |
+| --- | --- |
+| Database on a local copy (all migrations, then this one) | 76/76 (21 new) |
+| Web on localhost + agrishare-dev: MAO Admin (window, required fields, chips, summary, every audience/barangay choice, photo, pin, edit, delete, open, hover, sort, filter, search, Lists, farmer form, Reports, fit at 1366 and 1920) and the FA Presidents of Langapud and Bagalupa (what each sees, forward) | 25/25 |
+| Farmer app (Expo web preview) on agrishare-dev at 360 px: farmers in Langapud and Bagalupa (what each sees, cards, details screen) | 10/10 |
+| Lint, web build | Pass (2 lint warnings, both from before) |
+
 ## Update: posts with a title, date, time and venue (November 24, 2026)
 
 Web only (`release/live`); no database change and no mobile update. Posts

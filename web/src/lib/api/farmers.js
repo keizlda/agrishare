@@ -17,7 +17,7 @@ const SELECT = `
   household_head, household_members, org_affiliation, association_id, status, created_at, seed_program_id,
   seed_program:commodities!seed_program_id ( name, allocation_per_hectare ),
   profiles!profile_id ( avatar_url ),
-  addresses ( street, sitio_id, barangay, municipality, province ),
+  addresses ( street, sitio_id, barangay, barangay_id, municipality, province ),
   farm_parcels ( farm_location, sitio_id, farm_size_hectares, ownership_type, is_pcic_insured, livestock_details, crops ( crop_type, crop_type_id ) )
 `;
 
@@ -95,7 +95,8 @@ function mapFarmer(row) {
     // no id; the form matches it to the list by name.
     sitioPurok: address?.street ?? "",
     sitioId: address?.sitio_id ?? null,
-    barangay: address?.barangay ?? PLACE.barangay,
+    barangay: address?.barangay ?? "",
+    barangayId: address?.barangay_id ?? null,
     municipality: address?.municipality ?? PLACE.municipality,
     province: address?.province ?? PLACE.province,
     householdHead: row.household_head ? "Yes" : "No",
@@ -165,8 +166,8 @@ export async function findDeletedFarmerByRsbsa(rsbsaNo) {
 
 // What save_farmer (database function) takes: the farmer, address, first
 // farm parcel and its crop, written in one transaction. Sitio/purok, farm
-// location, association and crop are list ids; the database writes their
-// names and the fixed barangay, municipality and province. An older farm
+// location, association, crop and barangay are list ids; the database
+// writes their names and the fixed municipality and province. An older farm
 // location or association that isn't on a list is sent back unchanged so
 // it's kept.
 const idOrNull = (v) => (v === "" || v == null ? null : /^\d+$/.test(String(v)) ? Number(v) : v);
@@ -183,6 +184,7 @@ function toSavePayload(form) {
     org_affiliation: form.associationId ? null : form.orgLegacy || null,
     status: form.status ? labelToDbStatus(form.status) : null,
     sitio_id: idOrNull(form.sitioId),
+    barangay_id: idOrNull(form.barangayId),
     farm_sitio_id: idOrNull(form.farmSitioId),
     farm_location: form.farmSitioId ? null : form.farmLocationLegacy || null,
     farm_size_hectares: Number(form.farmSize) || 0,
@@ -320,7 +322,7 @@ function mapFarmerBrief(row) {
     rsbsaNo: row.rsbsa_no,
     firstName: row.first_name,
     lastName: row.surname,
-    barangay: address?.barangay ?? PLACE.barangay,
+    barangay: address?.barangay ?? "",
     sitioPurok: address?.street ?? "",
     status: dbStatusToLabel(row.status),
     avatarUrl: row.profiles?.avatar_url ?? null,

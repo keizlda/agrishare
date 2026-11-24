@@ -5,7 +5,7 @@ import DateInput from "../components/ui/DateInput.jsx";
 import { usePersistedState } from "../hooks/usePersistedState.js";
 import { useCardLabels } from "../hooks/useCardLabels.js";
 import { formatDate, formatDateTime } from "../lib/dates.js";
-import { barangays, reportTypes } from "../data/mockData.js";
+import { reportTypes } from "../data/mockData.js";
 import { listCommodities } from "../lib/api/commodities.js";
 import { listAllEntries } from "../lib/api/lists.js";
 
@@ -37,7 +37,7 @@ export default function Reports() {
   const [barangay, setBarangay] = useState("All Barangays");
   const [sex, setSex] = useState("All");
   const [association, setAssociation] = useState("All");
-  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [] });
+  const [lists, setLists] = useState({ sitios: [], associations: [], crops: [], barangays: [] });
   const farmerList = reportType === "List of Farmers";
   const [rangeError, setRangeError] = useState("");
   const tableRef = useRef(null);
@@ -146,7 +146,7 @@ export default function Reports() {
               <label className="agri-form-label">Barangay</label>
               <select className="form-select mb-3" value={barangay} onChange={(e) => setBarangay(e.target.value)}>
                 <option>All Barangays</option>
-                {barangays.map((b) => <option key={b}>{b}</option>)}
+                {lists.barangays.map((b) => <option key={b.id} value={b.name}>{b.name}{b.isActive ? "" : " (deactivated)"}</option>)}
               </select>
 
               {farmerList && (

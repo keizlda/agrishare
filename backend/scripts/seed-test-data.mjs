@@ -74,6 +74,8 @@ const ANNOUNCEMENT_AT = {
   "Urea fertilizer distribution on October 23": "2026-10-14T09:00:00+08:00",
   "Submit proof of planting for the wet season": "2026-10-10T09:00:00+08:00",
   "FA meeting with the MAO": "2026-10-15T16:00:00+08:00",
+  "Corn seed distribution in Bagalupa on December 3": "2026-11-20T09:00:00+08:00",
+  "Bagalupa Farmers' Association Presidents' meeting": "2026-11-21T10:00:00+08:00",
 };
 
 const inserted = {};
@@ -202,24 +204,43 @@ async function main() {
     log(`Existing: ${row.first_name} ${row.surname} (farmer ${row.farmer_id}) — ${row.profiles?.avatar_url ? "has a picture, left as is" : "no picture (not adding one)"}`);
   }
 
-  // ---------- FA President account ----------
-  const fa = data.accounts.fa_president;
-  let faUser = userByEmail.get(fa.email.toLowerCase());
-  if (faUser && faUser.app_metadata?.seed_batch !== BATCH) throw new StopError(`${fa.email} already exists and was not created by this seed.`);
-  let faId = faUser?.id ?? null;
-  if (!faUser && !DRY) {
-    const { data: created, error } = await sb.auth.admin.createUser({
-      email: fa.email, password: fa.password, email_confirm: true,
-      user_metadata: { role: "fa_president", full_name: fa.name },
-      app_metadata: { seed_batch: BATCH },
-    });
-    if (error) throw new Error(`create FA President: ${error.message}`);
-    faId = created.user.id;
-    bump("auth.users (FA President)");
-    bump("profiles");
+  // ---------- Barangays (the list the migration seeds; never added here) ----------
+  const barangayRows = await must(sb.from("barangays").select("id, name"), "barangays");
+  const barangayId = (name) => {
+    const hit = barangayRows.find((b) => b.name.toLowerCase().replace(/\s+/g, "") === String(name).toLowerCase().replace(/\s+/g, ""));
+    if (!hit) throw new StopError(`Barangay "${name}" isn't on the barangays list.`);
+    return hit.id;
+  };
+
+  // ---------- FA President accounts (each in a barangay) ----------
+  // The first is the one requests and harvest reports are filed by.
+  let faId = null;
+  for (const fa of [data.accounts.fa_president, ...(data.accounts.more_fa_presidents ?? [])]) {
+    const faUser = userByEmail.get(fa.email.toLowerCase());
+    if (faUser && faUser.app_metadata?.seed_batch !== BATCH) throw new StopError(`${fa.email} already exists and was not created by this seed.`);
+    let id = faUser?.id ?? null;
+    if (!faUser && !DRY) {
+      const { data: created, error } = await sb.auth.admin.createUser({
+        email: fa.email, password: fa.password, email_confirm: true,
+        user_metadata: { role: "fa_president", full_name: fa.name },
+        app_metadata: { seed_batch: BATCH },
+      });
+      if (error) throw new Error(`create FA President: ${error.message}`);
+      id = created.user.id;
+      bump("auth.users (FA President)");
+      bump("profiles");
+    }
+    if (id) {
+      remember(ledger.authUsers, { id, email: fa.email }, "id");
+      // Their barangay (only while it isn't set; one set in the app stays).
+      if (fa.barangay && !DRY) {
+        const set = await must(sb.from("profiles").update({ barangay_id: barangayId(fa.barangay) }).eq("id", id).is("barangay_id", null).select("id"), `barangay of ${fa.email}`);
+        if (set.length) bump("profiles (FA President barangay)");
+      }
+    }
+    faId ??= id;
+    log(`FA President ${fa.name} (${fa.barangay ?? "no barangay"}): ${faUser ? "already seeded" : DRY ? "would create" : "created"}`);
   }
-  if (faId) remember(ledger.authUsers, { id: faId, email: fa.email }, "id");
-  log(`FA President ${fa.name}: ${faUser ? "already seeded" : DRY ? "would create" : "created"}`);
   if (!DRY) saveLedger(ledger);
 
   // ---------- Commodities: reuse by name, insert only missing ----------
@@ -350,7 +371,7 @@ async function main() {
     if (!DRY) {
       const addr = await must(sb.from("addresses").select("address_id").eq("farmer_id", row.farmer_id), "addresses");
       if (!addr.length) {
-        const a = await must(sb.from("addresses").insert({ farmer_id: row.farmer_id, street: f.sitio_purok || null, sitio_id: await listEntry("sitios", f.sitio_purok), barangay: f.barangay, municipality: f.municipality, province: f.province }).select("address_id").single(), "insert address");
+        const a = await must(sb.from("addresses").insert({ farmer_id: row.farmer_id, street: f.sitio_purok || null, sitio_id: await listEntry("sitios", f.sitio_purok), barangay: f.barangay, barangay_id: barangayId(f.barangay), municipality: f.municipality, province: f.province }).select("address_id").single(), "insert address");
         remember(ledger.addresses, a.address_id); bump("addresses");
       }
       let parcel = await maybeOne(sb.from("farm_parcels").select("parcel_id").eq("farmer_id", row.farmer_id), "farm parcel");
@@ -721,22 +742,24 @@ async function main() {
     await captureNotifs(reviewedAt, ["Harvest report verified", "Harvest report returned"]);
   }
 
-  // ---------- Announcements (simple posts) ----------
-  // A post is its text (distribution details written in it) and an
-  // audience; the database keeps its first line as the title, which is how
-  // an earlier run's post is recognized.
+  // ---------- Announcements ----------
+  // A post: title, optional date / time / venue, details, and who can see
+  // it (audience, barangays). An earlier run's post is recognized by its
+  // title.
   for (const a of data.announcements) {
-    const first = a.body.split("\n").map((l) => l.trim()).find(Boolean) ?? "Photo";
+    const first = a.title;
     const existing = await maybeOne(sb.from("announcements").select("announcement_id").eq("title", first), `announcement ${first}`);
     if (existing) {
       if (!ledger.announcements.some((x) => x.announcement_id === existing.announcement_id)) notes.push(`A real announcement "${first}" already exists; skipped.`);
       continue;
     }
-    if (DRY) { log(`Announcement: would post "${first}" (${a.status}, ${a.audience})`); continue; }
+    if (DRY) { log(`Announcement: would post "${first}" (${a.status}, ${a.audience}, ${a.barangays?.join(", ") ?? "all barangays"})`); continue; }
     const postedAt = cap(ANNOUNCEMENT_AT[first] ?? new Date(NOW).toISOString());
     const published = a.status === "Published";
     const ann = await must(sb.from("announcements").insert({
-      body: a.body, audience: a.audience, is_pinned: !!a.pinned, status: published ? "published" : "draft",
+      title: a.title, body: a.details ?? "", distribution_date: a.date ?? null, distribution_time: a.time ?? null, venue: a.venue ?? null,
+      audience: a.audience, all_barangays: !a.barangays, barangay_ids: (a.barangays ?? []).map(barangayId),
+      is_pinned: !!a.pinned, status: published ? "published" : "draft",
       created_by: maoId, created_at: postedAt,
     }).select("announcement_id").single(), `insert announcement ${first}`);
     remember(ledger.announcements, { announcement_id: ann.announcement_id, title: first }, "announcement_id");

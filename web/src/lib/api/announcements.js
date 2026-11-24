@@ -1,104 +1,58 @@
 import { supabase } from "../supabaseClient.js";
 
 // Announcements are posts by "MAO Labangan": a title, an optional date,
-// time and venue, optional details, a photo and a pin, posted to an
-// audience. The database keeps a post as one text — the title, the details,
-// then "Date: …" / "Venue: …" lines — so the farmer app shows all of it; the
-// date, time and venue are also kept in their own columns, and the database
-// keeps the title as the text's first line.
-export const AUDIENCES = [
-  { value: "farmers", label: "All farmers" },
-  { value: "fa_president", label: "Farmers' Association President" },
-  { value: "everyone", label: "Everyone" },
-];
-export const audienceLabel = (value) => AUDIENCES.find((a) => a.value === value)?.label ?? "All farmers";
-
+// time and venue, optional details (up to 2,000 characters), a photo and a
+// pin. Who can see a post: farmers, Farmers' Association Presidents or both
+// (audience), in all barangays or in chosen ones. The database enforces it
+// (RLS); the MAO Admin sees every post.
 export const MAX_TITLE = 150;
-export const MAX_DETAILS = 1500;
-export const MAX_BODY = 2000; // the whole text, as the database allows
+export const MAX_BODY = 2000;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+// The two "Who can see this?" choices and the audience they make together.
+export const audienceFrom = ({ farmers, fa }) => (farmers && fa ? "everyone" : farmers ? "farmers" : fa ? "fa_president" : null);
+export const audienceParts = (audience) => ({
+  farmers: audience === "farmers" || audience === "everyone",
+  fa: audience === "fa_president" || audience === "everyone",
+});
+// "Farmers", "Farmers' Association Presidents" or both.
+export function audienceLabel(audience) {
+  const { farmers, fa } = audienceParts(audience);
+  return [farmers && "Farmers", fa && "Farmers' Association Presidents"].filter(Boolean).join(" / ");
+}
+
+// The barangays a post reaches, by name ("All barangays", or the chosen
+// ones in alphabetical order). `barangays`: the list from Settings → Lists.
+export function barangayNames(post, barangays) {
+  if (post.allBarangays) return [];
+  const byId = new Map((barangays ?? []).map((b) => [Number(b.id), b.name]));
+  return post.barangayIds.map((id) => byId.get(id) ?? "Barangay").sort((a, b) => a.localeCompare(b));
+}
 
 const BUCKET = "announcement-images";
 
 // announcement_reads(count) embeds the number of farmers who've opened it
-// (admin can read every receipt; see the RLS policy).
+// (admin can read every receipt; see the RLS policy). The date, time and
+// venue use the columns distribution posts always had.
 const SELECT = `
-  announcement_id, title, body, audience, distribution_date, distribution_time, venue,
-  assistance_type, requirements, image_url, is_pinned, status,
+  announcement_id, title, body, audience, all_barangays, barangay_ids,
+  distribution_date, distribution_time, venue, image_url, is_pinned, status,
   forwarded_by, forwarded_at, published_at, created_by, created_at, updated_at,
   announcement_reads ( count )
 `;
 
-// ---------------------------------------------------- the post's text
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-// "08:00" -> "8:00 AM"
-const clock = (hhmm) => {
-  const [h, m] = hhmm.split(":").map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
-};
-
-// The lines under the details, written the same way as the database wrote
-// them for older posts: "Date: October 23, 2026 · 9:00 AM" (or "Time: …"
-// alone), "Venue: …", and on older posts "Type of assistance: …" and
-// "Requirements: …".
-function infoLines({ date, time, venue, assistanceType, requirements }) {
-  let when = null;
-  if (date) {
-    const [y, m, d] = date.split("-").map(Number);
-    when = `Date: ${MONTHS[m - 1]} ${d}, ${y}${time ? ` · ${clock(time)}` : ""}`;
-  } else if (time) {
-    when = `Time: ${clock(time)}`;
-  }
-  return [
-    when,
-    venue?.trim() && `Venue: ${venue.trim()}`,
-    assistanceType?.trim() && `Type of assistance: ${assistanceType.trim()}`,
-    requirements?.trim() && `Requirements: ${requirements.trim()}`,
-  ].filter(Boolean).join("\n");
-}
-
-// The whole text saved for a post: title, details, then the info lines.
-export function composeBody({ title, details, date, time, venue }) {
-  return [title.trim(), details.trim(), infoLines({ date, time, venue })].filter(Boolean).join("\n\n");
-}
-
-// The details part of a post's text: without the title on top and the info
-// lines at the bottom. Older posts' "Type of assistance" / "Requirements"
-// lines (no fields of their own now) stay in the details.
-function detailsOf(row, info) {
-  const title = (row.title ?? "").trim();
-  let rest = row.body ?? "";
-  if (title && rest.trim() === title) rest = "";
-  else if (title && rest.startsWith(`${title}\n\n`)) rest = rest.slice(title.length + 2);
-  else if (title && rest.split("\n")[0].trim() === title) rest = rest.slice(rest.indexOf("\n") + 1);
-  const full = infoLines(info);
-  const short = infoLines({ ...info, assistanceType: null, requirements: null });
-  for (const [lines, keep] of [[full, infoLines({ assistanceType: info.assistanceType, requirements: info.requirements })], [short, ""]]) {
-    if (!lines) continue;
-    if (rest.trim() === lines) return keep;
-    if (rest.endsWith(`\n\n${lines}`)) return [rest.slice(0, -(lines.length + 2)).trim(), keep].filter(Boolean).join("\n\n");
-  }
-  return rest.trim();
-}
-
 function mapAnnouncement(row) {
-  const info = {
-    date: row.distribution_date ?? "",
-    time: row.distribution_time ? row.distribution_time.slice(0, 5) : "",
-    venue: row.venue ?? "",
-    assistanceType: row.assistance_type,
-    requirements: row.requirements,
-  };
   return {
     id: row.announcement_id,
     title: row.title ?? "",
     body: row.body ?? "",
-    details: detailsOf(row, info),
-    date: info.date,
-    time: info.time,
-    venue: info.venue,
+    date: row.distribution_date ?? "",
+    time: row.distribution_time ? row.distribution_time.slice(0, 5) : "",
+    venue: row.venue ?? "",
     audience: row.audience,
     audienceLabel: audienceLabel(row.audience),
+    allBarangays: row.all_barangays !== false,
+    barangayIds: (row.barangay_ids ?? []).map(Number),
     imagePath: row.image_url,
     isPinned: row.is_pinned,
     // A draft from before posts (never shown to farmers until it's posted).
@@ -174,18 +128,21 @@ export async function getAnnouncementImageUrl(path, expiresInSeconds = 3600) {
   return data.signedUrl;
 }
 
-// A post: { title, date, time, venue, details, audience, isPinned }. Saving
-// always posts it (a draft from before is posted when it's saved);
-// published_at is stamped by the database the moment a post goes up.
-function toDbFields(fields) {
+// A post: { title, date, time, venue, body, audience, allBarangays,
+// barangayIds, isPinned }. Saving always posts it (a draft from before is
+// posted when it's saved); published_at is stamped by the database the
+// moment a post goes up.
+function toDbFields({ title, date, time, venue, body, audience, allBarangays, barangayIds, isPinned }) {
   return {
-    title: fields.title.trim(),
-    body: composeBody(fields),
-    distribution_date: fields.date || null,
-    distribution_time: fields.time || null,
-    venue: fields.venue.trim() || null,
-    audience: fields.audience,
-    is_pinned: !!fields.isPinned,
+    title: title.trim(),
+    body: body.trim(),
+    distribution_date: date || null,
+    distribution_time: time || null,
+    venue: venue.trim() || null,
+    audience,
+    all_barangays: !!allBarangays,
+    barangay_ids: allBarangays ? [] : barangayIds,
+    is_pinned: !!isPinned,
     status: "published",
   };
 }

@@ -6,16 +6,23 @@ import { LISTS, addEntry, deleteEntry, listAllEntries, listUsage, renameEntry, s
 import { MAX_LIST_NAME, checkName, cleanName } from "../../lib/listMatch.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 
-const KINDS = ["sitios", "associations", "crops"];
+const KINDS = ["sitios", "associations", "crops", "barangays"];
 const sortByName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name));
+const PLACEHOLDERS = {
+  sitios: "New sitio/purok, e.g. Purok 6",
+  associations: "New association name",
+  crops: "New crop, e.g. Cassava",
+  barangays: "New barangay name",
+};
 
-// Settings → Lists (MAO Admin): the sitios/puroks, farmers' associations and
-// crops the farmer form offers. Add, rename, deactivate / reactivate; an
-// entry no farmer uses can be deleted (the database refuses deleting one
-// that's in use).
+// Settings → Lists (MAO Admin): the sitios/puroks, farmers' associations,
+// crops and barangays the farmer form (and, for barangays, the Create post
+// window) offers. Add, rename, deactivate / reactivate; an entry no farmer
+// uses can be deleted (the database refuses deleting one that's in use).
+// Barangays are never deleted, only deactivated.
 export default function ManagedLists() {
   const [lists, setLists] = useState(null);
-  const [usage, setUsage] = useState({ sitios: {}, associations: {}, crops: {} });
+  const [usage, setUsage] = useState({ sitios: {}, associations: {}, crops: {}, barangays: {} });
   const [loadError, setLoadError] = useState("");
   const [toast, setToast] = useState(null);
 
@@ -166,7 +173,7 @@ function ListCard({ kind, entries, usage, onSaved, onDeleted }) {
           className={`form-control form-control-sm${addNote?.tone === "error" ? " is-invalid" : ""}`}
           value={newName}
           maxLength={MAX_LIST_NAME + 20}
-          placeholder={kind === "associations" ? "New association name" : kind === "crops" ? "New crop, e.g. Cassava" : "New sitio/purok, e.g. Purok 6"}
+          placeholder={PLACEHOLDERS[kind]}
           aria-label={`New ${meta.noun}`}
           onChange={(e) => {
             setNewName(e.target.value);
@@ -243,7 +250,7 @@ function ListCard({ kind, entries, usage, onSaved, onDeleted }) {
                     <button type="button" className="agri-icon-btn" aria-label={`${entry.isActive ? "Deactivate" : "Reactivate"} ${entry.name}`} title={entry.isActive ? "Deactivate" : "Reactivate"} onClick={() => toggle(entry)} disabled={busy}>
                       <Power size={14} />
                     </button>
-                    {uses === 0 ? (
+                    {meta.noDelete ? null : uses === 0 ? (
                       <button type="button" className="agri-icon-btn agri-type-remove" aria-label={`Delete ${entry.name}`} title="Delete" onClick={() => setPendingDelete(entry)} disabled={busy}>
                         <Trash2 size={14} />
                       </button>
@@ -259,7 +266,9 @@ function ListCard({ kind, entries, usage, onSaved, onDeleted }) {
         })}
       </ul>
       <div className="agri-muted agri-list-foot">
-        Used entries can't be deleted; deactivate them instead (farmers who have one keep it).
+        {meta.noDelete
+          ? "Barangays can't be deleted; deactivate one to stop offering it (farmers and posts that have it keep it)."
+          : "Used entries can't be deleted; deactivate them instead (farmers who have one keep it)."}
       </div>
 
       {pendingDelete && (

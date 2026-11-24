@@ -3,9 +3,6 @@
 // and match exactly what src/lib/api/*.js maps Supabase rows into, so these
 // pure functions work unchanged whether fed real or (in tests) fake records.
 
-export const barangays = ["Langapud"];
-
-
 export function distributionTotalQty(dist) {
   return dist.items.reduce((sum, i) => sum + i.quantity, 0);
 }

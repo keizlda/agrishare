@@ -68,8 +68,10 @@ export default function AnnouncementsScreen({ navigation }) {
     listMyNotifications().then(setUpdates).catch((err) => setError(friendlyError(err, "Couldn't load your updates. Pull down to try again.")));
   }
 
-  // Tapping a post (or its "See more") marks it read.
+  // Tapping a post (or its "See more") opens its details screen and marks
+  // it read.
   function openAnnouncement(a) {
+    navigation.navigate("AnnouncementDetail", { post: { ...a, read: true } });
     if (!a.read && farmerId) {
       setItems((prev) => prev.map((x) => (x.id === a.id ? { ...x, read: true } : x)));
       markAnnouncementRead(a.id, farmerId).catch(() => {
