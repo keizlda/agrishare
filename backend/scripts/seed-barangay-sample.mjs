@@ -1,18 +1,20 @@
-// Sample farmers for every barangay — DEVELOPMENT DATABASE ONLY.
+// Sample farmers for every barangay.
 //
-//   node backend/scripts/seed-barangay-sample.mjs            # fill each barangay up to 20 Active farmers
+//   node backend/scripts/seed-barangay-sample.mjs            # dev: fill each barangay up to 20 Active farmers
 //   node backend/scripts/seed-barangay-sample.mjs --dry-run  # say what it would add, add nothing
 //   node backend/scripts/seed-barangay-sample.mjs --remove   # take out everything this script added
+//   add --live to any of these for the live project (only when the owner asks)
 //
 // For each active barangay with fewer than 20 Active farmers, adds fictional
 // farmers (made-up names, valid 11-digit 09 numbers, RSBSA numbers
-// 09-73-00-BBB-3NNNNN), each with a sitio/purok, a farm parcel and one or
-// two types of farmer. A barangay without sitios/puroks gets Purok 1–5 (added
-// by its Farmers' Association President when it has one). The farmers have no
-// mobile login (the test farmers 000201–000232 do). Everything added is
-// written to sample-farmers.ledger.dev.json so --remove can take it out.
-//
-// It refuses to run against anything but agrishare-dev.
+// 09-73-00-BBB-3NNNNN), each with a sitio/purok, a farm parcel, one or two
+// types of farmer, a mobile login (last 6 digits of the RSBSA number,
+// password123) and a profile picture. A barangay without sitios/puroks gets
+// Purok 1–5 (added by its Farmers' Association President when it has one).
+// Everything added is written to a ledger (sample-farmers.ledger.dev.json, or
+// sample-farmers.ledger.json for live) so --remove takes out exactly that.
+// On live, only the sample farmers get pictures; real farmers are never
+// touched. Without --live it refuses to run against anything but agrishare-dev.
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -21,20 +23,23 @@ const require = createRequire(import.meta.url);
 const { createClient } = require("@supabase/supabase-js");
 
 const DEV_REF = "peyyzxbjcugyqfdrrlyz";
+const LIVE_REF = "bofvqdywhyrlbzatvxve";
+const LIVE = process.argv.includes("--live");
 const here = import.meta.dirname;
-const envFile = path.join(here, "..", ".env.seed.dev");
+const envFile = path.join(here, "..", LIVE ? ".env.seed" : ".env.seed.dev");
 const env = Object.fromEntries(
   fs.readFileSync(envFile, "utf8").split(/\r?\n/).filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()]),
 );
-if (!String(env.SUPABASE_URL).includes(DEV_REF)) {
-  console.error("Stopped: this script only runs against the development database (agrishare-dev).");
+if (!String(env.SUPABASE_URL).includes(LIVE ? LIVE_REF : DEV_REF)) {
+  console.error(`Stopped: ${envFile} isn't the ${LIVE ? "live" : "development"} project.`);
   process.exit(1);
 }
+console.log(`Target: ${LIVE ? "LIVE project" : "development database (agrishare-dev)"}`);
 const sb = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const DRY = process.argv.includes("--dry-run");
 const REMOVE = process.argv.includes("--remove");
 const TARGET = 20;
-const LEDGER = path.join(here, "sample-farmers.ledger.dev.json");
+const LEDGER = path.join(here, LIVE ? "sample-farmers.ledger.json" : "sample-farmers.ledger.dev.json");
 const ledger = fs.existsSync(LEDGER) ? JSON.parse(fs.readFileSync(LEDGER, "utf8")) : { farmers: [], sitios: [] };
 const saveLedger = () => fs.writeFileSync(LEDGER, JSON.stringify(ledger, null, 1));
 
@@ -257,7 +262,8 @@ for (let from = 0; ; from += 1000) {
   if (page.length < 1000) break;
 }
 const needAccount = everyone.filter((f) => sampleIds.has(f.farmer_id) && !f.profile_id);
-const needPicture = everyone.filter((f) => !PROTECTED.has(f.rsbsa_no) && (sampleIds.has(f.farmer_id) || f.profile_id) && !f.profiles?.avatar_url);
+// On live only the sample farmers get pictures (real farmers are never touched).
+const needPicture = everyone.filter((f) => !PROTECTED.has(f.rsbsa_no) && (sampleIds.has(f.farmer_id) || (!LIVE && f.profile_id)) && !f.profiles?.avatar_url);
 if (DRY) {
   console.log(`Would add ${needAccount.length} logins and ${needPicture.length} profile pictures.`);
   process.exit(0);
