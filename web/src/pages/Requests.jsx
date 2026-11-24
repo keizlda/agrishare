@@ -112,7 +112,7 @@ function FarmerRequestsView({ isMAO }) {
   useCardLabels(tableRef);
   const detailRef = useRef(null);
   const revealDetail = useRevealDetail(detailRef);
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize, [search, barangayFilter, filter, filedOnly].join("|"));
 
   useEffect(() => {
     if (!filtered.some((r) => r.id === selectedId)) setSelectedId(filtered[0]?.id ?? null);

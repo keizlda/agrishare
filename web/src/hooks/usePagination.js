@@ -4,8 +4,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 // number, so when the page size changes (the window is resized and
 // useFitPageSize fits more or fewer rows) the page shown is the one that
 // still contains that row.
-export function usePagination(items, pageSize) {
+//
+// resetKey: the list's search and filters (e.g. "rice|Active|Bulanit"). When
+// it changes, the list goes back to page 1, so choosing another barangay
+// while on page 2 shows that barangay's first page.
+export function usePagination(items, pageSize, resetKey = "") {
   const [firstIndex, setFirstIndex] = useState(0);
+  const [lastKey, setLastKey] = useState(resetKey);
+  if (lastKey !== resetKey) {
+    setLastKey(resetKey);
+    setFirstIndex(0);
+  }
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const page = Math.min(Math.floor(firstIndex / pageSize) + 1, totalPages);
 

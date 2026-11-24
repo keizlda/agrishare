@@ -143,7 +143,7 @@ export default function Distributions() {
   // Rows per page = however many fit in the full-height table area (min 5).
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize, [search, statusFilter, barangayFilter].join("|"));
   useCardLabels(tableRef);
   const detailRef = useRef(null);
   const revealDetail = useRevealDetail(detailRef);

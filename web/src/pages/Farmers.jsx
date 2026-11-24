@@ -374,7 +374,7 @@ export default function Farmers() {
   // Rows per page = however many fit in the full-height table area (min 5).
   const tableRef = useRef(null);
   const pageSize = useFitPageSize(tableRef, { remeasureKey: filtered.length > 0 });
-  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize);
+  const { page, setPage, totalPages, pageItems } = usePagination(filtered, pageSize, [debouncedSearch, statusFilter, typeFilter, barangayFilter].join("|"));
   useCardLabels(tableRef);
 
   async function handleDelete(id) {
