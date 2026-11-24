@@ -866,6 +866,28 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
   const formBarangay = entryForText(barangays, form.barangay);
   const fromOtherBarangay = (row) => !!formBarangay && !!row.barangay && !inBarangay(barangays, String(formBarangay.id), null, row.barangay);
 
+  // How many Active farmers of each type the barangay has, shown on the
+  // chips (a type with none can't be clicked). null while loading.
+  const [typeCounts, setTypeCounts] = useState(null);
+  const formBarangayId = formBarangay?.id ?? null;
+  useEffect(() => {
+    setTypeCounts(null);
+    if (!formBarangayId || !farmerTypes.length) return undefined;
+    let cancelled = false;
+    Promise.all(
+      farmerTypes.filter((t) => t.isActive).map((t) =>
+        listFarmersOfType({ farmerTypeId: t.id, barangayId: formBarangayId }).then((list) => [t.id, list.length], () => [t.id, null]),
+      ),
+    ).then((entries) => {
+      if (!cancelled) setTypeCounts(new Map(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [formBarangayId, farmerTypes]);
+  // The tagged list, scrolled into view after a type adds farmers.
+  const taggedRef = useRef(null);
+
   // "Tag by type of farmer": a chip adds every Active farmer of that type in
   // the distribution's barangay (farm size × rate each), skipping repeat
   // distributions of this commodity under this program this year; clicking
@@ -921,7 +943,9 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
           taggedBeneficiaries: next.taggedBeneficiaries.map((r) => (addIds.has(r.farmerId) || alreadyIds.has(r.farmerId) ? { ...r, viaTypes: [...r.viaTypes.filter((t) => t !== key), key] } : r)),
         };
       });
-      setTypesOn((on) => [...on, key]);
+      // The chip stays on only when it put farmers on the list.
+      if (toAdd.length || already.length) setTypesOn((on) => [...on, key]);
+      if (toAdd.length) setTimeout(() => taggedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
       const name = (f) => `${f.firstName} ${f.lastName}`;
       if (found.length === 0) {
         setTagNote({ tone: "info", text: `No Active ${type.name.toLowerCase()}s in Barangay ${formBarangay.name}.` });
@@ -1251,22 +1275,32 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
                 {farmerTypes.filter((t) => t.isActive || typesOn.includes(t.id)).map((t) => {
                   const on = typesOn.includes(t.id);
                   const suggested = commodity?.farmerTypeId === t.id;
+                  const count = typeCounts?.get(t.id);
+                  const none = count === 0 && !on;
                   return (
                     <button
                       key={t.id}
                       type="button"
-                      className={`agri-type-tag${on ? " on" : ""}${suggested ? " suggested" : ""}`}
+                      className={`agri-type-tag${on ? " on" : ""}${suggested ? " suggested" : ""}${none ? " none" : ""}`}
                       aria-pressed={on}
-                      title={suggested ? `Suggested: ${commodity.name} is for ${t.name.toLowerCase()}s` : t.examples || undefined}
+                      title={none ? `No Active ${t.name.toLowerCase()}s in Barangay ${formBarangay?.name}` : suggested ? `Suggested: ${commodity.name} is for ${t.name.toLowerCase()}s` : t.examples || undefined}
                       onClick={() => toggleType(t)}
-                      disabled={saving || (typeLoading !== null && typeLoading !== t.id)}
+                      disabled={saving || none || (typeLoading !== null && typeLoading !== t.id)}
                     >
                       {typeLoading === t.id && <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />}
                       {t.name}
+                      {count != null && <span className="agri-type-tag-count">{count}</span>}
                       {suggested && !on && <span className="agri-type-tag-hint">Suggested</span>}
                     </button>
                   );
                 })}
+              </div>
+              <div className="agri-field-hint" style={{ marginTop: -2, marginBottom: 8 }}>
+                {formBarangay
+                  ? typeCounts
+                    ? `The number on each type is its Active farmers in Barangay ${formBarangay.name}. Click a type to add them, each at farm size × the commodity's rate.`
+                    : `Counting the farmers of each type in Barangay ${formBarangay.name}…`
+                  : "Choose the barangay first: only its farmers are tagged."}
               </div>
               {tagNote && (
                 <div className={`agri-tag-note ${tagNote.tone}`} role="status">{tagNote.text}</div>
@@ -1278,7 +1312,7 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
 
           {rows.length > 0 && (
             <>
-              <div className="agri-beneficiary-table-wrap agri-beneficiary-table-wrap-form">
+              <div className="agri-beneficiary-table-wrap agri-beneficiary-table-wrap-form" ref={taggedRef}>
                 <table className="agri-table">
                   <thead>
                     <tr>

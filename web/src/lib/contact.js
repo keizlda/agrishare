@@ -3,7 +3,8 @@
 // 09171234567. The database checks the same rule.
 export const CONTACT_PATTERN = /^09\d{9}$/;
 export const CONTACT_ERROR = "Enter an 11-digit mobile number starting with 09.";
-export const CONTACT_PLACEHOLDER = "09171234567";
+// Shown in the empty field (no example digits, so it never looks filled in).
+export const CONTACT_PLACEHOLDER = "Mobile number";
 
 // What the field keeps while typing: digits only, at most 11.
 export const contactInput = (value) => String(value ?? "").replace(/\D/g, "").slice(0, 11);

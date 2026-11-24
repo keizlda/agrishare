@@ -10,6 +10,7 @@ import {
   Package,
   ShieldCheck,
   Settings,
+  MapPin,
   Sprout,
   Truck,
   User as UserIcon,
@@ -36,6 +37,7 @@ const MORE_ITEMS = [
   { to: "/requests", label: "Requests", icon: Inbox, roles: ["MAO Admin", "FA President"] },
   { to: "/reports", label: "Reports", icon: FileBarChart2, roles: ["MAO Admin", "FA President"] },
   { to: "/announcements", label: "Announcements", icon: Megaphone, roles: ["MAO Admin"] },
+  { to: "/farmers?sitios=1", label: "Sitios/Puroks", icon: MapPin, roles: ["MAO Admin", "FA President"] },
   { to: "/settings", label: "Settings", icon: Settings, roles: ["MAO Admin", "FA President"] },
 ];
 

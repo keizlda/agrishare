@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
-import { Copy, KeyRound, MapPin, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { Copy, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
@@ -322,6 +322,17 @@ export default function Farmers() {
   // own barangay's list, the MAO Admin any barangay's. null | { barangayId }
   const [sitiosModal, setSitiosModal] = useState(null);
   const ownBarangay = !isMAO && user?.barangayId ? { id: user.barangayId, name: user.barangayName } : null;
+  // Opened from the account menu (Sitios/Puroks): /farmers?sitios=1.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("sitios") !== "1") return;
+    if (isMAO || ownBarangay) setSitiosModal({ barangayId: "" });
+    setSearchParams((p) => {
+      p.delete("sitios");
+      return p;
+    }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Deep-link support: the Validation page's "View full profile" / "Open
   // farmer record" links navigate here with a preset search term.
@@ -441,18 +452,11 @@ export default function Farmers() {
             {lists.farmerTypes.filter((t) => t.isActive).map((t) => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
           </select>
 
-          <div className="agri-toolbar-actions ms-auto">
-            {(isMAO || ownBarangay) && (
-              <button type="button" className="btn btn-outline-secondary d-flex align-items-center gap-2 text-nowrap" onClick={() => setSitiosModal({ barangayId: barangayFilter === "all" ? "" : barangayFilter })}>
-                <MapPin size={15} /> Sitios/Puroks
-              </button>
-            )}
-            {isMAO && (
-              <button className="btn btn-agri-primary d-flex align-items-center gap-2 text-nowrap" onClick={() => setModal({ mode: "add" })}>
-                <Plus size={16} /> Add Farmer
-              </button>
-            )}
-          </div>
+          {isMAO && (
+            <button className="btn btn-agri-primary ms-auto d-flex align-items-center gap-2 text-nowrap" onClick={() => setModal({ mode: "add" })}>
+              <Plus size={16} /> Add Farmer
+            </button>
+          )}
         </div>
 
         <div className="agri-table-wrap" ref={tableRef}>
@@ -879,7 +883,7 @@ function FarmerModal({ mode, farmer, farmers, lists, onListAdded, canManageSitio
                 </select>
               </Field>
               <Field label="Birth Date" col={4} required error={errors.birthDate}>
-                <DateInput value={form.birthDate} onChange={(v) => update("birthDate", v)} invalid={!!errors.birthDate} aria-label="Birth date" />
+                <DateInput value={form.birthDate} onChange={(v) => update("birthDate", v)} max={todayIso()} invalid={!!errors.birthDate} aria-label="Birth date" />
               </Field>
               <Field label="Contact No." col={4} required error={errors.contactNo}>
                 <input

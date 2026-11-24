@@ -5,6 +5,7 @@ import {
   ChevronDown,
   History,
   LogOut,
+  MapPin,
   Menu,
   User as UserIcon,
   Users,
@@ -180,6 +181,17 @@ export default function Topbar() {
                     <History size={15} /> Activity Log
                   </button>
                 )}
+                <button
+                  onClick={() => { setOpenMenu(null); navigate("/farmers?sitios=1"); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 10px",
+                    background: "none", border: "none", color: "var(--agri-text)", fontSize: "0.85rem", borderRadius: 8,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--agri-primary-soft)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                >
+                  <MapPin size={15} /> Sitios/Puroks
+                </button>
                 <button
                   onClick={() => { setOpenMenu(null); navigate("/settings"); }}
                   style={{

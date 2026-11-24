@@ -4844,3 +4844,22 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   background: var(--agri-primary-soft);
   font-weight: 700;
 }
+/* The number of farmers of a type in the barangay, on its chip. */
+.agri-type-tag-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-align: center;
+  background: var(--agri-chip-bg);
+  color: var(--agri-text-secondary);
+}
+.agri-type-tag.on .agri-type-tag-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+.agri-type-tag.none {
+  border-style: dashed;
+  color: var(--agri-text-muted);
+}
