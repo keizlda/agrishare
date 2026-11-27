@@ -121,7 +121,7 @@ export default function PostCard({ post, onOpen, unread = false, full = false, s
   return (
     <Pressable
       onPress={() => onOpen?.(post)}
-      style={({ pressed }) => [styles.card, unread && styles.cardUnread, pressed && { opacity: 0.92 }, style]}
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }, style]}
       accessibilityRole="button"
       accessibilityLabel={`${post.isPinned ? "Pinned. " : ""}${post.title}. ${posted}${unread ? ". Unread" : ""}`}
     >
@@ -189,7 +189,6 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
-  cardUnread: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   head: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
   avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.header },
   name: { fontSize: 13.5, fontWeight: "800", color: colors.text },

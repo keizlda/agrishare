@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { ChevronRight, Leaf, Megaphone, Package, Pin } from "lucide-react-native";
+import { ChevronRight, Leaf, Package } from "lucide-react-native";
 import TabScreenLayout, { tabCard } from "../components/TabScreenLayout";
-import { PostThumb } from "../components/PostCard";
+import PostCard from "../components/PostCard";
 import Avatar from "../components/Avatar";
 import Pill from "../components/Pill";
 import ReminderBanner from "../components/ReminderBanner";
@@ -13,7 +13,7 @@ import { useAuth } from "../context/AuthContext";
 import { listMyDistributions } from "../lib/api/distributions";
 import { listAnnouncements, markAnnouncementRead } from "../lib/api/announcements";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
-import { formatDate, formatPostedAt } from "../lib/dates";
+import { formatDate } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
 
 const ANNOUNCEMENT_ROWS = 3;
@@ -114,45 +114,30 @@ export default function HomeScreen({ navigation }) {
             <ChevronRight size={13} color={colors.primaryDark} />
           </TouchableOpacity>
         </View>
-        <View style={[styles.card, styles.sectionCard]}>
+        {/* The latest posts as full cards, as on the website: the seal,
+            when it was posted, Pinned, the title, the date / time / venue
+            box, the details, the photo and who it's for. */}
+        <View style={styles.sectionCard}>
           {announcements === null ? (
             [0, 1].map((i) => (
-              <View key={i} style={[styles.annRow, i === 1 && styles.lastRow]}>
-                <View style={[styles.annIcon, styles.skeleton]} />
-                <View style={{ flex: 1, gap: 6 }}>
-                  <View style={[styles.skeleton, { height: 11, width: "70%" }]} />
-                  <View style={[styles.skeleton, { height: 9, width: "45%" }]} />
+              <View key={i} style={styles.postSkeleton}>
+                <View style={styles.skeletonHead}>
+                  <View style={[styles.skeleton, styles.skeletonAvatar]} />
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <View style={[styles.skeleton, { height: 11, width: "40%" }]} />
+                    <View style={[styles.skeleton, { height: 9, width: "30%" }]} />
+                  </View>
                 </View>
+                <View style={[styles.skeleton, { height: 13, width: "75%", marginBottom: 8 }]} />
+                <View style={[styles.skeleton, { height: 28, width: "100%" }]} />
               </View>
             ))
           ) : latestAnnouncements.length === 0 ? (
-            <Text style={styles.emptyText}>No announcements yet.</Text>
+            <View style={styles.card}>
+              <Text style={styles.emptyText}>No announcements yet.</Text>
+            </View>
           ) : (
-            latestAnnouncements.map((a, i) => {
-              const Icon = a.isPinned ? Pin : Megaphone;
-              return (
-                <TouchableOpacity
-                  key={a.id}
-                  style={[styles.annRow, i === latestAnnouncements.length - 1 && styles.lastRow]}
-                  onPress={() => openPost(a)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${a.isPinned ? "Pinned. " : ""}${a.title}${a.read ? "" : ". Unread"}`}
-                >
-                  <View style={styles.annIcon}>
-                    <Icon size={16} color={colors.primaryDark} />
-                  </View>
-                  {/* The post's title as the preview, with a small photo. */}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.annTitle} numberOfLines={1}>{a.title}</Text>
-                    <Text style={styles.annSub} numberOfLines={1}>
-                      MAO Labangan · {formatPostedAt(a.postedAt)}
-                    </Text>
-                  </View>
-                  {!!a.imagePath && <PostThumb path={a.imagePath} size={38} />}
-                  {!a.read && <View style={styles.unreadDot} accessibilityLabel="Unread" />}
-                </TouchableOpacity>
-              );
-            })
+            latestAnnouncements.map((a) => <PostCard key={a.id} post={a} unread={!a.read} onOpen={openPost} />)
           )}
         </View>
 
@@ -236,25 +221,16 @@ const styles = StyleSheet.create({
   sectionCard: { marginBottom: 18 },
   lastRow: { borderBottomWidth: 0 },
 
-  annRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  postSkeleton: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: 14,
+    marginBottom: 10,
   },
-  annIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  annTitle: { fontSize: 12.5, fontWeight: "700", color: colors.text },
-  annSub: { fontSize: 10.5, color: colors.textMuted, marginTop: 2 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
+  skeletonHead: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
+  skeletonAvatar: { width: 38, height: 38, borderRadius: 19 },
   skeleton: { backgroundColor: colors.grayBg, borderRadius: 6 },
 
   distRow: {
