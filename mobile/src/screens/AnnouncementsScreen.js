@@ -8,6 +8,7 @@ import PostCard from "../components/PostCard";
 import EmptyState from "../components/ui/EmptyState";
 import { colors, radius } from "../theme";
 import { useAuth } from "../context/AuthContext";
+import { useDeleteAnnouncement } from "../hooks/useDeleteAnnouncement";
 import { listAnnouncements, markAnnouncementRead, subscribeToAnnouncements } from "../lib/api/announcements";
 import { deleteNotification, listMyNotifications, markAllNotificationsRead, markNotificationRead } from "../lib/api/userNotifications";
 import { formatDate } from "../lib/dates";
@@ -38,6 +39,7 @@ export default function AnnouncementsScreen({ navigation }) {
   const [error, setError] = useState("");
   const [tab, setTab] = useState(TABS[0]);
   const [updates, setUpdates] = useState([]);
+  const { deletePost, toast } = useDeleteAnnouncement(setItems, farmerId);
 
   const load = useCallback(async () => {
     try {
@@ -176,7 +178,7 @@ export default function AnnouncementsScreen({ navigation }) {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListHeaderComponent={error ? <Text style={styles.errorText}>{error}</Text> : null}
-          renderItem={({ item: a }) => <PostCard post={a} unread={!a.read} onOpen={openAnnouncement} />}
+          renderItem={({ item: a }) => <PostCard post={a} unread={!a.read} onOpen={openAnnouncement} onDelete={deletePost} />}
           ListEmptyComponent={
             error ? null : (
               <EmptyState
@@ -187,7 +189,7 @@ export default function AnnouncementsScreen({ navigation }) {
           }
         />
       )}
-
+      {toast}
     </View>
   );
 }

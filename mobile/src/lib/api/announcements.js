@@ -4,11 +4,14 @@ import { supabase } from "../supabaseClient";
 // time and venue, details and a photo. RLS already limits rows to published,
 // not-deleted posts meant for this farmer (farmers, in their barangay or all
 // barangays), and the embedded announcement_reads only ever contains this
-// farmer's own receipt — so a non-empty array = read.
+// farmer's own receipt — so a non-empty array = read. announcement_hides
+// likewise holds only this farmer's own: the posts they deleted for
+// themselves, left out of their list.
 const SELECT = `
   announcement_id, title, body, distribution_date, distribution_time, venue,
   audience, all_barangays, barangay_ids, image_url, is_pinned, published_at, created_at, forwarded_at,
   announcement_reads ( read_at ),
+  announcement_hides ( hidden_at ),
   linked_distribution_id, target_farmer_ids,
   distribution:distribution_events!announcements_linked_distribution_id_fkey ( program_name )
 `;
@@ -64,7 +67,22 @@ export async function listAnnouncements() {
     barangayNames(),
   ]);
   if (error) throw error;
-  return data.map((row) => mapAnnouncement(row, names));
+  return data.filter((row) => !(row.announcement_hides ?? []).length).map((row) => mapAnnouncement(row, names));
+}
+
+// "Delete" in the farmer app: the post leaves this farmer's list only (it
+// stays for everyone else). Idempotent, like marking it read.
+export async function hideAnnouncement(announcementId, farmerId) {
+  const { error } = await supabase
+    .from("announcement_hides")
+    .upsert({ announcement_id: announcementId, farmer_id: farmerId }, { onConflict: "announcement_id,farmer_id", ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+// "Undo": the post is back in their list.
+export async function unhideAnnouncement(announcementId, farmerId) {
+  const { error } = await supabase.from("announcement_hides").delete().eq("announcement_id", announcementId).eq("farmer_id", farmerId);
+  if (error) throw error;
 }
 
 // Idempotent: the (announcement_id, farmer_id) primary key + ignoreDuplicates

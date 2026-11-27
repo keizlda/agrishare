@@ -13,6 +13,7 @@ import { useAuth } from "../context/AuthContext";
 import { listMyDistributions } from "../lib/api/distributions";
 import { listAnnouncements, markAnnouncementRead } from "../lib/api/announcements";
 import { useTabBarHeight } from "../hooks/useTabBarHeight";
+import { useDeleteAnnouncement } from "../hooks/useDeleteAnnouncement";
 import { formatDate } from "../lib/dates";
 import { friendlyError } from "../lib/friendlyError";
 
@@ -35,6 +36,7 @@ export default function HomeScreen({ navigation }) {
   // lists that would read as "no distributions").
   const [loadError, setLoadError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const { deletePost, toast } = useDeleteAnnouncement(setAnnouncements, farmer?.farmerId, { bottom: tabBarHeight + 12 });
 
   const load = useCallback(async () => {
     const [mine, posts] = await Promise.allSettled([listMyDistributions(), listAnnouncements()]);
@@ -137,7 +139,7 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.emptyText}>No announcements yet.</Text>
             </View>
           ) : (
-            latestAnnouncements.map((a) => <PostCard key={a.id} post={a} unread={!a.read} onOpen={openPost} />)
+            latestAnnouncements.map((a) => <PostCard key={a.id} post={a} unread={!a.read} onOpen={openPost} onDelete={deletePost} />)
           )}
         </View>
 
@@ -182,7 +184,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
       </ScrollView>
-
+      {toast}
     </TabScreenLayout>
   );
 }

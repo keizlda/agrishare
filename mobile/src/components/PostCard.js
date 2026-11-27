@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import { CalendarDays, Clock, MapPin, Pin, Users } from "lucide-react-native";
+import { CalendarDays, Clock, MapPin, Pin, Trash2, Users } from "lucide-react-native";
 import { colors, radius } from "../theme";
 import { getAnnouncementImageUrl } from "../lib/api/announcements";
 import { formatDate, formatPostedOn, formatTime } from "../lib/dates";
@@ -51,7 +51,8 @@ function EventRow({ post }) {
 // the bold title, the date / time / venue row, the details ("See more"
 // after about 4 lines), the photo, and who can see it. Tapping anywhere
 // opens it in full (onOpen). `full`: the details screen (everything shown).
-export default function PostCard({ post, onOpen, unread = false, full = false, style }) {
+// onDelete: a trash button that deletes the post from this farmer's app.
+export default function PostCard({ post, onOpen, onDelete, unread = false, full = false, style }) {
   const { width } = useWindowDimensions();
   const [measured, setMeasured] = useState(null); // lines, where the platform reports them
   const textWidth = Math.min(width, 720) - 32 - 28;
@@ -77,6 +78,20 @@ export default function PostCard({ post, onOpen, unread = false, full = false, s
           </View>
         )}
         {unread && <View style={styles.unreadDot} />}
+        {!!onDelete && (
+          <Pressable
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              onDelete(post);
+            }}
+            hitSlop={8}
+            style={({ pressed }) => [styles.deleteBtn, pressed && styles.deleteBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete announcement: ${post.title}`}
+          >
+            <Trash2 size={15} color={colors.textMuted} />
+          </Pressable>
+        )}
       </View>
 
       <Text style={[styles.title, full && styles.titleFull]}>{post.title}</Text>
@@ -196,6 +211,17 @@ const styles = StyleSheet.create({
   pinned: { flexDirection: "row", alignItems: "center", gap: 3, alignSelf: "flex-start" },
   pinnedText: { fontSize: 10.5, fontWeight: "700", color: colors.primaryDark },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, alignSelf: "flex-start", marginTop: 4 },
+  deleteBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-start",
+  },
+  deleteBtnPressed: { backgroundColor: colors.grayBg },
   title: { fontSize: 15, fontWeight: "800", color: colors.text, lineHeight: 20, marginBottom: 8 },
   titleFull: { fontSize: 17, lineHeight: 23 },
   event: {
