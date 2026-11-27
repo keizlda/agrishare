@@ -22,6 +22,8 @@ function estimateLines(text, width) {
 export function audienceText(post, limit = Infinity) {
   const names = post.barangayNames ?? [];
   const where = post.allBarangays ? "All barangays" : names.length > limit ? `${names.slice(0, limit).join(", ")} +${names.length - limit} more` : names.join(", ");
+  // A distribution's schedule, for its farmers.
+  if (post.program) return `Distribution schedule: ${post.program} · ${where}`;
   return `${post.audienceLabel} · ${where}`;
 }
 

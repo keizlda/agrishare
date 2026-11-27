@@ -11,7 +11,7 @@ const BUCKET = "harvest-photos";
 
 // A harvest is identified by its harvest date (no Wet/Dry season): summaries
 // show the month and year, e.g. "8,400 kg · Nov 2026".
-const STATUS_LABEL = { submitted: "Submitted", verified: "Verified", rejected: "Rejected" };
+const STATUS_LABEL = { pending: "Pending", approved: "Approved", rejected: "Rejected" };
 
 const SELECT = `
   harvest_report_id, commodity_id, area_harvested_ha, yield_kg, yield_per_ha,
@@ -125,7 +125,7 @@ export async function submitHarvestReport(farmerId, form) {
 export async function updateHarvestReport(id, form) {
   const { data, error } = await supabase.from("harvest_reports").update(toRow(form)).eq("harvest_report_id", id).select(SELECT).maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error("This harvest report was already verified and can't be changed. Pull down to refresh.");
+  if (!data) throw new Error("This harvest report was already approved and can't be changed. Pull down to refresh.");
   return mapHarvest(data);
 }
 

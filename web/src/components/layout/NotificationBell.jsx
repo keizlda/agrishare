@@ -19,6 +19,7 @@ const POLL_MS = 60000;
 const UNDO_MS = 5000;
 
 const TYPE_ICON = {
+  approved: { Icon: CheckCircle2, color: "var(--agri-primary-dark)", bg: "var(--agri-primary-light)" },
   validated: { Icon: CheckCircle2, color: "var(--agri-primary-dark)", bg: "var(--agri-primary-light)" },
   rejected: { Icon: XCircle, color: "var(--agri-red)", bg: "var(--agri-red-bg)" },
   validation: { Icon: ShieldCheck, color: "var(--agri-blue)", bg: "var(--agri-blue-bg)" },

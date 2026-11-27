@@ -22,16 +22,20 @@ export default function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!email || !password) {
-      setError("Please enter both email and password.");
+      setError("Please enter your email or login ID, and your password.");
       return;
     }
     setError("");
     setSubmitting(true);
     try {
-      await login(email, password);
+      // A Farmers' Association President made from a farmer signs in with
+      // their login ID (the last 6 digits of their RSBSA number), the same
+      // as in the farmer app; everyone else with their email.
+      const id = email.trim();
+      await login(/^\d{6}$/.test(id) ? `${id}@farmers.agrishare.ph` : id, password);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err.message === "Invalid login credentials" ? "Incorrect email or password." : friendlyError(err, "Couldn't sign in. Please try again."));
+      setError(err.message === "Invalid login credentials" ? "Incorrect email, login ID or password." : friendlyError(err, "Couldn't sign in. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -91,9 +95,11 @@ export default function Login() {
               <input
                 ref={emailRef}
                 id="email"
-                type="email"
+                type="text"
+                autoComplete="username"
                 className="form-control"
-                placeholder="Enter your email"
+                placeholder="Email or login ID"
+                aria-label="Email or login ID"
                 style={{ paddingLeft: 36 }}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

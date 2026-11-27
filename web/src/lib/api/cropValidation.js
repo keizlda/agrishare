@@ -13,7 +13,9 @@ const SELECT = `
   reviewer:profiles!reviewed_by ( full_name )
 `;
 
-const STATUS_LABELS = { pending: "Pending", validated: "Validated", rejected: "Rejected" };
+// Proof of planting and harvest reports share one set of words (Nov 27,
+// 2026): Pending, Approved, Rejected.
+const STATUS_LABELS = { pending: "Pending", approved: "Approved", rejected: "Rejected" };
 
 function mapSubmission(row) {
   const farmer = row.farmers;
@@ -99,8 +101,8 @@ async function reviewSubmission(validationId, status, remarks) {
   return mapSubmission(fresh);
 }
 
-export function validateSubmission(validationId, remarks) {
-  return reviewSubmission(validationId, "validated", remarks);
+export function approveSubmission(validationId, remarks) {
+  return reviewSubmission(validationId, "approved", remarks);
 }
 
 export function rejectSubmission(validationId, remarks) {

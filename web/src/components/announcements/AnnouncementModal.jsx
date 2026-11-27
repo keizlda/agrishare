@@ -3,6 +3,9 @@ import { Check, Eye, ImagePlus, Pin, X } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog.jsx";
 import DateInput from "../ui/DateInput.jsx";
 import BarangayPicker from "./BarangayPicker.jsx";
+import FarmerTagInput from "../distributions/FarmerTagInput.jsx";
+import { listDistributionBeneficiaries, listDistributions } from "../../lib/api/distributions.js";
+import { formatDate } from "../../lib/dates.js";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import maoSeal from "../../assets/mao-seal.png";
 import {
@@ -37,8 +40,25 @@ function visibleTo({ farmers, fa }, allBarangays, chosenNames) {
 // Shared by the Dashboard's "Post Announcement" and the Announcements page.
 // `announcement` present = edit. `barangays`: the list, when the caller
 // already has it (otherwise it's loaded here).
+// A distribution schedule post goes to that distribution's farmers: its
+// tagged farmers (the default), every farmer of its barangay, or farmers
+// chosen by name. The barangay's Farmers' Association President sees it too.
+const TARGETS = [
+  ["tagged", "Tagged farmers"],
+  ["all", "All farmers of the barangay"],
+  ["choose", "Choose farmers"],
+];
+
 export default function AnnouncementModal({ announcement, barangays: barangaysProp, onClose, onSaved }) {
   const editing = !!announcement;
+  // "post" (a regular post) or "schedule" (a distribution's schedule).
+  const [kind, setKind] = useState(announcement?.linkedDistributionId ? "schedule" : "post");
+  const [distributions, setDistributions] = useState(null);
+  const [eventId, setEventId] = useState(announcement?.linkedDistributionId ? String(announcement.linkedDistributionId) : "");
+  const [tagged, setTagged] = useState(null); // the distribution's tagged farmers
+  const [target, setTarget] = useState(announcement?.linkedDistributionId ? (announcement.targetFarmerIds ? "choose" : "all") : "tagged");
+  const [chosen, setChosen] = useState([]); // [{ farmerId, firstName, lastName }]
+  const targetSettled = useRef(!announcement?.linkedDistributionId);
   const [initial] = useState(() => ({
     who: editing ? audienceParts(announcement.audience) : { farmers: false, fa: false },
     allBarangays: editing ? announcement.allBarangays : true,
@@ -79,6 +99,58 @@ export default function AnnouncementModal({ announcement, barangays: barangaysPr
   useEffect(() => {
     if (announcement?.imagePath) getAnnouncementImageUrl(announcement.imagePath).then(setCurrentImage).catch(() => {});
   }, [announcement?.imagePath]);
+
+  // Distribution schedule: the distributions to choose from (Ongoing ones,
+  // plus the one this post already has), and the chosen one's farmers.
+  useEffect(() => {
+    if (kind !== "schedule" || distributions) return;
+    listDistributions()
+      .then((all) => setDistributions(all.filter((d) => d.status === "Ongoing" || String(d.id) === String(announcement?.linkedDistributionId ?? ""))))
+      .catch(() => setError("Couldn't load the distributions. Close this window and try again."));
+  }, [kind, distributions, announcement?.linkedDistributionId]);
+  useEffect(() => {
+    if (!eventId) {
+      setTagged(null);
+      return undefined;
+    }
+    let cancelled = false;
+    setTagged(null);
+    listDistributionBeneficiaries(eventId)
+      .then((list) => {
+        if (cancelled) return;
+        const farmers = list.map((r) => ({ farmerId: r.farmerId, firstName: r.firstName, lastName: r.lastName }));
+        setTagged(farmers);
+        // Editing: the saved farmers — "Tagged farmers" when they're exactly
+        // the distribution's tagged farmers.
+        if (!targetSettled.current) {
+          targetSettled.current = true;
+          const ids = announcement.targetFarmerIds;
+          if (ids) {
+            const same = ids.length === farmers.length && farmers.every((f) => ids.includes(f.farmerId));
+            setTarget(same ? "tagged" : "choose");
+            setChosen(farmers.filter((f) => ids.includes(f.farmerId)).concat(ids.filter((id) => !farmers.some((f) => f.farmerId === id)).map((id) => ({ farmerId: id, firstName: "Farmer", lastName: `#${id}` }))));
+          }
+        }
+      })
+      .catch(() => !cancelled && setError("Couldn't load the distribution's farmers."));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
+  const event = distributions?.find((d) => String(d.id) === eventId) ?? null;
+
+  function chooseEvent(id) {
+    setEventId(id);
+    clear("event");
+    const d = distributions.find((x) => String(x.id) === id);
+    if (!d) return;
+    // Filled in from the distribution (only what's still empty).
+    if (!title.trim()) setTitle(`${d.program} — ${d.items?.[0]?.name ?? "distribution"}`.slice(0, MAX_TITLE));
+    if (!date && d.date) setDate(d.date);
+    if (!venue.trim() && d.venue) setVenue(d.venue);
+    setChosen([]);
+  }
   useEffect(() => () => imagePreview && URL.revokeObjectURL(imagePreview), [imagePreview]);
 
   // The details box grows with the text.
@@ -92,7 +164,15 @@ export default function AnnouncementModal({ announcement, barangays: barangaysPr
   const hasSavedPhoto = editing && !!announcement.imagePath && !removeCurrentImage;
   const hasPhoto = !!imageFile || hasSavedPhoto;
   const chosenNames = barangayIds.map((id) => barangays.find((b) => b.id === id)?.name).filter(Boolean);
-  const summary = visibleTo(who, allBarangays, chosenNames);
+  const schedule = kind === "schedule";
+  const scheduleFarmers = target === "tagged" ? tagged ?? [] : target === "choose" ? chosen : null;
+  const summary = schedule
+    ? event
+      ? target === "all"
+        ? `Visible to every farmer of Barangay ${event.barangay} and its Farmers' Association President`
+        : `Visible to ${scheduleFarmers.length} ${scheduleFarmers.length === 1 ? "farmer" : "farmers"} of this distribution and the Farmers' Association President of Barangay ${event.barangay}`
+      : null
+    : visibleTo(who, allBarangays, chosenNames);
   const titleTooLong = title.length > MAX_TITLE;
   const bodyTooLong = body.length > MAX_BODY;
   const sameIds = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
@@ -100,7 +180,8 @@ export default function AnnouncementModal({ announcement, barangays: barangaysPr
   const dirty =
     who.farmers !== initial.who.farmers || who.fa !== initial.who.fa || allBarangays !== initial.allBarangays || !sameIds(barangayIds, initial.barangayIds)
     || title !== initial.title || date !== initial.date || time !== initial.time || venue !== initial.venue || body !== initial.body
-    || isPinned !== initial.isPinned || !!imageFile || removeCurrentImage;
+    || isPinned !== initial.isPinned || !!imageFile || removeCurrentImage
+    || kind !== (announcement?.linkedDistributionId ? "schedule" : "post") || eventId !== (announcement?.linkedDistributionId ? String(announcement.linkedDistributionId) : "");
 
   function requestClose() {
     if (saving) return;
@@ -138,8 +219,14 @@ export default function AnnouncementModal({ announcement, barangays: barangaysPr
 
   function validate() {
     const next = {};
-    if (!who.farmers && !who.fa) next.audience = "Choose who can see this post.";
-    if (!allBarangays && barangayIds.length === 0) next.barangays = "Choose at least one barangay.";
+    if (schedule) {
+      if (!eventId) next.event = "Choose the distribution.";
+      else if (target === "tagged" && tagged && tagged.length === 0) next.target = "This distribution has no tagged farmers yet. Tag them first, or choose another option.";
+      else if (target === "choose" && chosen.length === 0) next.target = "Choose at least one farmer.";
+    } else {
+      if (!who.farmers && !who.fa) next.audience = "Choose who can see this post.";
+      if (!allBarangays && barangayIds.length === 0) next.barangays = "Choose at least one barangay.";
+    }
     if (!title.trim()) next.title = "Enter a title.";
     else if (titleTooLong) next.title = `Keep the title to ${MAX_TITLE} characters or fewer.`;
     if (bodyTooLong) next.body = `Keep the details to ${MAX_BODY.toLocaleString()} characters or fewer.`;
@@ -155,7 +242,17 @@ export default function AnnouncementModal({ announcement, barangays: barangaysPr
     setSaving(true);
     setError("");
     try {
-      const fields = { title, date, time, venue, body, audience: audienceFrom(who), allBarangays, barangayIds, isPinned };
+      const fields = schedule
+        ? {
+            title, date, time, venue, body, isPinned,
+            // The distribution's farmers and its barangay's president.
+            audience: "everyone",
+            allBarangays: false,
+            barangayIds: event?.barangayId ? [Number(event.barangayId)] : [],
+            linkedDistributionId: eventId,
+            targetFarmerIds: target === "all" ? null : scheduleFarmers.map((f) => f.farmerId),
+          }
+        : { title, date, time, venue, body, audience: audienceFrom(who), allBarangays, barangayIds, isPinned, linkedDistributionId: null, targetFarmerIds: null };
       const saved = editing
         ? await updateAnnouncement(announcement.id, fields, { imageFile, removeCurrentImage, currentImagePath: announcement.imagePath })
         : await createAnnouncement(fields, imageFile);
@@ -195,6 +292,80 @@ export default function AnnouncementModal({ announcement, barangays: barangaysPr
               <div className="agri-post-author-name">MAO Labangan</div>
             </div>
 
+            <div className="agri-post-field">
+              <div className="agri-form-label" id="post-kind">Type of post</div>
+              <div className="agri-post-switch" role="radiogroup" aria-labelledby="post-kind">
+                {[["post", "Announcement"], ["schedule", "Distribution schedule"]].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={kind === value}
+                    className={kind === value ? "on" : ""}
+                    onClick={() => {
+                      setKind(value);
+                      setErrors({});
+                    }}
+                    disabled={saving}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {schedule ? (
+              <>
+                <div className="agri-post-field">
+                  <label className="agri-form-label" htmlFor="post-event">Distribution <Req /></label>
+                  <select id="post-event" className={`form-select${errors.event ? " is-invalid" : ""}`} value={eventId} onChange={(e) => chooseEvent(e.target.value)} disabled={saving || !distributions}>
+                    <option value="" disabled>{distributions ? (distributions.length ? "Choose the distribution" : "No ongoing distributions") : "Loading distributions…"}</option>
+                    {(distributions ?? []).map((d) => (
+                      <option key={d.id} value={String(d.id)}>{d.program} · {formatDate(d.date)} · Barangay {d.barangay}</option>
+                    ))}
+                  </select>
+                  {errors.event && <div className="agri-post-field-error" role="alert">{errors.event}</div>}
+                </div>
+
+                <div className="agri-post-field">
+                  <div className="agri-form-label" id="post-target">Who can see this? <Req /></div>
+                  <div className="agri-post-switch agri-post-switch-3" role="radiogroup" aria-labelledby="post-target">
+                    {TARGETS.map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={target === value}
+                        className={target === value ? "on" : ""}
+                        onClick={() => {
+                          setTarget(value);
+                          clear("target");
+                          if (value === "choose" && chosen.length === 0 && tagged) setChosen(tagged);
+                        }}
+                        disabled={saving || !eventId}
+                      >
+                        {value === "tagged" && tagged ? `${label} (${tagged.length})` : label}
+                      </button>
+                    ))}
+                  </div>
+                  {target === "choose" && eventId && (
+                    <div style={{ marginTop: 8 }}>
+                      <FarmerTagInput
+                        taggedFarmers={chosen}
+                        onAddFarmer={(f) => {
+                          setChosen((list) => (list.some((x) => x.farmerId === f.id) ? list : [...list, { farmerId: f.id, firstName: f.firstName, lastName: f.lastName }]));
+                          clear("target");
+                        }}
+                        onRemoveFarmer={(farmerId) => setChosen((list) => list.filter((x) => x.farmerId !== farmerId))}
+                        disabled={saving}
+                      />
+                    </div>
+                  )}
+                  {errors.target && <div className="agri-post-field-error" role="alert">{errors.target}</div>}
+                </div>
+              </>
+            ) : (
+              <>
             <div className="agri-post-field">
               <div className="agri-form-label" id="post-who">Who can see this? <Req /></div>
               <div className="agri-post-chips" role="group" aria-labelledby="post-who">
@@ -248,9 +419,11 @@ export default function AnnouncementModal({ announcement, barangays: barangaysPr
               )}
               {errors.barangays && <div className="agri-post-field-error" role="alert">{errors.barangays}</div>}
             </div>
+              </>
+            )}
 
             <div className={`agri-post-summary${summary ? "" : " pending"}`} aria-live="polite">
-              {summary ? <><Eye size={13} aria-hidden="true" /> {summary}</> : "Choose who can see this post and where."}
+              {summary ? <><Eye size={13} aria-hidden="true" /> {summary}</> : schedule ? "Choose the distribution." : "Choose who can see this post and where."}
             </div>
 
             <div className="agri-post-field">

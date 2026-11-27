@@ -4863,3 +4863,15 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   border-style: dashed;
   color: var(--agri-text-muted);
 }
+/* A farmer who is their barangay's Farmers' Association President. */
+.agri-president-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--agri-purple-bg);
+  color: var(--agri-purple);
+}

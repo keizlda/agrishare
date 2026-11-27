@@ -32,10 +32,14 @@ export function PostEventRow({ post }) {
 export function PostAudience({ post, barangays, limit = Infinity }) {
   const names = barangayNames(post, barangays);
   const where = post.allBarangays ? "All barangays" : names.length > limit ? `${names.slice(0, limit).join(", ")} +${names.length - limit} more` : names.join(", ");
+  // A distribution's schedule: "Distribution schedule: RCEF … · 12 farmers · Langapod".
+  const who = post.linkedDistributionId
+    ? `Distribution schedule${post.program ? `: ${post.program}` : ""} · ${post.targetFarmerIds ? `${post.targetFarmerIds.length} ${post.targetFarmerIds.length === 1 ? "farmer" : "farmers"}` : "All farmers"}`
+    : post.audienceLabel;
   return (
     <div className="agri-post-audience-line" title={post.allBarangays ? undefined : names.join(", ")}>
       <Users size={13} aria-hidden="true" />
-      <span><span className="visually-hidden">Who can see this: </span>{post.audienceLabel} · {where}</span>
+      <span><span className="visually-hidden">Who can see this: </span>{who} · {where}</span>
     </div>
   );
 }

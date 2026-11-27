@@ -15,7 +15,7 @@ export function isValidRsbsaFormat(rsbsaNo) {
 const SELECT = `
   farmer_id, profile_id, deleted_at, rsbsa_no, surname, first_name, middle_name, sex, birth_date, contact_no,
   household_head, household_members, org_affiliation, association_id, status, created_at,
-  profiles!profile_id ( avatar_url ),
+  profiles!profile_id ( avatar_url, role ),
   addresses ( street, sitio_id, barangay, barangay_id, municipality, province ),
   farm_parcels ( farm_location, sitio_id, farm_size_hectares, ownership_type, is_pcic_insured, livestock_details, crops ( crop_type, crop_type_id ) ),
   farmer_types ( id, name, sort_order )
@@ -89,6 +89,9 @@ function mapFarmer(row) {
     rsbsaNo: row.rsbsa_no,
     rsbsaValid: isValidRsbsaFormat(row.rsbsa_no),
     avatarUrl: row.profiles?.avatar_url ?? null,
+    // Made the barangay's Farmers' Association President: same login, now
+    // only a president (not tagged in distributions by type).
+    isFaPresident: row.profiles?.role === "fa_president",
     firstName: row.first_name,
     middleName: row.middle_name ?? "",
     lastName: row.surname,

@@ -14,7 +14,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 // Distribution reports filter by the distribution's status; the Harvest
 // Report by the harvest report's.
 const STATUS_OPTIONS = ["All Status", "Ongoing", "Completed"];
-const HARVEST_STATUS_OPTIONS = ["All Status", "Submitted", "Verified", "Rejected"];
+const HARVEST_STATUS_OPTIONS = ["All Status", "Pending", "Approved", "Rejected"];
 // List of Farmers: the farmer's own status, sex, type of farmer and
 // farmers' association (types and associations: the lists in Settings).
 const FARMER_STATUS_OPTIONS = ["All Status", "Active", "Inactive"];

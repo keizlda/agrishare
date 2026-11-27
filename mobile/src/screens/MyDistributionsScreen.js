@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Truck, X } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -36,7 +36,7 @@ function withYearHeaders(distributions) {
   return rows;
 }
 
-export default function MyDistributionsScreen({ navigation }) {
+export default function MyDistributionsScreen({ navigation, route }) {
   const [distributions, setDistributions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +64,15 @@ export default function MyDistributionsScreen({ navigation }) {
   }
 
   const rows = useMemo(() => withYearHeaders(distributions), [distributions]);
+
+  // Opened from a distribution on Home: show that one's details.
+  const claimId = route?.params?.claimId;
+  useEffect(() => {
+    if (claimId == null || !distributions.length) return;
+    const hit = distributions.find((d) => d.claimId === claimId);
+    if (hit) setOpen(hit);
+    navigation.setParams({ claimId: undefined });
+  }, [claimId, distributions, navigation]);
 
   return (
     <View style={styles.screen}>

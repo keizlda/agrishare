@@ -173,7 +173,15 @@ export default function HomeScreen({ navigation }) {
         ) : (
           <View style={styles.card}>
             {recent.map((d, i) => (
-              <View key={d.claimId} style={[styles.distRow, i === recent.length - 1 && styles.lastRow]}>
+              // Tapping a distribution opens its details (My Distributions).
+              <TouchableOpacity
+                key={d.claimId}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate("MyDistributions", { claimId: d.claimId })}
+                style={[styles.distRow, i === recent.length - 1 && styles.lastRow]}
+                accessibilityRole="button"
+                accessibilityLabel={`${d.program}, ${formatDate(d.date)}. Open details`}
+              >
                 <View style={styles.distIcon}>
                   <Leaf size={16} color={colors.primaryDark} />
                 </View>
@@ -184,7 +192,7 @@ export default function HomeScreen({ navigation }) {
                   </Text>
                 </View>
                 <Pill status={recentBadge(d.status)} />
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}

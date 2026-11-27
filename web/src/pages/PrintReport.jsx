@@ -389,7 +389,7 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
   requests = requests.filter((r) => inReportBarangay(filters, r.barangay, r.barangayId));
   const active = farmers.filter((f) => f.status === "Active").length;
   // Validation is per proof-of-planting submission, not per farmer.
-  const validatedSubmissions = submissions.filter((s) => s.status === "Validated").length;
+  const approvedSubmissions = submissions.filter((s) => s.status === "Approved").length;
 
   return (
     <div className="pr-section">
@@ -397,12 +397,12 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
       <div className="pr-kv-grid">
         <KV label="Total Registered Farmers" value={farmers.length} />
         <KV label="Active Farmers" value={active} />
-        <KV label="Proof of Planting Validated" value={`${validatedSubmissions} of ${submissions.length} submissions`} />
+        <KV label="Proof of Planting Approved" value={`${approvedSubmissions} of ${submissions.length} submissions`} />
         <KV label="Completed Distribution Activities" value={completed.length} />
         <KV label="Total Quantity Distributed" value={totalQty} />
         <KV label="Commodities Available" value={commodities.filter((c) => !c.deletedAt).length} />
         <KV label="Harvest Reported" value={harvestSummary(filterHarvests(harvests, { ...filters, status: "All Status", commodity: "All Commodities" }))} />
-        <KV label="Harvest Verified by the MAO" value={harvestSummary(filterHarvests(harvests, { ...filters, status: "Verified", commodity: "All Commodities" }))} />
+        <KV label="Harvest Approved by the MAO" value={harvestSummary(filterHarvests(harvests, { ...filters, status: "Approved", commodity: "All Commodities" }))} />
       </div>
       <FarmerRequestCounts requests={requests} filters={filters} />
       {allBarangays(filters) && (
@@ -413,7 +413,7 @@ function AccomplishmentReport({ farmers, distributions, commodities, submissions
           columns={[
             { label: "Farmers", value: (l) => l.filter((x) => x.kind === "farmer").length.toLocaleString(), num: true },
             { label: "Active", value: (l) => l.filter((x) => x.kind === "farmer" && x.f.status === "Active").length.toLocaleString(), num: true },
-            { label: "Planting Validated", value: (l) => `${l.filter((x) => x.kind === "planting" && x.s.status === "Validated").length} of ${l.filter((x) => x.kind === "planting").length}`, num: true },
+            { label: "Planting Approved", value: (l) => `${l.filter((x) => x.kind === "planting" && x.s.status === "Approved").length} of ${l.filter((x) => x.kind === "planting").length}`, num: true },
             { label: "Completed Distributions", value: (l) => l.filter((x) => x.kind === "distribution").length.toLocaleString(), num: true },
             { label: "Harvest Reported (kg)", value: (l) => formatKg(l.filter((x) => x.kind === "harvest").reduce((s, x) => s + (Number(x.h.yieldKg) || 0), 0)), num: true },
           ]}
@@ -596,7 +596,7 @@ function FarmerList({ farmers, filters }) {
 
 
 // Harvest reports in the report's filters: harvest date range, barangay,
-// crop (commodity) and status (Submitted / Verified / Rejected).
+// crop (commodity) and status (Pending / Approved / Rejected).
 function filterHarvests(harvests, filters) {
   const { commodity, dateFrom, dateTo, status } = filters;
   return harvests

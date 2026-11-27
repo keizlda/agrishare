@@ -21,6 +21,10 @@ function rsbsaToSyntheticEmail(rsbsaNo) {
 const DEACTIVATED =
   "This account is no longer active. Please contact your Farmers' Association President or the Municipal Agriculture Office.";
 const NOT_A_FARMER = "This app is for farmers. Please use the AgriShare web system.";
+// A farmer made their barangay's Farmers' Association President: same login,
+// now on the web system only.
+export const NOW_A_PRESIDENT =
+  "You are now your barangay's Farmers' Association President. Sign in on the AgriShare website with the same login ID and password.";
 
 export function AuthProvider({ children }) {
   const [farmer, setFarmer] = useState(null);
@@ -43,6 +47,16 @@ export function AuthProvider({ children }) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     try {
+      // Someone made a Farmers' Association President while signed in here
+      // is signed out of the farmer app.
+      const { data: account, error: roleErr } = await supabase.from("profiles").select("role").eq("id", session.user.id).single();
+      if (roleErr) throw roleErr;
+      if (account?.role && account.role !== "farmer") {
+        manualSignOut.current = true;
+        await supabase.auth.signOut({ scope: "local" });
+        setSignOutReason(account.role === "fa_president" ? "president" : "not-farmer");
+        return;
+      }
       setFarmer(await getMyFarmerProfile(session.user.id));
       setBootError(null);
     } catch (err) {
@@ -110,6 +124,7 @@ export function AuthProvider({ children }) {
     try {
       const { data: account, error: roleErr } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
       if (roleErr) throw roleErr;
+      if (account?.role === "fa_president") throw new Error(NOW_A_PRESIDENT);
       if (account?.role !== "farmer") throw new Error(NOT_A_FARMER);
       const profile = await getMyFarmerProfile(data.user.id);
       setFarmer(profile);

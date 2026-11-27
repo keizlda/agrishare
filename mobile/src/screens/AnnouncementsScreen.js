@@ -19,6 +19,7 @@ const TABS = ["Announcements", "Unread", UPDATES_TAB];
 // type -> Ionicons name + color, matching the web bell (validated=green check,
 // rejected=red x, request=inbox).
 const UPDATE_ICONS = {
+  approved: { name: "checkmark-circle", color: colors.primaryDark, bg: colors.primaryLight },
   validated: { name: "checkmark-circle", color: colors.primaryDark, bg: colors.primaryLight },
   rejected: { name: "close-circle", color: colors.red, bg: colors.redBg },
   request: { name: "file-tray-outline", color: colors.purple, bg: colors.purpleBg },
@@ -94,7 +95,7 @@ export default function AnnouncementsScreen({ navigation }) {
     // the item itself when the notification names it (/validation/harvest/12).
     const item = /\/validation\/(planting|harvest)\/(\d+)/.exec(u.link ?? "");
     if (item) navigation.navigate("MainTabs", { screen: "Validation", params: { open: { kind: item[1], id: Number(item[2]) } } });
-    else if (u.type === "validated" || u.type === "rejected" || u.type === "harvest") navigation.navigate("MainTabs", { screen: "Validation" });
+    else if (u.type === "approved" || u.type === "validated" || u.type === "rejected" || u.type === "harvest") navigation.navigate("MainTabs", { screen: "Validation" });
     else if (u.type === "request") navigation.navigate("Requests");
     else if (u.type === "distribution") navigation.navigate("MyDistributions");
     else if (u.type === "announcement") setTab("Announcements");

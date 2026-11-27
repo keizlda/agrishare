@@ -13,16 +13,14 @@ export const TYPE_TABS = [
   { value: "harvest", label: "Harvest" },
 ];
 
-// Planting: Pending / Validated / Rejected. Harvest: Submitted / Verified /
-// Rejected. The filter groups them: Approved = validated or verified,
-// Rejected = rejected (either kind).
+// Proof of planting and harvest reports: Pending / Approved / Rejected.
 export const STATUS_FILTERS = [
   { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
 ];
-const GROUP = { Pending: "pending", Validated: "approved", Rejected: "rejected", submitted: "pending", verified: "approved", rejected: "rejected" };
+const GROUP = { Pending: "pending", Approved: "approved", Rejected: "rejected", pending: "pending", approved: "approved", rejected: "rejected" };
 // Older links: ?status=Pending, ?status=submitted, ?status=declined …
 const LEGACY_STATUS = { pending: "pending", submitted: "pending", validated: "approved", verified: "approved", rejected: "rejected", returned: "rejected", declined: "rejected", all: "all", approved: "approved" };
 

@@ -1438,7 +1438,7 @@
       "submitted_at": "2026-10-15T12:09:00+08:00",
       "latitude": 7.86746,
       "longitude": 123.50593,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified."
     },
     {
@@ -1450,7 +1450,7 @@
       "submitted_at": "2026-10-12T09:27:00+08:00",
       "latitude": 7.880596,
       "longitude": 123.507844,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified."
     },
     {
@@ -1474,7 +1474,7 @@
       "submitted_at": "2026-10-03T07:58:00+08:00",
       "latitude": 7.873198,
       "longitude": 123.528931,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified."
     },
     {
@@ -1486,7 +1486,7 @@
       "submitted_at": "2026-10-15T15:08:00+08:00",
       "latitude": 7.866955,
       "longitude": 123.517705,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified."
     },
     {
@@ -1498,7 +1498,7 @@
       "submitted_at": "2026-10-03T16:00:00+08:00",
       "latitude": 7.874281,
       "longitude": 123.506494,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified."
     },
     {
@@ -1510,7 +1510,7 @@
       "submitted_at": "2026-10-12T08:35:00+08:00",
       "latitude": 7.852853,
       "longitude": 123.52247,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified."
     },
     {
@@ -1522,7 +1522,7 @@
       "submitted_at": "2026-10-13T08:56:00+08:00",
       "latitude": 7.867809,
       "longitude": 123.509455,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified."
     },
     {
@@ -1534,7 +1534,7 @@
       "submitted_at": "2026-10-02T15:28:00+08:00",
       "latitude": 7.867852,
       "longitude": 123.5248,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified."
     },
     {
@@ -1546,7 +1546,7 @@
       "submitted_at": "2026-10-10T15:38:00+08:00",
       "latitude": 7.866365,
       "longitude": 123.522782,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified."
     },
     {
@@ -1641,7 +1641,7 @@
       "submitted_at": "2026-10-28T10:40:00+08:00",
       "latitude": 7.8613,
       "longitude": 123.5367,
-      "status": "Validated",
+      "status": "Approved",
       "remarks": "Crop verified.",
       "farmer": "Joel Lumapas"
     },
@@ -1972,7 +1972,7 @@
       "area_ha": 1.2,
       "yield_kg": 5040,
       "harvest_date": "2026-04-08",
-      "status": "Verified",
+      "status": "Approved",
       "review_remarks": "Matches the barangay yield survey."
     },
     {
@@ -1995,7 +1995,7 @@
       "area_ha": 2,
       "yield_kg": 7600,
       "harvest_date": "2026-10-28",
-      "status": "Verified",
+      "status": "Approved",
       "review_remarks": ""
     },
     {
@@ -2005,7 +2005,7 @@
       "area_ha": 1.8,
       "yield_kg": 7200,
       "harvest_date": "2026-04-15",
-      "status": "Verified",
+      "status": "Approved",
       "review_remarks": ""
     },
     {
@@ -2037,7 +2037,7 @@
       "area_ha": 3.5,
       "yield_kg": 14700,
       "harvest_date": "2026-04-18",
-      "status": "Verified",
+      "status": "Approved",
       "filed_by": "fa_president",
       "review_remarks": "Checked against the FA's harvest log."
     },
@@ -2071,7 +2071,7 @@
       "area_ha": 0.7,
       "yield_kg": 1200,
       "harvest_date": "2026-11-01",
-      "status": "Verified",
+      "status": "Approved",
       "photo": true,
       "latitude": 7.8627,
       "longitude": 123.5381,

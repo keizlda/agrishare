@@ -19,7 +19,7 @@ import { rowLinkProps } from "../lib/rowLink.js";
 
 const EMPTY = {
   pending: ["No pending submissions", "Everything has been reviewed."],
-  approved: ["No approved submissions", "Validated proof of planting and verified harvest reports appear here."],
+  approved: ["No approved submissions", "Approved proof of planting and harvest reports appear here."],
   rejected: ["No rejected submissions", "Rejected proof of planting and harvest reports appear here."],
   all: ["No submissions yet", "Proof of planting and harvest reports from farmers appear here."],
 };

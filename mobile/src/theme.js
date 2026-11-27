@@ -80,7 +80,6 @@ export const statusColor = (status) => {
     case "Completed":
     case "Approved":
     case "Received":
-    case "Verified":
       return statusColors.success;
     case "Inactive":
     case "Not Validated":

@@ -138,6 +138,46 @@ Updated November 23, 2026 (see the updates below).
   a different account, this tab follows instead of acting as the wrong
   account.
 
+## On `develop` (not on the live site yet): Approved, one president per barangay, schedule posts, tappable distributions
+
+**Design changes (for the paper):** proof of planting and harvest reports are
+both Approved or Rejected; each barangay has one Farmers' Association
+President, who can be chosen from its farmers; distribution schedules are
+announced only to the distribution's farmers; farmers can open a distribution
+from their Home screen.
+
+- **Approved.** Both kinds of submission are Pending → Approved or Rejected,
+  with Approve / Reject buttons (no more Validate/Validated or
+  Verify/Verified/Submitted). Existing records were renamed in the database;
+  the web inbox, filters, badges, dashboard, reports, notifications and the
+  farmer app use the same words.
+- **One Farmers' Association President per barangay.** The MAO Admin can make
+  a farmer the president from the farmer's ⋯ menu on the Farmers page. Same
+  login (the last 6 digits of the RSBSA number, now also accepted on the web
+  sign-in), now only a president: the farmer app turns them away and they
+  aren't tagged in distributions by type. Whenever a barangay gets a new
+  president (from a farmer, a new email account, or a move in Settings), the
+  previous one goes back to being a farmer; one who isn't a farmer can no
+  longer sign in. The dialogs say who will be replaced; Settings shows "Login
+  ID 000229 (farmer)" for presidents made from farmers.
+- **Distribution schedule posts.** Create post → "Distribution schedule":
+  choose the distribution (title, date and venue are filled in), then who can
+  see it: the tagged farmers (default), all farmers of the barangay, or chosen
+  farmers. Only they (and the barangay's Farmers' Association President) see
+  it and are notified. The card reads "Distribution schedule: <program> · 6
+  farmers · Langapod".
+- **Farmer app:** a distribution on Home opens its details (commodity, kg,
+  date, venue, funding source).
+
+Migration (agrishare-dev only): `20261127000000_approved_presidents_schedule_posts.sql`.
+
+| Check (localhost + agrishare-dev) | Result |
+| --- | --- |
+| Database rules on a local copy built like live (Approved, presidents, schedule posts) | 103/103 |
+| Web and farmer app: Approve/Reject, make a farmer president and replace them, web sign-in with login ID, farmer app refuses a president, schedule post for 6 tagged farmers only, Home distribution opens | 15/15 |
+| Direct database calls as each account (barangay scope) | 10/10 |
+| Web lint and production build; farmer app bundle | pass |
+
 ## Live since November 25, 2026: types of farmer, tagging by type, sitios by the Farmers' Association President
 
 **Design changes (for the paper):** farmers are classified by one or more

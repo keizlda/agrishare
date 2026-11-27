@@ -13,7 +13,7 @@ import {
 import { Eye, EyeOff, IdCard, Lock, Sprout, User } from "lucide-react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { colors, radius } from "../theme";
-import { useAuth } from "../context/AuthContext";
+import { NOW_A_PRESIDENT, useAuth } from "../context/AuthContext";
 import { friendlyError, SESSION_EXPIRED_MESSAGE } from "../lib/friendlyError";
 import daSeal from "../assets/da-seal.png";
 
@@ -94,6 +94,8 @@ export default function LoginScreen() {
             <Text style={styles.error}>{error}</Text>
           ) : signOutReason === "expired" ? (
             <Text style={styles.notice}>{SESSION_EXPIRED_MESSAGE}</Text>
+          ) : signOutReason === "president" ? (
+            <Text style={styles.notice}>{NOW_A_PRESIDENT}</Text>
           ) : null}
 
           <Text style={styles.fieldLabel}>RSBSA Number</Text>

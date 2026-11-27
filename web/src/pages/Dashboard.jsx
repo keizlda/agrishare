@@ -42,7 +42,7 @@ import { inBarangay } from "../lib/listMatch.js";
 // Proof-of-planting submission statuses (validation never applies to a
 // farmer as a person — a farmer is only Active or Inactive).
 const SUBMISSION_SEGMENTS = [
-  { key: "validated", label: "Validated", color: "var(--agri-primary)" },
+  { key: "approved", label: "Approved", color: "var(--agri-primary)" },
   { key: "pending", label: "Pending", color: "var(--agri-orange)" },
   { key: "rejected", label: "Rejected", color: "var(--agri-red-soft)" },
 ];
@@ -139,12 +139,12 @@ export default function Dashboard() {
 
   const ongoing = distributions.filter((d) => d.status === "Ongoing").length;
   const toReview = requests.filter((r) => r.status === "Pending").length;
-  const harvestToVerify = harvests.filter((h) => h.statusKey === "submitted").length;
+  const harvestToReview = harvests.filter((h) => h.statusKey === "pending").length;
   const chips = [
     isMAO && { count: subStats.pending, label: plural(subStats.pending, "submission to review", "submissions to review"), to: "/validation?type=planting", dot: "var(--agri-orange)" },
     { count: ongoing, label: plural(ongoing, "ongoing distribution", "ongoing distributions"), to: "/distributions?status=Ongoing", dot: "var(--agri-teal)" },
     { count: toReview, label: plural(toReview, "request to review", "requests to review"), to: "/requests?status=pending", dot: "var(--agri-blue)" },
-    isMAO && { count: harvestToVerify, label: plural(harvestToVerify, "harvest report to verify", "harvest reports to verify"), to: "/validation?type=harvest", dot: "var(--agri-primary)" },
+    isMAO && { count: harvestToReview, label: plural(harvestToReview, "harvest report to review", "harvest reports to review"), to: "/validation?type=harvest", dot: "var(--agri-primary)" },
   ].filter((c) => c && c.count > 0);
 
   return (
@@ -224,8 +224,8 @@ export default function Dashboard() {
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="agri-dash-donut-center">
-                    <div className="agri-dash-donut-pct">{pct(subStats.validated)}%</div>
-                    <div className="agri-muted agri-dash-donut-caption">Validated</div>
+                    <div className="agri-dash-donut-pct">{pct(subStats.approved)}%</div>
+                    <div className="agri-muted agri-dash-donut-caption">Approved</div>
                   </div>
                 </div>
                 <div className="agri-dash-legend">

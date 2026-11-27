@@ -34,8 +34,8 @@ export default function FaPresidents() {
     setBusy(true);
     try {
       await setFaPresidentBarangay(moving.fa.id, moving.barangayId);
-      setRows((r) => r.map((x) => (x.id === moving.fa.id ? { ...x, barangayId: Number(moving.barangayId) } : x)));
-      setToast({ tone: "success", message: `${moving.fa.name} now sees Barangay ${nameOf(Number(moving.barangayId))} only.` });
+      load();
+      setToast({ tone: "success", message: `${moving.fa.name} is now the Farmers' Association President of Barangay ${nameOf(Number(moving.barangayId))}.` });
     } catch (err) {
       setToast({ tone: "error", message: friendlyError(err, "Couldn't change the barangay.") });
     } finally {
@@ -62,7 +62,7 @@ export default function FaPresidents() {
       <div className="agri-fa-head">
         <div>
           <div style={{ fontWeight: 700 }}>Farmers&apos; Association Presidents</div>
-          <div className="agri-muted" style={{ fontSize: "0.8rem" }}>Each account belongs to one barangay and can only see that barangay&apos;s farmers, requests, submissions and distributions.</div>
+          <div className="agri-muted" style={{ fontSize: "0.8rem" }}>One per barangay; each can only see that barangay&apos;s farmers, requests, submissions and distributions. A new president replaces the barangay&apos;s current one, who goes back to being a farmer. To make a farmer the president, use the farmer&apos;s ⋯ menu on the Farmers page.</div>
         </div>
         <button type="button" className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setAdding(true)}>
           <Plus size={16} /> Add account
@@ -72,7 +72,7 @@ export default function FaPresidents() {
       <div className="agri-table-wrap">
         <table className="agri-table">
           <thead>
-            <tr><th>Name</th><th>Email</th><th>Barangay</th><th aria-label="Actions" /></tr>
+            <tr><th>Name</th><th>Signs in with</th><th>Barangay</th><th aria-label="Actions" /></tr>
           </thead>
           <tbody>
             {rows === null && <tr><td colSpan={4} className="agri-muted text-center py-4">Loading accounts…</td></tr>}
@@ -80,7 +80,7 @@ export default function FaPresidents() {
             {rows?.map((fa) => (
               <tr key={fa.id}>
                 <td className="agri-row-title">{fa.name || "—"}</td>
-                <td>{fa.email}</td>
+                <td>{fa.loginId ? <>Login ID {fa.loginId} <span className="agri-muted">(farmer)</span></> : fa.email}</td>
                 <td style={{ width: 240 }}>
                   <select
                     className="form-select form-select-sm"
@@ -105,6 +105,7 @@ export default function FaPresidents() {
       {adding && (
         <AddAccount
           barangays={barangays.filter((b) => b.isActive)}
+          presidents={rows ?? []}
           onClose={() => setAdding(false)}
           onCreated={(created) => {
             setAdding(false);
@@ -116,7 +117,7 @@ export default function FaPresidents() {
       {moving && (
         <ConfirmDialog
           title={`Move ${moving.fa.name} to Barangay ${nameOf(Number(moving.barangayId))}?`}
-          message={`They'll see Barangay ${nameOf(Number(moving.barangayId))}'s records only, and no longer ${nameOf(moving.fa.barangayId)}'s.`}
+          message={`They'll see Barangay ${nameOf(Number(moving.barangayId))}'s records only, and no longer ${nameOf(moving.fa.barangayId)}'s.${replacedNote(rows, Number(moving.barangayId), moving.fa.id)}`}
           confirmLabel="Move"
           busy={busy}
           onConfirm={confirmMove}
@@ -139,7 +140,14 @@ export default function FaPresidents() {
   );
 }
 
-function AddAccount({ barangays, onClose, onCreated }) {
+// "Rosario Dumdum, the current president, goes back to being a farmer."
+function replacedNote(rows, barangayId, exceptId = null) {
+  const current = (rows ?? []).filter((r) => r.barangayId === barangayId && r.id !== exceptId);
+  if (!current.length) return "";
+  return ` ${current.map((r) => r.name).join(", ")}, the current president, ${current.some((r) => r.farmerId) ? "goes back to being a farmer" : "will no longer be able to sign in"}.`;
+}
+
+function AddAccount({ barangays, presidents = [], onClose, onCreated }) {
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
@@ -201,6 +209,9 @@ function AddAccount({ barangays, onClose, onCreated }) {
             {barangays.map((b) => <option key={b.id} value={String(b.id)}>{b.name}</option>)}
           </select>
           {errors.barangayId && <div className="agri-post-field-error">{errors.barangayId}</div>}
+          {form.barangayId && replacedNote(presidents, Number(form.barangayId)) && (
+            <div className="agri-tag-note warn" style={{ marginTop: 8, marginBottom: 0 }}>{replacedNote(presidents, Number(form.barangayId)).trim()}</div>
+          )}
           <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>They&apos;ll only see this barangay&apos;s records. A temporary password is made for them.</div>
         </div>
         <div className="agri-modal-footer">

@@ -9,7 +9,7 @@ import ConfirmDialog from "../ui/ConfirmDialog.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import HarvestReportModal from "../harvest/HarvestReportModal.jsx";
 import KindTag from "./KindTag.jsx";
-import { getSignedPhotoUrl, rejectSubmission, validateSubmission } from "../../lib/api/cropValidation.js";
+import { getSignedPhotoUrl, rejectSubmission, approveSubmission } from "../../lib/api/cropValidation.js";
 import { getHarvestPhotoUrl, removeHarvestReport, reviewHarvestReport } from "../../lib/api/harvest.js";
 import { plantingDetails, toItem } from "../../lib/validationInbox.js";
 import { formatHectares, formatKg } from "../../lib/allocation.js";
@@ -96,10 +96,11 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
   const planting = item.kind === "planting";
   const pending = item.group === "pending";
   const canReview = isMAO && pending;
-  const words = planting ? { approve: "Validate", decline: "Reject", approved: "Validated", declined: "Rejected", waiting: "validate" } : { approve: "Verify", decline: "Reject", approved: "Verified", declined: "Rejected", waiting: "verify" };
+  // Both kinds: Approve / Reject (Pending → Approved or Rejected).
+  const words = { approve: "Approve", decline: "Reject", approved: "Approved", declined: "Rejected", waiting: "approve" };
   const ownFiling = !planting && raw.submittedBy === user?.id;
-  const canEdit = !planting && raw.statusKey !== "verified" && (isMAO || ownFiling);
-  const canRemove = !planting && (isMAO || (ownFiling && raw.statusKey !== "verified"));
+  const canEdit = !planting && raw.statusKey !== "approved" && (isMAO || ownFiling);
+  const canRemove = !planting && (isMAO || (ownFiling && raw.statusKey !== "approved"));
   const lat = raw.latitude;
   const lng = raw.longitude;
   const farmerBarangay = barangays.find((b) => inBarangay(barangays, String(b.id), item.barangayId, item.barangay));
@@ -126,8 +127,8 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
     const goTo = nextPending();
     try {
       const updated = planting
-        ? toItem.planting(kind === "approve" ? await validateSubmission(item.id, text) : await rejectSubmission(item.id, text))
-        : toItem.harvest(await reviewHarvestReport(item.id, kind === "approve" ? "verified" : "rejected", text));
+        ? toItem.planting(kind === "approve" ? await approveSubmission(item.id, text) : await rejectSubmission(item.id, text))
+        : toItem.harvest(await reviewHarvestReport(item.id, kind === "approve" ? "approved" : "rejected", text));
       onChanged(updated);
       onToast({ tone: "success", message: `${planting ? "Submission" : "Harvest report"} ${(kind === "approve" ? words.approved : words.declined).toLowerCase()}. The farmer was notified.` });
       if (goTo) onOpen(goTo);
@@ -286,7 +287,7 @@ export default function SubmissionView({ item, loading, loadError, list, user, i
               <XCircle size={15} /> {saving === "decline" ? "Rejecting…" : words.decline}
             </button>
             <button type="button" className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => decide("approve")} disabled={!!saving}>
-              <CheckCircle2 size={15} /> {saving === "approve" ? `${words.approve === "Validate" ? "Validating" : "Verifying"}…` : words.approve}
+              <CheckCircle2 size={15} /> {saving === "approve" ? "Approving…" : words.approve}
             </button>
           </>
         ) : decided ? (

@@ -38,7 +38,7 @@
 // Farmers' Association President, Approved, Rejected), distributions by
 // farm size × the commodity's rate (one with a 2,000 kg barangay
 // allocation), harvest reports in kg
-// (Submitted, Verified, Rejected; Maui, Claude and Luna only as new rows),
+// (Pending, Approved, Rejected; Maui, Claude and Luna only as new rows),
 // and the default-password reminder turned off for the seeded (evaluator)
 // farmers.
 //
@@ -677,11 +677,12 @@ async function main() {
     saveLedger(ledger);
     await captureNotifs(submitted, ["New crop validation submitted"]);
 
-    const status = s.status.toLowerCase();
+    // Older names in the JSON: Validated is Approved (Nov 27, 2026).
+    const status = { validated: "approved" }[s.status.toLowerCase()] ?? s.status.toLowerCase();
     if (status !== "pending") {
       const reviewedAt = cap(new Date(new Date(submitted).getTime() + 86_400_000).toISOString());
       await must(sb.from("crop_validations").update({ status, remarks: s.remarks || null, reviewed_by: maoId, reviewed_at: reviewedAt }).eq("validation_id", v.validation_id), `review submission ${s.farmer}`);
-      await captureNotifs(reviewedAt, ["Your crop validation was approved", "Your crop validation was rejected"]);
+      await captureNotifs(reviewedAt, ["Your proof of planting was approved", "Your proof of planting was rejected"]);
     }
   }
 
@@ -761,12 +762,13 @@ async function main() {
   // ---------- Harvest reports (kg) ----------
   // Inserted Submitted the way the apps file them (a farmer's own report
   // notifies the MAO Admin and the FA President; one the FA President filed
-  // notifies the MAO Admin and the farmer), then Verified or Rejected by the
+  // notifies the MAO Admin and the farmer), then Approved or Rejected by the
   // MAO Admin (notifies the farmer). Maui, Claude and Luna only get new
   // report rows that reference them. Matched on farmer + harvest date. No
   // Wet/Dry season (retired Nov 24, 2026): the season columns are left empty.
   // "Returned" is the old name of Rejected (Nov 26, 2026).
-  const HARVEST_STATUS = { Submitted: "submitted", Verified: "verified", Rejected: "rejected", Returned: "rejected" };
+  // Older names: Submitted is Pending, Verified is Approved, Returned is Rejected.
+  const HARVEST_STATUS = { Pending: "pending", Approved: "approved", Rejected: "rejected", Submitted: "pending", Verified: "approved", Returned: "rejected" };
   for (const hr of data.harvest_reports ?? []) {
     const fr = farmerByRsbsa.get(hr.rsbsa_number);
     const cid = commodityId.get(hr.commodity);
@@ -800,18 +802,18 @@ async function main() {
       area_harvested_ha: hr.area_ha, yield_kg: hr.yield_kg, harvest_date: hr.harvest_date, remarks: hr.remarks || null,
       photo_path: photoPath, latitude: hr.latitude ?? null, longitude: hr.longitude ?? null,
       gps_accuracy_meters: hr.latitude != null ? GPS_ACCURACY_M : null, photo_captured_at: photoPath ? cap(at(hr.harvest_date, "15:00")) : null,
-      status: "submitted", submitted_by: submittedBy, created_at: created, updated_at: created,
+      status: "pending", submitted_by: submittedBy, created_at: created, updated_at: created,
     }).select("harvest_report_id").single(), `insert harvest report ${hr.farmer}`);
     remember(ledger.harvestReports, { harvest_report_id: row.harvest_report_id, farmer: hr.farmer }, "harvest_report_id");
     bump("harvest_reports");
     saveLedger(ledger);
     await captureNotifs(created, ["New harvest report", "A harvest was reported for you"]);
-    if (status === "submitted") continue;
+    if (status === "pending") continue;
     const reviewedAt = cap(plusDays(created, 2, "10:00"));
     await must(sb.from("harvest_reports").update({
       status, review_remarks: hr.review_remarks || null, reviewed_by: maoId, reviewed_at: reviewedAt, updated_at: reviewedAt,
     }).eq("harvest_report_id", row.harvest_report_id), `review harvest report ${hr.farmer}`);
-    await captureNotifs(reviewedAt, ["Harvest report verified", "Harvest report rejected"]);
+    await captureNotifs(reviewedAt, ["Harvest report approved", "Harvest report rejected"]);
   }
 
   // ---------- Announcements ----------

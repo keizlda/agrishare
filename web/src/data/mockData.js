@@ -70,8 +70,8 @@ export function computeFarmerStats(list) {
 
 export function computeSubmissionStats(submissions) {
   const total = submissions.length;
-  const validated = submissions.filter((s) => s.status === "Validated").length;
+  const approved = submissions.filter((s) => s.status === "Approved").length;
   const pending = submissions.filter((s) => s.status === "Pending").length;
   const rejected = submissions.filter((s) => s.status === "Rejected").length;
-  return { total, validated, pending, rejected };
+  return { total, approved, pending, rejected };
 }

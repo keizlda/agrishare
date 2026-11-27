@@ -8,7 +8,9 @@ import { supabase } from "../supabaseClient";
 const SELECT = `
   announcement_id, title, body, distribution_date, distribution_time, venue,
   audience, all_barangays, barangay_ids, image_url, is_pinned, published_at, created_at, forwarded_at,
-  announcement_reads ( read_at )
+  announcement_reads ( read_at ),
+  linked_distribution_id, target_farmer_ids,
+  distribution:distribution_events!announcements_linked_distribution_id_fkey ( program_name )
 `;
 
 // "Farmers", "Farmers' Association Presidents" or both.
@@ -28,6 +30,8 @@ function mapAnnouncement(row, barangayName) {
     time: row.distribution_time ? row.distribution_time.slice(0, 5) : "",
     venue: row.venue ?? "",
     audienceLabel: audienceLabel(row.audience),
+    // A distribution's schedule (for its farmers): the program.
+    program: row.linked_distribution_id ? row.distribution?.program_name ?? "a distribution" : "",
     allBarangays,
     barangayNames: allBarangays ? [] : (row.barangay_ids ?? []).map((id) => barangayName.get(Number(id)) ?? "Barangay").sort((a, b) => a.localeCompare(b)),
     imagePath: row.image_url,

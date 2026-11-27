@@ -56,16 +56,16 @@ function plantingDetails(s, farmer) {
 function fromPlanting(s, farmer) {
   const d = plantingDetails(s, farmer);
   const area = d.areaHa != null ? `${fmt(Math.round(d.areaHa * 100) / 100)} ha` : null;
-  const step = s.status === "Validated" ? `Validated ${shortDate(s.reviewedAt)}` : s.status === "Rejected" ? `Rejected ${shortDate(s.reviewedAt)}` : "Under review";
+  const step = s.status === "Approved" ? `Approved ${shortDate(s.reviewedAt)}` : s.status === "Rejected" ? `Rejected ${shortDate(s.reviewedAt)}` : "Under review";
   return {
     key: `planting-${s.id}`,
     kind: "planting",
     id: s.id,
     crop: d.crop,
     date: s.submittedAt,
-    stage: s.status === "Pending" ? "pending" : s.status === "Validated" ? "done" : "rejected",
+    stage: s.status === "Pending" ? "pending" : s.status === "Approved" ? "done" : "rejected",
     status: s.status,
-    doneLabel: "Validated",
+    doneLabel: "Approved",
     rejectedLabel: "Rejected",
     summary: [area, step].filter(Boolean).join(" · "),
     latestMeta: [d.crop, area].filter(Boolean).join(" · "),
@@ -97,9 +97,9 @@ function fromHarvest(h) {
     id: h.id,
     crop: h.crop || "Harvest",
     date: filed,
-    stage: h.statusKey === "submitted" ? "pending" : h.statusKey === "verified" ? "done" : "rejected",
+    stage: h.statusKey === "pending" ? "pending" : h.statusKey === "approved" ? "done" : "rejected",
     status: h.status,
-    doneLabel: "Verified",
+    doneLabel: "Approved",
     rejectedLabel: "Rejected",
     summary: [`${fmt(h.yieldKg)} kg`, h.harvestMonth].filter(Boolean).join(" · "),
     latestMeta: [h.crop, h.areaHa != null ? `${fmt(h.areaHa)} ha` : null, `${fmt(h.yieldKg)} kg`].filter(Boolean).join(" · "),

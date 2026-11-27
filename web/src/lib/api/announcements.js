@@ -38,6 +38,8 @@ const SELECT = `
   announcement_id, title, body, audience, all_barangays, barangay_ids,
   distribution_date, distribution_time, venue, image_url, is_pinned, status,
   forwarded_by, forwarded_at, published_at, created_by, created_at, updated_at,
+  linked_distribution_id, target_farmer_ids,
+  distribution:distribution_events!announcements_linked_distribution_id_fkey ( program_name, barangay ),
   announcement_reads ( count )
 `;
 
@@ -62,6 +64,12 @@ function mapAnnouncement(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     readCount: row.announcement_reads?.[0]?.count ?? 0,
+    // A distribution's schedule, for that distribution's farmers: the
+    // distribution, and the chosen farmers (null = every farmer of the
+    // barangay).
+    linkedDistributionId: row.linked_distribution_id ?? null,
+    program: row.distribution?.program_name ?? "",
+    targetFarmerIds: row.target_farmer_ids ? row.target_farmer_ids.map(Number) : null,
   };
 }
 
@@ -129,10 +137,10 @@ export async function getAnnouncementImageUrl(path, expiresInSeconds = 3600) {
 }
 
 // A post: { title, date, time, venue, body, audience, allBarangays,
-// barangayIds, isPinned }. Saving always posts it (a draft from before is
+// barangayIds, isPinned, linkedDistributionId, targetFarmerIds }. Saving always posts it (a draft from before is
 // posted when it's saved); published_at is stamped by the database the
 // moment a post goes up.
-function toDbFields({ title, date, time, venue, body, audience, allBarangays, barangayIds, isPinned }) {
+function toDbFields({ title, date, time, venue, body, audience, allBarangays, barangayIds, isPinned, linkedDistributionId = null, targetFarmerIds = null }) {
   return {
     title: title.trim(),
     body: body.trim(),
@@ -144,6 +152,8 @@ function toDbFields({ title, date, time, venue, body, audience, allBarangays, ba
     barangay_ids: allBarangays ? [] : barangayIds,
     is_pinned: !!isPinned,
     status: "published",
+    linked_distribution_id: linkedDistributionId ? Number(linkedDistributionId) : null,
+    target_farmer_ids: targetFarmerIds ? targetFarmerIds.map(Number) : null,
   };
 }
 
