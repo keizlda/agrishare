@@ -110,6 +110,11 @@ Only when the owner says "deploy to live". Tokens come from the gitignored
    npx supabase@3.2.0 functions deploy manage-fa-account --remote=bofvqdywhyrlbzatvxve --use-api --yes
    ```
 3. **Test data on live (if the release adds any):** `node backend/scripts/seed-test-data.mjs`.
+   Farmers' Association President accounts for barangays that have none
+   (fapresident@<barangay>.gov.ph, temporary passwords):
+   `node backend/scripts/create-fa-presidents.mjs --live --dry-run`, then without
+   `--dry-run`. The sign-ins go to `backend/scripts/fa-president-logins.csv`
+   (gitignored) for the MAO to hand out.
 4. **Web** (from `release/live`; Vercel builds it with its Production environment variables):
    ```bash
    cd web

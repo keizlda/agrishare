@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PasswordReminder from "./PasswordReminder.jsx";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronRight,
@@ -74,6 +75,7 @@ export default function MobileShell() {
       </header>
 
       <main className="agri-mshell-content">
+        <PasswordReminder />
         <ErrorBoundary key={location.pathname.split("/")[1] ?? ""}>
           <Outlet />
         </ErrorBoundary>

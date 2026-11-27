@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { Copy, Crown, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
+import { Copy, KeyRound, Pencil, Plus, Power, Printer, Search, Trash2, Users, X } from "lucide-react";
 import Pill from "../components/ui/Pill.jsx";
 import FarmerAvatar from "../components/ui/FarmerAvatar.jsx";
 import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
@@ -20,7 +20,6 @@ import { useCardLabels } from "../hooks/useCardLabels.js";
 import Toast from "../components/ui/Toast.jsx";
 import { useEscapeToClose } from "../hooks/useEscapeToClose.js";
 import { listAllEntries } from "../lib/api/lists.js";
-import { listFaPresidents, promoteFarmer } from "../lib/api/faPresidents.js";
 import BarangayFilter from "../components/lists/BarangayFilter.jsx";
 import { entryForText, inBarangay } from "../lib/listMatch.js";
 import { PLACE } from "../lib/place.js";
@@ -350,13 +349,6 @@ export default function Farmers() {
   const [viewing, setViewing] = useState(null); // farmer row shown in the read-only profile drawer
   const [pendingDelete, setPendingDelete] = useState(null);
   const [pendingReset, setPendingReset] = useState(null);
-  // Making a farmer the barangay's Farmers' Association President (MAO).
-  const [pendingPromote, setPendingPromote] = useState(null);
-  const [promoting, setPromoting] = useState(false);
-  const [presidents, setPresidents] = useState([]);
-  useEffect(() => {
-    if (isMAO) listFaPresidents().then(setPresidents).catch(() => {});
-  }, [isMAO]);
   const [resetting, setResetting] = useState(false);
   const [accountDialog, setAccountDialog] = useState(null); // { farmerName, rsbsaNo, loginId, password, notice? }
   const [actionError, setActionError] = useState("");
@@ -408,25 +400,6 @@ export default function Farmers() {
       setFarmers((prev) => prev.map((f) => (f.id === id ? { ...f, status: nextStatus } : f)));
     } catch (err) {
       setActionError(friendlyError(err, "Couldn't update this farmer's status."));
-    }
-  }
-
-  async function handlePromote() {
-    const f = pendingPromote;
-    setPromoting(true);
-    setActionError("");
-    try {
-      const r = await promoteFarmer(f.id);
-      setFarmers((prev) => prev.map((x) => (x.id === f.id ? { ...x, isFaPresident: true } : x)));
-      listFaPresidents().then(setPresidents).catch(() => {});
-      setToast({ tone: "success", message: `${r.name} is now the Farmers' Association President of Barangay ${r.barangay}. They sign in on the website with login ID ${r.loginId} and their password.` });
-      // Anyone replaced is a farmer again: refresh their rows' labels.
-      listFarmers().then(setFarmers).catch(() => {});
-    } catch (err) {
-      setActionError(friendlyError(err, "Couldn't make this farmer the Farmers' Association President."));
-    } finally {
-      setPromoting(false);
-      setPendingPromote(null);
     }
   }
 
@@ -523,10 +496,6 @@ export default function Farmers() {
                         isMAO && { key: "edit", label: "Edit", icon: Pencil, onClick: () => setModal({ mode: "edit", farmer: f }) },
                         isMAO &&
                           f.profileId && { key: "reset-password", label: "Reset Password", icon: KeyRound, onClick: () => setPendingReset(f) },
-                        isMAO &&
-                          f.profileId &&
-                          !f.isFaPresident &&
-                          f.status === "Active" && { key: "promote", label: "Make Farmers' Association President", icon: Crown, onClick: () => setPendingPromote(f) },
                         isMAO && { key: "delete", label: "Delete", icon: Trash2, danger: true, onClick: () => setPendingDelete(f) },
                         !isMAO && {
                           key: "toggle-status",
@@ -625,22 +594,6 @@ export default function Farmers() {
           onCancel={() => setPendingDelete(null)}
         />
       )}
-
-      {pendingPromote && (() => {
-        const brgyId = pendingPromote.barangayId ?? lists.barangays.find((b) => b.name === pendingPromote.barangay)?.id;
-        const current = presidents.filter((p) => p.barangayId === brgyId);
-        return (
-          <ConfirmDialog
-            title={`Make ${pendingPromote.firstName} ${pendingPromote.lastName} the Farmers' Association President?`}
-            message={`They become the Farmers' Association President of Barangay ${pendingPromote.barangay} and sign in on the website with login ID ${pendingPromote.rsbsaNo.replace(/\D/g, "").slice(-6)} and their password. They can no longer use the farmer app or be tagged as a farmer.${current.length ? ` ${current.map((p) => p.name).join(", ")}, the current president, ${current.some((p) => p.farmerId) ? "goes back to being a farmer" : "will no longer be able to sign in"}.` : ""}`}
-            confirmLabel="Make president"
-            danger={false}
-            busy={promoting}
-            onConfirm={handlePromote}
-            onCancel={() => setPendingPromote(null)}
-          />
-        );
-      })()}
 
       {pendingReset && (
         <ConfirmDialog

@@ -55,7 +55,7 @@ function readSwitchNotice() {
 async function loadProfile(authUser) {
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("role, full_name, contact_no, barangay_id, barangays!profiles_barangay_id_fkey ( name )")
+    .select("role, full_name, contact_no, barangay_id, must_change_password, barangays!profiles_barangay_id_fkey ( name )")
     .eq("id", authUser.id)
     .single();
   if (error) throw error;
@@ -76,6 +76,8 @@ async function loadProfile(authUser) {
     // that barangay's (the database enforces it).
     barangayId: profile.barangay_id ?? null,
     barangayName: profile.barangays?.name ?? "",
+    // Signed in with a temporary password: a reminder until it's changed.
+    mustChangePassword: !!profile.must_change_password,
     office: role === "FA President" && profile.barangays?.name ? `Farmers' Association - Barangay ${profile.barangays.name}` : ROLE_PROFILES[role]?.office ?? "",
   };
 }
@@ -265,8 +267,11 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  // The password was changed: no more temporary-password reminder.
+  const passwordChanged = () => setUser((u) => (u ? { ...u, mustChangePassword: false } : u));
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, initializing, signOutReason, bootError, retryRestore, login, logout, notice, clearNotice }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, initializing, signOutReason, bootError, retryRestore, login, logout, notice, clearNotice, passwordChanged }}>
       {children}
     </AuthContext.Provider>
   );

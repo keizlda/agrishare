@@ -4875,3 +4875,14 @@ table.agri-table.agri-vinbox-table tr.agri-row-link.selected > td:first-child {
   background: var(--agri-purple-bg);
   color: var(--agri-purple);
 }
+
+/* "You're using a temporary password" (Farmers' Association Presidents and
+   anyone given a new password), above the page until it's changed. */
+.agri-password-reminder {
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.agri-password-reminder .btn {
+  white-space: nowrap;
+}

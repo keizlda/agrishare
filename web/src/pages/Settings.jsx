@@ -171,7 +171,7 @@ function GeneralInformation() {
 const MIN_PASSWORD_LENGTH = 8;
 
 function ChangePassword() {
-  const { user } = useAuth();
+  const { user, passwordChanged } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -217,6 +217,9 @@ function ChangePassword() {
 
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       if (updateError) throw updateError;
+      // No longer a temporary password (the reminder goes away).
+      await supabase.rpc("clear_must_change_password");
+      passwordChanged();
       setToast({ tone: "success", message: "Password updated" });
       setCurrentPassword("");
       setNewPassword("");

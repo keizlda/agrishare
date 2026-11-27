@@ -282,9 +282,6 @@ export default function Distributions() {
             <div className="agri-detail-row"><div><div className="agri-detail-label">Venue</div>{selected.venue}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Funding Source</div>{selected.fundingSource || "—"}</div></div>
             <div className="agri-detail-row"><div><div className="agri-detail-label">Total Beneficiaries</div>{selected.beneficiaries} Farmers</div></div>
-            {selected.allocationKg != null && (
-              <div className="agri-detail-row"><div><div className="agri-detail-label">Barangay Allocation</div>Allocation used: {formatKg(selected.items[0]?.quantity ?? 0)} of {formatKg(selected.allocationKg)}</div></div>
-            )}
             {selected.remarks && (
               <div className="agri-detail-row"><div><div className="agri-detail-label">Remarks</div>{selected.remarks}</div></div>
             )}
@@ -532,8 +529,10 @@ function DeleteDistributionButton({ distribution, onDeleted, onError }) {
 // Allocation by hectare. When the commodity has a kg/ha rate, each tagged
 // farmer gets farm size × that rate. The admin may change a quantity: the
 // row is then "Adjusted" and needs a short reason (the database checks this
-// too). An optional barangay allocation (kg) caps the total. Without a
-// rate, the old equal split is kept.
+// too); the total is their quantities added up. Without a rate, the old
+// equal split is kept. (There's no barangay allocation to type in any more;
+// one saved on an older distribution is kept while the total stays within
+// it.)
 // ---------------------------------------------------------------------------
 const MAX_REASON_LENGTH = 200;
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -604,11 +603,10 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
           venue: distribution.venue,
           taggedBeneficiaries: [],
           quantity: String(primaryItem?.quantity ?? ""),
-          allocation: distribution.allocationKg != null ? String(distribution.allocationKg) : "",
           fundingSource: distribution.fundingSource ?? "",
           status: distribution.status,
         }
-      : { ...EMPTY_FORM, allocation: "", commodityId: String(commodities[0]?.id ?? "") },
+      : { ...EMPTY_FORM, commodityId: String(commodities[0]?.id ?? "") },
   );
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -652,10 +650,6 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
   const unit = commodity?.unit ?? primaryItem?.unit ?? "kg";
   const commodityRate = rateOverride ?? rateOf(commodity);
   const byRate = commodityRate !== null;
-  const showAllocation = isKgUnit(unit);
-  // With a kg/ha rate the barangay allocation is the one quantity typed in
-  // (required); the total is the farmers' quantities added up.
-  const allocationRequired = byRate;
   const rows = form.taggedBeneficiaries;
   const states = new Map(rows.map((r) => [r.farmerId, quantityState(r, commodityRate)]));
 
@@ -857,9 +851,6 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
 
   const taggedTotal = round2(rows.reduce((sum, r) => sum + (Number(r.quantity) || 0), 0));
   const totalIsSum = byRate && rows.length > 0;
-  const allocation = showAllocation && String(form.allocation).trim() !== "" ? Number(form.allocation) : null;
-  const allocated = rows.length ? taggedTotal : Number(form.quantity) || 0;
-  const overAllocation = allocation !== null && allocation > 0 && allocated > allocation + 0.001;
 
   // The distribution's barangay (a list entry), and tagged farmers who live
   // in another one (allowed, with a warning).
@@ -1014,12 +1005,6 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
       if (form.status === "Completed" && form.date > today) return "A completed distribution can't have a future date.";
       if (form.date > `${Number(y) + 1}-${m}-${d}`) return "Enter a date within the next year.";
     }
-    if (allocationRequired && String(form.allocation).trim() === "") {
-      return "Enter the total allocation for the barangay (kg).";
-    }
-    if (showAllocation && String(form.allocation).trim() !== "" && !(/^\d+(\.\d{1,2})?$/.test(String(form.allocation).trim()) && Number(form.allocation) > 0)) {
-      return allocationRequired ? "Enter the barangay allocation as kg greater than 0 (up to 2 decimals)." : "Enter the barangay allocation as kg greater than 0 (up to 2 decimals), or leave it blank.";
-    }
     if (hasUnresolvedDuplicate && !overrideReason.trim()) {
       return "One or more tagged farmers already received this commodity under this program this year. Remove them or provide an override reason.";
     }
@@ -1047,9 +1032,6 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
         return `The farmers' quantities add up to ${formatQuantity(taggedTotal, unit)}, but Total Quantity is ${formatQuantity(total, unit)}. Change them so they match.`;
       }
       if (!totalIsSum && form.quantity !== "" && isSplitQuantity(total, unit)) return `Enter a whole number for Total Quantity: ${wholeOnly}.`;
-    }
-    if (overAllocation) {
-      return `The farmers' quantities (${formatKg(allocated)}) are more than the barangay allocation (${formatKg(allocation)}). Remove farmers, adjust quantities (with a reason), or raise the allocation.`;
     }
     return "";
   }
@@ -1085,7 +1067,10 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
         adjustmentReason: states.get(r.farmerId)?.state === "adjusted" ? r.adjustmentReason.trim() : "",
       }));
       const quantity = byRate ? taggedTotal : form.quantity;
-      const allocationKg = showAllocation && String(form.allocation).trim() !== "" ? Number(form.allocation) : null;
+      // An older distribution's saved barangay allocation stays while the
+      // total is within it (the database refuses a total over it).
+      const oldAllocation = editing ? distribution.allocationKg : null;
+      const allocationKg = oldAllocation != null && Number(quantity) <= oldAllocation + 0.001 ? oldAllocation : null;
       const saved = editing
         ? await updateDistribution(distribution.id, {
             date: form.date,
@@ -1120,9 +1105,6 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
       setSaving(false);
     }
   }
-
-  const pct = allocation ? Math.min(100, (allocated / allocation) * 100) : 0;
-  const barTone = overAllocation ? "red" : allocation && allocated / allocation > 0.9 ? "amber" : "green";
 
   return (
     <div className="agri-modal-backdrop" onClick={onClose}>
@@ -1207,15 +1189,6 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
 
           <div className="agri-detail-section-title">Quantity</div>
           <div className="row g-3 mb-2">
-            {showAllocation && (
-              <div className="col-12 col-sm-6">
-                <label className="agri-form-label" htmlFor="distribution-allocation">
-                  Total allocation for the barangay (kg){allocationRequired && <span style={{ color: "var(--agri-red)" }}> *</span>}
-                </label>
-                <input id="distribution-allocation" inputMode="decimal" className="form-control" placeholder="e.g. 2000" value={form.allocation} onChange={(e) => update("allocation", e.target.value)} disabled={saving} />
-                <div className="agri-field-hint">{allocationRequired ? "Saving is blocked if the farmers' total goes over it." : "Optional. Saving is blocked if the farmers' total goes over it."}</div>
-              </div>
-            )}
             <div className="col-12 col-sm-6">
               <label className="agri-form-label" htmlFor="distribution-total">Total Quantity ({unit})</label>
               {byRate ? (
@@ -1237,21 +1210,6 @@ function DistributionModal({ mode, distribution, commodities, barangays = [], on
               )}
             </div>
           </div>
-
-          {allocation !== null && allocation > 0 && (
-            <div className={`agri-alloc ${barTone}`} role="status">
-              <div className="agri-alloc-text">
-                Allocated {formatKg(allocated)} of {formatKg(allocation)} ·{" "}
-                {overAllocation ? <strong>Over by {formatKg(allocated - allocation)}</strong> : <>Remaining {formatKg(allocation - allocated)}</>}
-              </div>
-              <div className="agri-alloc-track"><div className="agri-alloc-fill" style={{ width: `${pct}%` }} /></div>
-              {overAllocation && (
-                <div className="agri-alloc-warning" role="alert">
-                  Over the barangay allocation. Remove farmers, adjust quantities (with a reason), or raise the allocation before saving.
-                </div>
-              )}
-            </div>
-          )}
 
           {rateNotice && (
             <div className="agri-warning-box" role="status" style={{ alignItems: "center" }}>

@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
-import { KeyRound, Plus, X } from "lucide-react";
+import { KeyRound, Pencil, Plus, X } from "lucide-react";
 import Toast from "../ui/Toast.jsx";
 import ConfirmDialog from "../ui/ConfirmDialog.jsx";
 import { useEscapeToClose } from "../../hooks/useEscapeToClose.js";
 import { useBarangays } from "../../hooks/useBarangays.js";
-import { createFaPresident, listFaPresidents, resetFaPresidentPassword, setFaPresidentBarangay } from "../../lib/api/faPresidents.js";
+import { createFaPresident, listFaPresidents, resetFaPresidentPassword, setFaPresidentBarangay, updateFaPresidentDetails } from "../../lib/api/faPresidents.js";
 import { friendlyError } from "../../lib/friendlyError.js";
 import { CONTACT_ERROR, CONTACT_PLACEHOLDER, contactInput, isValidContact } from "../../lib/contact.js";
 
 const EMPTY = { fullName: "", email: "", contactNo: "", barangayId: "" };
 
 // Settings → Farmers' Association Presidents (MAO Admin): each account and
-// its barangay (the only barangay it can see), a new account, a new
-// temporary password.
+// its barangay (the only barangay it can see), its name and mobile number,
+// a new account, a new temporary password.
 export default function FaPresidents() {
   const barangays = useBarangays();
   const [rows, setRows] = useState(null);
@@ -20,6 +20,7 @@ export default function FaPresidents() {
   const [adding, setAdding] = useState(false);
   const [moving, setMoving] = useState(null); // { fa, barangayId }
   const [resetting, setResetting] = useState(null);
+  const [editing, setEditing] = useState(null); // the account whose name / number is being changed
   const [credentials, setCredentials] = useState(null); // { name, email, password, barangay }
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
@@ -62,7 +63,7 @@ export default function FaPresidents() {
       <div className="agri-fa-head">
         <div>
           <div style={{ fontWeight: 700 }}>Farmers&apos; Association Presidents</div>
-          <div className="agri-muted" style={{ fontSize: "0.8rem" }}>One per barangay; each can only see that barangay&apos;s farmers, requests, submissions and distributions. A new president replaces the barangay&apos;s current one, who goes back to being a farmer. To make a farmer the president, use the farmer&apos;s ⋯ menu on the Farmers page.</div>
+          <div className="agri-muted" style={{ fontSize: "0.8rem" }}>One per barangay; each can only see that barangay&apos;s farmers, requests, submissions and distributions. Each president signs in with their own account. A new president replaces the barangay&apos;s current one.</div>
         </div>
         <button type="button" className="btn btn-agri-primary d-flex align-items-center gap-2" onClick={() => setAdding(true)}>
           <Plus size={16} /> Add account
@@ -91,7 +92,10 @@ export default function FaPresidents() {
                     {barangays.filter((b) => b.isActive || b.id === fa.barangayId).map((b) => <option key={b.id} value={String(b.id)}>{b.name}</option>)}
                   </select>
                 </td>
-                <td className="text-end">
+                <td className="text-end" style={{ whiteSpace: "nowrap" }}>
+                  <button type="button" className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 me-2" onClick={() => setEditing(fa)} aria-label={`Edit ${fa.name}`}>
+                    <Pencil size={14} /> Edit
+                  </button>
                   <button type="button" className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1" onClick={() => setResetting(fa)}>
                     <KeyRound size={14} /> New password
                   </button>
@@ -132,6 +136,17 @@ export default function FaPresidents() {
           busy={busy}
           onConfirm={confirmReset}
           onCancel={() => setResetting(null)}
+        />
+      )}
+      {editing && (
+        <EditDetails
+          fa={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(name) => {
+            setEditing(null);
+            load();
+            setToast({ tone: "success", message: `Saved: ${name}.` });
+          }}
         />
       )}
       {credentials && <CredentialsDialog {...credentials} onClose={() => setCredentials(null)} />}
@@ -216,6 +231,67 @@ function AddAccount({ barangays, presidents = [], onClose, onCreated }) {
         </div>
         <div className="agri-modal-footer">
           <button type="submit" className="btn btn-agri-primary w-100" disabled={saving}>{saving ? "Creating…" : "Create account"}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// The president's name and mobile number (the accounts start as
+// "FA President – <barangay>" until the MAO Admin puts in the real name).
+function EditDetails({ fa, onClose, onSaved }) {
+  const [form, setForm] = useState({ fullName: fa.name ?? "", contactNo: fa.contactNo ?? "" });
+  const [errors, setErrors] = useState({});
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  useEscapeToClose(true, () => !saving && onClose());
+  const update = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => ({ ...e, [k]: undefined }));
+  };
+
+  async function save(e) {
+    e.preventDefault();
+    const next = {};
+    if (!form.fullName.trim()) next.fullName = "Enter the full name.";
+    if (form.contactNo && !isValidContact(form.contactNo)) next.contactNo = CONTACT_ERROR;
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setSaving(true);
+    setError("");
+    try {
+      await updateFaPresidentDetails(fa.id, form);
+      onSaved(form.fullName.trim().replace(/\s+/g, " "));
+    } catch (err) {
+      setError(friendlyError(err, "Couldn't save the changes."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="agri-modal-backdrop" onClick={() => !saving && onClose()}>
+      <form className="agri-card agri-modal" style={{ "--agri-modal-width": "440px" }} role="dialog" aria-label="Edit Farmers' Association President" onClick={(e) => e.stopPropagation()} onSubmit={save} noValidate>
+        <div className="agri-modal-header">
+          <div className="agri-modal-title">Edit Farmers&apos; Association President</div>
+          <button type="button" className="agri-icon-btn" aria-label="Close" onClick={onClose} disabled={saving}><X size={16} /></button>
+        </div>
+        <div className="agri-modal-body">
+          {error && <div className="agri-pill red" role="alert" style={{ display: "block", marginBottom: 12, padding: "8px 12px" }}>{error}</div>}
+          <div className="mb-3">
+            <label className="agri-form-label" htmlFor="fa-edit-name">Full name</label>
+            <input id="fa-edit-name" className={`form-control${errors.fullName ? " is-invalid" : ""}`} maxLength={120} value={form.fullName} onChange={(e) => update("fullName", e.target.value)} disabled={saving} />
+            {errors.fullName && <div className="agri-post-field-error">{errors.fullName}</div>}
+          </div>
+          <div className="mb-1">
+            <label className="agri-form-label" htmlFor="fa-edit-contact">Contact no. (optional)</label>
+            <input id="fa-edit-contact" type="tel" inputMode="numeric" maxLength={11} placeholder={CONTACT_PLACEHOLDER} className={`form-control${errors.contactNo ? " is-invalid" : ""}`} value={form.contactNo} onChange={(e) => update("contactNo", contactInput(e.target.value))} disabled={saving} />
+            {errors.contactNo && <div className="agri-post-field-error">{errors.contactNo}</div>}
+          </div>
+          <div className="agri-muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>They still sign in with {fa.loginId ? `login ID ${fa.loginId}` : fa.email}.</div>
+        </div>
+        <div className="agri-modal-footer">
+          <button type="submit" className="btn btn-agri-primary w-100" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button>
         </div>
       </form>
     </div>

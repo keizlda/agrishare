@@ -3,7 +3,8 @@ import { supabase } from "../supabaseClient.js";
 // Farmers' Association President accounts (Settings, MAO Admin). Each one
 // belongs to one barangay and only sees that barangay's records; a barangay
 // has one president (the database sends the previous one back to being a
-// farmer). A president made from a farmer signs in with their login ID.
+// farmer). Each president has an account of their own (made here); one
+// made from a farmer earlier signs in with their login ID.
 const mapFa = (r) => ({
   id: r.id,
   name: r.full_name,
@@ -21,12 +22,10 @@ export async function listFaPresidents() {
   return (data ?? []).map(mapFa);
 }
 
-// MAO Admin: make a farmer (with a login) the president of their barangay.
-// Returns { name, barangay, loginId, replaced }.
-export async function promoteFarmer(farmerId) {
-  const { data, error } = await supabase.rpc("promote_farmer_to_fa_president", { p_farmer_id: farmerId });
+// MAO Admin: a president's name and mobile number (blank number = none).
+export async function updateFaPresidentDetails(userId, { fullName, contactNo }) {
+  const { error } = await supabase.rpc("update_fa_president_details", { p_user: userId, p_full_name: fullName, p_contact_no: contactNo || null });
   if (error) throw error;
-  return { name: data.name, barangay: data.barangay, loginId: data.login_id, replaced: data.replaced ?? "" };
 }
 
 export async function setFaPresidentBarangay(userId, barangayId) {

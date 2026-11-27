@@ -56,3 +56,6 @@ lerna-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+# Farmers' Association President sign-ins (temporary passwords)
+backend/scripts/fa-president-logins.dev.csv
+backend/scripts/fa-president-logins.csv

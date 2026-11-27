@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { RotateCw, WifiOff } from "lucide-react";
 import Topbar from "./Topbar.jsx";
 import MobileShell from "./MobileShell.jsx";
+import PasswordReminder from "./PasswordReminder.jsx";
 import ErrorBoundary from "../ui/ErrorBoundary.jsx";
 import Toast from "../ui/Toast.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -89,6 +90,7 @@ export default function AppLayout() {
     >
       <Topbar />
       <div className="agri-content">
+        <PasswordReminder />
         <ErrorBoundary key={section}>
           <Outlet />
         </ErrorBoundary>
