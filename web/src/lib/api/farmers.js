@@ -362,6 +362,13 @@ export async function searchFarmers(query, limit = 8) {
   if (digitsOnly) orClauses.push(`rsbsa_digits.ilike.%${digitsOnly}%`);
   const { data, error } = await supabase.from("farmers").select(SEARCH_SELECT).is("deleted_at", null).or(orClauses.join(",")).limit(limit);
   if (error) throw error;
+  // Six digits is a login ID (the last 6 of the RSBSA number): that farmer
+  // first, even when the digits also appear inside other RSBSA numbers.
+  if (/^\d{6}$/.test(q)) {
+    const { data: exact } = await supabase.from("farmers").select(SEARCH_SELECT).is("deleted_at", null).like("rsbsa_no", `%-${q}`).limit(1);
+    const first = exact?.[0];
+    if (first) return [first, ...data.filter((r) => r.farmer_id !== first.farmer_id)].slice(0, limit).map(mapFarmerBrief);
+  }
   return data.map(mapFarmerBrief);
 }
 
