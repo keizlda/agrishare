@@ -7,8 +7,8 @@
 -- distribution: farmers added or removed, a new date or venue, the
 -- barangay; a deleted distribution (or one with nobody tagged) takes it
 -- down. The farmers already get "You're listed in an upcoming distribution",
--- so this post sends no second notification. Ongoing distributions get
--- theirs now.
+-- so this post sends no second notification. Ongoing distributions dated
+-- today or later get theirs now (not ones whose date has passed).
 
 alter table public.announcements add column auto_for_distribution boolean not null default false;
 create unique index announcements_one_auto_post_per_distribution
@@ -230,7 +230,7 @@ begin
 end;
 $function$;
 
--- Ongoing distributions get their post now.
+-- Ongoing distributions get their post now (dated today or later).
 do $$
 declare
   v_event bigint;
@@ -238,6 +238,7 @@ begin
   for v_event in
     select e.event_id from public.distribution_events e
     where e.status = 'ongoing' and not e.is_deleted and e.barangay_id is not null
+      and e.event_date >= current_date
       and exists (select 1 from public.distribution_claims c where c.event_id = e.event_id)
     order by e.event_date, e.event_id
   loop
